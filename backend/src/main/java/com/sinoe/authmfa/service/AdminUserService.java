@@ -21,11 +21,14 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class AdminUserService {
 
+    private static final String USER_NOT_FOUND_PREFIX = "Usuario no encontrado: ";
+
     private final UserRepository users;
     private final StudentRepository students;
     private final TutorRepository tutors;
     private final UserService userService;
     private final TutorStudentRepository tutorStudents;
+    private final TutorStudentAssignmentService tutorStudentAssignmentService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
@@ -176,15 +179,8 @@ public class AdminUserService {
     
     @Transactional
     public User changeUserStatus(Long userId, String statusRaw) {
-        User u = users.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + userId));
-
-        UserStatus newStatus;
-        try {
-            newStatus = UserStatus.valueOf(statusRaw.toUpperCase());
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Estado inválido: " + statusRaw);
-        }
+        User u = findUserByIdOrThrow(userId);
+        UserStatus newStatus = parseUserStatus(statusRaw);
 
         u.setStatus(newStatus);
         return users.save(u);
@@ -194,177 +190,28 @@ public class AdminUserService {
 
     @Transactional
     public AdminUserDtos.CsvImportResult importStudentsFromCsv(String csv) {
-
-        if (csv == null || csv.isBlank()) {
-            throw new IllegalArgumentException("CSV vacío");
-        }
-
-        String normalized = csv.replace("\r", "");
-        String[] lines = normalized.split("\n");
-
-        int total = 0;
-        int created = 0;
-        int skippedExisting = 0;
+        CsvImportCounters counters = new CsvImportCounters();
+        String[] lines = normalizeCsvLines(csv);
 
         for (int i = 0; i < lines.length; i++) {
-
-            String line = lines[i].trim();
-            if (line.isEmpty()) continue;
-
-            if (i == 0 && line.toLowerCase().contains("matricula") && line.toLowerCase().contains("email"))
-                continue;
-
-            total++;
-
-            String[] cols = line.split(";");
-            if (cols.length < 4) {
-                skippedExisting++;
-                continue;
-            }
-
-            String matricula = cols[0].trim();
-            String emailLower = cols[1].trim().toLowerCase();
-            String name = cols[2].trim();
-            String lastNamePaterno = cols[3].trim();
-            String lastNameMaterno = (cols.length > 4 ? emptyToNull(cols[4]) : null);
-            String career = (cols.length > 5 ? emptyToNull(cols[5]) : null);
-            String plan = (cols.length > 6 ? emptyToNull(cols[6]) : null);
-
-            Integer semester = null;
-            if (cols.length > 7 && !cols[7].trim().isEmpty()) {
-                try {
-                    semester = Integer.parseInt(cols[7].trim());
-                } catch (NumberFormatException ignored) {
-                }
-            }
-
-            String phone = (cols.length > 8 ? emptyToNull(cols[8]) : null);
-
-            if (users.existsByEmail(emailLower)) {
-                skippedExisting++;
-                continue;
-            }
-
-            String rawPassword = generateTempPassword();
-            String hash = passwordEncoder.encode(rawPassword);
-
-            User u = User.builder()
-                    .name(name)
-                    .lastNamePaterno(lastNamePaterno)
-                    .lastNameMaterno(lastNameMaterno)
-                    .email(emailLower)
-                    .passwordHash(hash)
-                    .role(UserRole.ESTUDIANTE)
-                    .status(UserStatus.CREATED_BY_ADMIN)
-                    .build();
-
-            initFirstLogin(u);
-            u = users.save(u);
-
-            Student s = Student.builder()
-                    .user(u)
-                    .matricula(matricula)
-                    .career(career)
-                    .plan(plan)
-                    .semester(semester)
-                    .phone(phone)
-                    .build();
-
-            students.save(s);
-            created++;
-
-            emailService.sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken());
+            processStudentCsvLine(lines[i], i == 0, counters);
         }
 
-        return AdminUserDtos.CsvImportResult.builder()
-                .total(total)
-                .created(created)
-                .skippedExisting(skippedExisting)
-                .build();
+        return counters.toCsvImportResult();
     }
 
     // Importar TUTORES CSV
 
     @Transactional
     public AdminUserDtos.CsvImportResult importTutorsFromCsv(String csv) {
-
-        if (csv == null || csv.isBlank()) {
-            throw new IllegalArgumentException("CSV vacío");
-        }
-
-        String normalized = csv.replace("\r", "");
-        String[] lines = normalized.split("\n");
-
-        int total = 0;
-        int created = 0;
-        int skippedExisting = 0;
+        CsvImportCounters counters = new CsvImportCounters();
+        String[] lines = normalizeCsvLines(csv);
 
         for (int i = 0; i < lines.length; i++) {
-
-            String line = lines[i].trim();
-            if (line.isEmpty()) continue;
-
-            if (i == 0 && line.toLowerCase().contains("tutorcode") && line.toLowerCase().contains("email"))
-                continue;
-
-            total++;
-
-            String[] cols = line.split(";");
-            if (cols.length < 4) {
-                skippedExisting++;
-                continue;
-            }
-
-            String tutorCode = cols[0].trim();
-            String emailLower = cols[1].trim().toLowerCase();
-            String name = cols[2].trim();
-            String lastNamePaterno = cols[3].trim();
-
-            String lastNameMaterno = (cols.length > 4 ? emptyToNull(cols[4]) : null);
-            String department = (cols.length > 5 ? emptyToNull(cols[5]) : null);
-            String specialty = (cols.length > 6 ? emptyToNull(cols[6]) : null);
-            String phone = (cols.length > 7 ? emptyToNull(cols[7]) : null);
-
-            if (users.existsByEmail(emailLower)) {
-                skippedExisting++;
-                continue;
-            }
-
-            String rawPassword = generateTempPassword();
-            String hash = passwordEncoder.encode(rawPassword);
-
-            User u = User.builder()
-                    .name(name)
-                    .lastNamePaterno(lastNamePaterno)
-                    .lastNameMaterno(lastNameMaterno)
-                    .email(emailLower)
-                    .passwordHash(hash)
-                    .role(UserRole.TUTOR)
-                    .status(UserStatus.CREATED_BY_ADMIN)
-                    .build();
-
-            initFirstLogin(u);
-            u = users.save(u);
-
-            Tutor t = Tutor.builder()
-                    .user(u)
-                    .tutorCode(tutorCode)
-                    .department(department)
-                    .specialty(specialty)
-                    .phone(phone)
-                    .build();
-
-            tutors.save(t);
-            created++;
-
-            emailService.sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken());
+            processTutorCsvLine(lines[i], i == 0, counters);
         }
 
-        return AdminUserDtos.CsvImportResult.builder()
-                .total(total)
-                .created(created)
-                .skippedExisting(skippedExisting)
-                .build();
+        return counters.toCsvImportResult();
     }
 
     // contraseña temporal
@@ -381,44 +228,15 @@ public class AdminUserService {
 
     // Asignar estudiante a tutor
 
-    @Transactional
     public void assignStudentToTutor(AdminUserDtos.AssignStudentToTutor dto, Long adminUserId) {
-
-        Tutor tutor = tutors.findByTutorCode(dto.getTutorCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Tutor no encontrado con código: " + dto.getTutorCode()));
-
-        Student student = students.findByMatricula(dto.getMatricula())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Estudiante no encontrado con matrícula: " + dto.getMatricula()));
-
-        tutorStudents.findByStudent_Id(student.getId()).ifPresent(existing -> {
-            tutorStudents.delete(existing);
-        });
-
-        User createdBy = null;
-        if (adminUserId != null) {
-            createdBy = users.findById(adminUserId).orElse(null);
-        }
-
-        TutorStudent ts = TutorStudent.builder()
-                .tutor(tutor)
-                .student(student)
-                .createdBy(createdBy)
-                .build();
-
-        tutorStudents.save(ts);
+        tutorStudentAssignmentService.assignStudentToTutor(dto, adminUserId);
     }
 
     // CSV asignación tutor-estudiante
     @Transactional
     public AdminUserDtos.AssignTutorStudentsCsvResult importTutorStudentAssignmentsFromCsv(
-            String csv,
+        String csv,
             Long adminUserId) {
-
-        int total = 0;
-        int assigned = 0;
-        int errors = 0;
 
         if (csv == null || csv.isBlank()) {
             return AdminUserDtos.AssignTutorStudentsCsvResult.builder()
@@ -428,57 +246,13 @@ public class AdminUserService {
                     .build();
         }
 
+        AssignmentImportCounters counters = new AssignmentImportCounters();
         String[] lines = csv.split("\\r?\\n");
-        boolean first = true;
-
-        for (String rawLine : lines) {
-
-            if (rawLine == null) continue;
-
-            String line = rawLine.trim();
-            if (line.isEmpty()) continue;
-
-            if (first) {
-                first = false;
-                String lower = line.toLowerCase();
-                if (lower.contains("tutor") && lower.contains("matricula"))
-                    continue;
-            }
-
-            total++;
-
-            String[] parts = line.split(";");
-            if (parts.length < 2) {
-                errors++;
-                continue;
-            }
-
-            String tutorCode = parts[0].trim();
-            String matricula = parts[1].trim();
-
-            if (tutorCode.isEmpty() || matricula.isEmpty()) {
-                errors++;
-                continue;
-            }
-
-            AdminUserDtos.AssignStudentToTutor dto = AdminUserDtos.AssignStudentToTutor.builder()
-                    .tutorCode(tutorCode)
-                    .matricula(matricula)
-                    .build();
-
-            try {
-                assignStudentToTutor(dto, adminUserId);
-                assigned++;
-            } catch (Exception ex) {
-                errors++;
-            }
+        for (int i = 0; i < lines.length; i++) {
+            processAssignmentCsvLine(lines[i], i == 0, adminUserId, counters);
         }
 
-        return AdminUserDtos.AssignTutorStudentsCsvResult.builder()
-                .total(total)
-                .assigned(assigned)
-                .errors(errors)
-                .build();
+        return counters.toResult();
     }
 
     // Listar asignaciones
@@ -532,9 +306,7 @@ public class AdminUserService {
     // Editar estudiante
     @Transactional
     public Student updateStudentUser(Long userId, AdminUserDtos.UpdateStudentUser dto) {
-
-        User u = users.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + userId));
+        User u = findUserByIdOrThrow(userId);
 
         if (u.getRole() != UserRole.ESTUDIANTE)
             throw new IllegalArgumentException("El usuario no es un ESTUDIANTE");
@@ -626,9 +398,7 @@ public class AdminUserService {
     // Actualizar tutor
     @Transactional
     public Tutor updateTutorUser(Long userId, AdminUserDtos.UpdateTutorUser dto) {
-
-        User u = users.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("No se encontró User con id=" + userId));
+        User u = findUserByIdOrThrow(userId);
 
         if (u.getRole() != UserRole.TUTOR)
             throw new IllegalStateException("El usuario con id=" + userId + " no es TUTOR");
@@ -693,5 +463,310 @@ public class AdminUserService {
         String token = UUID.randomUUID().toString().replace("-", "");
         user.setFirstLoginToken(token);
         user.setFirstLoginExpiresAt(Instant.now().plus(3, ChronoUnit.DAYS));
+    }
+
+    private User findUserByIdOrThrow(Long userId) {
+        return users.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException(USER_NOT_FOUND_PREFIX + userId));
+    }
+
+    private UserStatus parseUserStatus(String statusRaw) {
+        try {
+            return UserStatus.valueOf(statusRaw.toUpperCase());
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Estado inválido: " + statusRaw);
+        }
+    }
+
+    private String[] normalizeCsvLines(String csv) {
+        if (csv == null || csv.isBlank()) {
+            throw new IllegalArgumentException("CSV vacío");
+        }
+        return csv.replace("\r", "").split("\n");
+    }
+
+    private void processStudentCsvLine(String rawLine, boolean firstLine, CsvImportCounters counters) {
+        String line = normalizeCsvLine(rawLine);
+        if (line == null || isStudentHeader(line, firstLine)) {
+            return;
+        }
+
+        counters.incrementTotal();
+        StudentCsvRow row = parseStudentCsvRow(line);
+        if (row == null || users.existsByEmail(row.emailLower())) {
+            counters.incrementSkippedExisting();
+            return;
+        }
+
+        createStudentFromCsvRow(row);
+        counters.incrementCreated();
+    }
+
+    private void processTutorCsvLine(String rawLine, boolean firstLine, CsvImportCounters counters) {
+        String line = normalizeCsvLine(rawLine);
+        if (line == null || isTutorHeader(line, firstLine)) {
+            return;
+        }
+
+        counters.incrementTotal();
+        TutorCsvRow row = parseTutorCsvRow(line);
+        if (row == null || users.existsByEmail(row.emailLower())) {
+            counters.incrementSkippedExisting();
+            return;
+        }
+
+        createTutorFromCsvRow(row);
+        counters.incrementCreated();
+    }
+
+    private void processAssignmentCsvLine(
+            String rawLine,
+            boolean firstLine,
+            Long adminUserId,
+            AssignmentImportCounters counters) {
+        String line = normalizeCsvLine(rawLine);
+        if (line == null || isAssignmentHeader(line, firstLine)) {
+            return;
+        }
+
+        counters.incrementTotal();
+        AdminUserDtos.AssignStudentToTutor dto = parseAssignmentCsvRow(line);
+        if (dto == null) {
+            counters.incrementErrors();
+            return;
+        }
+
+        try {
+            tutorStudentAssignmentService.assignStudentToTutor(dto, adminUserId);
+            counters.incrementAssigned();
+        } catch (Exception ex) {
+            counters.incrementErrors();
+        }
+    }
+
+    private String normalizeCsvLine(String rawLine) {
+        if (rawLine == null) {
+            return null;
+        }
+        String line = rawLine.trim();
+        return line.isEmpty() ? null : line;
+    }
+
+    private boolean isStudentHeader(String line, boolean firstLine) {
+        return firstLine && line.toLowerCase().contains("matricula") && line.toLowerCase().contains("email");
+    }
+
+    private boolean isTutorHeader(String line, boolean firstLine) {
+        return firstLine && line.toLowerCase().contains("tutorcode") && line.toLowerCase().contains("email");
+    }
+
+    private boolean isAssignmentHeader(String line, boolean firstLine) {
+        if (!firstLine) {
+            return false;
+        }
+        String lower = line.toLowerCase();
+        return lower.contains("tutor") && lower.contains("matricula");
+    }
+
+    private StudentCsvRow parseStudentCsvRow(String line) {
+        String[] cols = line.split(";");
+        if (cols.length < 4) {
+            return null;
+        }
+
+        return new StudentCsvRow(
+                cols[0].trim(),
+                cols[1].trim().toLowerCase(),
+                cols[2].trim(),
+                cols[3].trim(),
+                cols.length > 4 ? emptyToNull(cols[4]) : null,
+                cols.length > 5 ? emptyToNull(cols[5]) : null,
+                cols.length > 6 ? emptyToNull(cols[6]) : null,
+                parseSemester(cols, 7),
+                cols.length > 8 ? emptyToNull(cols[8]) : null);
+    }
+
+    private TutorCsvRow parseTutorCsvRow(String line) {
+        String[] cols = line.split(";");
+        if (cols.length < 4) {
+            return null;
+        }
+
+        return new TutorCsvRow(
+                cols[0].trim(),
+                cols[1].trim().toLowerCase(),
+                cols[2].trim(),
+                cols[3].trim(),
+                cols.length > 4 ? emptyToNull(cols[4]) : null,
+                cols.length > 5 ? emptyToNull(cols[5]) : null,
+                cols.length > 6 ? emptyToNull(cols[6]) : null,
+                cols.length > 7 ? emptyToNull(cols[7]) : null);
+    }
+
+    private AdminUserDtos.AssignStudentToTutor parseAssignmentCsvRow(String line) {
+        String[] parts = line.split(";");
+        if (parts.length < 2) {
+            return null;
+        }
+
+        String tutorCode = parts[0].trim();
+        String matricula = parts[1].trim();
+        if (tutorCode.isEmpty() || matricula.isEmpty()) {
+            return null;
+        }
+
+        return AdminUserDtos.AssignStudentToTutor.builder()
+                .tutorCode(tutorCode)
+                .matricula(matricula)
+                .build();
+    }
+
+    private void createStudentFromCsvRow(StudentCsvRow row) {
+        User user = buildCsvUser(
+                row.name(),
+                row.lastNamePaterno(),
+                row.lastNameMaterno(),
+                row.emailLower(),
+                UserRole.ESTUDIANTE);
+        user = saveUserWithFirstLogin(user);
+
+        students.save(Student.builder()
+                .user(user)
+                .matricula(row.matricula())
+                .career(row.career())
+                .plan(row.plan())
+                .semester(row.semester())
+                .phone(row.phone())
+                .build());
+
+        emailService.sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken());
+    }
+
+    private void createTutorFromCsvRow(TutorCsvRow row) {
+        User user = buildCsvUser(
+                row.name(),
+                row.lastNamePaterno(),
+                row.lastNameMaterno(),
+                row.emailLower(),
+                UserRole.TUTOR);
+        user = saveUserWithFirstLogin(user);
+
+        tutors.save(Tutor.builder()
+                .user(user)
+                .tutorCode(row.tutorCode())
+                .department(row.department())
+                .specialty(row.specialty())
+                .phone(row.phone())
+                .build());
+
+        emailService.sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken());
+    }
+
+    private User buildCsvUser(
+            String name,
+            String lastNamePaterno,
+            String lastNameMaterno,
+            String emailLower,
+            UserRole role) {
+        return User.builder()
+                .name(name)
+                .lastNamePaterno(lastNamePaterno)
+                .lastNameMaterno(lastNameMaterno)
+                .email(emailLower)
+                .passwordHash(passwordEncoder.encode(generateTempPassword()))
+                .role(role)
+                .status(UserStatus.CREATED_BY_ADMIN)
+                .build();
+    }
+
+    private User saveUserWithFirstLogin(User user) {
+        initFirstLogin(user);
+        return users.save(user);
+    }
+
+    private Integer parseSemester(String[] cols, int index) {
+        if (cols.length <= index || cols[index].trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(cols[index].trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private record StudentCsvRow(
+            String matricula,
+            String emailLower,
+            String name,
+            String lastNamePaterno,
+            String lastNameMaterno,
+            String career,
+            String plan,
+            Integer semester,
+            String phone) {
+    }
+
+    private record TutorCsvRow(
+            String tutorCode,
+            String emailLower,
+            String name,
+            String lastNamePaterno,
+            String lastNameMaterno,
+            String department,
+            String specialty,
+            String phone) {
+    }
+
+    private static final class CsvImportCounters {
+        private int total;
+        private int created;
+        private int skippedExisting;
+
+        private void incrementTotal() {
+            total++;
+        }
+
+        private void incrementCreated() {
+            created++;
+        }
+
+        private void incrementSkippedExisting() {
+            skippedExisting++;
+        }
+
+        private AdminUserDtos.CsvImportResult toCsvImportResult() {
+            return AdminUserDtos.CsvImportResult.builder()
+                    .total(total)
+                    .created(created)
+                    .skippedExisting(skippedExisting)
+                    .build();
+        }
+    }
+
+    private static final class AssignmentImportCounters {
+        private int total;
+        private int assigned;
+        private int errors;
+
+        private void incrementTotal() {
+            total++;
+        }
+
+        private void incrementAssigned() {
+            assigned++;
+        }
+
+        private void incrementErrors() {
+            errors++;
+        }
+
+        private AdminUserDtos.AssignTutorStudentsCsvResult toResult() {
+            return AdminUserDtos.AssignTutorStudentsCsvResult.builder()
+                    .total(total)
+                    .assigned(assigned)
+                    .errors(errors)
+                    .build();
+        }
     }
 }
