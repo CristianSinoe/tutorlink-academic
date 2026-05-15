@@ -1,0 +1,8 @@
+spring:
+  config:
+    activate:
+      on-profile: demo
+
+logging:
+  level:
+    com.sinoe.authmfa: ${LOG_LEVEL:INFO}
