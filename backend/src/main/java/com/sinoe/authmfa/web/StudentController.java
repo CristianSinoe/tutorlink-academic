@@ -5,16 +5,21 @@ import com.sinoe.authmfa.domain.qa.Question;
 import com.sinoe.authmfa.domain.qa.QuestionRepository;
 import com.sinoe.authmfa.domain.user.Student;
 import com.sinoe.authmfa.domain.user.TutorStudentRepository;
+import com.sinoe.authmfa.dto.ApiPayload;
+import com.sinoe.authmfa.dto.AuthDtos;
 import com.sinoe.authmfa.dto.QaDtos;
 import com.sinoe.authmfa.dto.PagedResponse;
+import com.sinoe.authmfa.dto.qa.AnswerHistoryDto;
 import com.sinoe.authmfa.dto.qa.StudentQuestionDetailDto;
 import com.sinoe.authmfa.mapper.QaMapper;
 import com.sinoe.authmfa.service.AuditService;
 import com.sinoe.authmfa.service.QaService;
 import com.sinoe.authmfa.service.RecaptchaService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +32,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class StudentController {
 
+    private static final String CREATE_QUESTION = "CREATE_QUESTION";
+    private static final String EXCEPTION = "EXCEPTION";
+    private static final String INVALID_RECAPTCHA_MESSAGE = "reCAPTCHA inválido";
+
     private final QaService qa;
     private final QuestionRepository questions;
     private final AnswerRepository answers;
@@ -34,16 +43,9 @@ public class StudentController {
     private final AuditService audit;
     private final TutorStudentRepository tutorStudents;
 
-
-    // DTOs internos
-
-    public record ApiMessage(String message) {
+    public record CreateQuestionResponse(Long id, String status) implements ApiPayload {
     }
 
-    public record CreateQuestionResponse(Long id, String status) {
-    }
-
-    // DTO sencillo para exponer el tutor del estudiante
     public record MyTutorDto(
             Long tutorId,
             String tutorCode,
@@ -55,11 +57,8 @@ public class StudentController {
             String specialty,
             String phone) {
     }
-
-    // 1) CREAR PREGUNTA
-
     @PostMapping("/questions")
-    public ResponseEntity<?> create(
+    public ResponseEntity<ApiPayload> create(
             @Valid @RequestBody QaDtos.NewQuestion dto,
             Authentication auth,
             HttpServletRequest req) {
@@ -72,36 +71,31 @@ public class StudentController {
         try {
             boolean human = recaptcha.verify(dto.getRecaptchaToken(), clientIp);
             if (!human) {
-                audit.log(req, null, "CREATE_QUESTION", false,
-                        "RECAPTCHA_FAIL", "reCAPTCHA inválido");
+                audit.log(req, null, CREATE_QUESTION, false, "RECAPTCHA_FAIL", INVALID_RECAPTCHA_MESSAGE);
                 return ResponseEntity
                         .badRequest()
-                        .body(new ApiMessage("reCAPTCHA inválido"));
+                        .body(new AuthDtos.ApiMessage(INVALID_RECAPTCHA_MESSAGE));
             }
 
-            // 👇 IMPORTANTE: usamos el ID DEL ESTUDIANTE para que se asigne el tutor
             var q = qa.createQuestion(
                     student.getId(),
                     dto.getScope(),
                     dto.getTitle(),
                     dto.getBody());
 
-            audit.log(req, user.getId(), "CREATE_QUESTION", true, null, "creada");
+            audit.log(req, user.getId(), CREATE_QUESTION, true, null, "creada");
 
             return ResponseEntity
                     .created(URI.create("/api/student/questions/" + q.getId()))
                     .body(new CreateQuestionResponse(q.getId(), q.getStatus().name()));
 
         } catch (Exception ex) {
-            audit.log(req, null, "CREATE_QUESTION", false,
-                    "EXCEPTION", ex.getMessage());
+            audit.log(req, null, CREATE_QUESTION, false, EXCEPTION, ex.getMessage());
             return ResponseEntity
                     .internalServerError()
-                    .body(new ApiMessage("Error creando la pregunta"));
+                    .body(new AuthDtos.ApiMessage("Error creando la pregunta"));
         }
     }
-
-    // 2) MIS PREGUNTAS (PAGINADAS)
 
     @GetMapping("/questions/my")
     public ResponseEntity<PagedResponse<QaDtos.QuestionSummary>> myQuestions(
@@ -125,8 +119,6 @@ public class StudentController {
         return ResponseEntity.ok(result);
     }
 
-    // 3) DETALLE DE PREGUNTA PROPIA
-
     @GetMapping("/questions/{id}")
     public ResponseEntity<StudentQuestionDetailDto> getMyQuestionDetail(
             Authentication auth,
@@ -135,16 +127,13 @@ public class StudentController {
         String email = auth.getName();
         var user = qa.requireUserByEmail(email);
 
-        // Solo devuelve detalle si la pregunta pertenece al estudiante
         StudentQuestionDetailDto dto = qa.getStudentQuestionDetail(user.getId(), id);
 
         return ResponseEntity.ok(dto);
     }
 
-    // 4) HISTORIAL DE RESPUESTAS DE UNA PREGUNTA
-
     @GetMapping("/questions/{id}/answers")
-    public ResponseEntity<?> getAnswerHistory(
+    public ResponseEntity<List<AnswerHistoryDto>> getAnswerHistory(
             @PathVariable("id") Long id,
             Authentication auth) {
 
@@ -155,12 +144,10 @@ public class StudentController {
 
         if (q == null || q.getStudent() == null
                 || !q.getStudent().getId().equals(student.getId())) {
-            return ResponseEntity
-                    .status(404)
-                    .body(new ApiMessage("No encontrada"));
+            throw new EntityNotFoundException("No encontrada");
         }
 
-        List<?> list = answers.findByQuestion_IdOrderByVersionAsc(id)
+        List<AnswerHistoryDto> list = answers.findByQuestion_IdOrderByVersionAsc(id)
                 .stream()
                 .map(QaMapper::toHistory)
                 .toList();
@@ -168,10 +155,8 @@ public class StudentController {
         return ResponseEntity.ok(list);
     }
 
-    // 5) CONSULTAR MI TUTOR ASIGNADO
-
     @GetMapping("/my-tutor")
-    public ResponseEntity<?> getMyTutor(Authentication auth) {
+    public ResponseEntity<MyTutorDto> getMyTutor(Authentication auth) {
 
         Long userId = qa.requireUserByEmail(auth.getName()).getId();
         Student student = qa.requireStudentByUserId(userId);
@@ -179,11 +164,7 @@ public class StudentController {
         var opt = tutorStudents.findByStudent_Id(student.getId());
 
         if (opt.isEmpty() || opt.get().getTutor() == null) {
-            // Sin tutor asignado
-            return ResponseEntity.noContent().build();
-            // O si prefieres mensaje:
-            // return ResponseEntity.status(404)
-            //        .body(new ApiMessage("El estudiante aún no tiene tutor asignado"));
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }
 
         var ts = opt.get();
@@ -203,8 +184,6 @@ public class StudentController {
 
         return ResponseEntity.ok(dto);
     }
-
-    // HELPERS
 
     private static String realIp(HttpServletRequest req) {
         String xf = req.getHeader("X-Forwarded-For");

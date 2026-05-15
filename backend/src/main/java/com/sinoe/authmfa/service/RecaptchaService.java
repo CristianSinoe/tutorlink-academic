@@ -1,14 +1,19 @@
 package com.sinoe.authmfa.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.client.RestClient;
 
 @Service
 public class RecaptchaService {
+
+    private static final String VERIFY_URI = "https://www.google.com/recaptcha/api/siteverify";
 
     private final String secret;
     private final RestClient http;
@@ -28,26 +33,29 @@ public class RecaptchaService {
             form.add("remoteip", remoteIp);
 
         RecaptchaResponse resp = http.post()
-                .uri("https://www.google.com/recaptcha/api/siteverify")
+                .uri(VERIFY_URI)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(form)
                 .retrieve()
                 .body(RecaptchaResponse.class);
 
-        return resp != null && resp.success;
+        return resp != null && resp.isSuccess();
     }
 
+    @Getter
+    @Setter
+    @NoArgsConstructor
     public static class RecaptchaResponse {
-        public boolean success;
+        private boolean success;
         @JsonProperty("score")
-        public Double score;
+        private Double score;
         @JsonProperty("action")
-        public String action;
+        private String action;
         @JsonProperty("challenge_ts")
-        public String challengeTs;
+        private String challengeTs;
         @JsonProperty("hostname")
-        public String hostname;
+        private String hostname;
         @JsonProperty("error-codes")
-        public String[] errorCodes;
+        private String[] errorCodes;
     }
 }

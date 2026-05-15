@@ -1,9 +1,11 @@
 package com.sinoe.authmfa.service;
 
+import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -94,9 +96,9 @@ public class EmailService {
 
             mailSender.send(message);
             log.info("Correo enviado a {}", toEmail);
-        } catch (Exception e) {
-            log.error("Error enviando correo a {}: {}", toEmail, e.getMessage(), e);
-            throw new RuntimeException("No se pudo enviar el correo", e);
+        } catch (MessagingException | MailException e) {
+            log.error("Error enviando correo a {} con remitente {}: {}", toEmail, fromEmail, e.getMessage(), e);
+            throw new EmailDeliveryException("No se pudo enviar el correo", e);
         }
     }
 

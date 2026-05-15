@@ -25,6 +25,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private static final List<String> ALLOWED_ORIGINS = List.of(
+            "http://localhost:5173",
+            "http://192.168.100.12:5173",
+            "http://192.168.237.15:5173");
+
     private final JwtAuthFilter jwtAuthFilter;
 
     @Bean
@@ -45,6 +50,7 @@ public class SecurityConfig {
                                 "/api/auth/login/verify-otp",
                                 "/api/auth/first-login",
                                 "/api/auth/first-login/verify-otp",
+                                "/api/internal/bootstrap/admin",
                                 "/error",
                                 "/api/auth/dev/hash"
                         ).permitAll()
@@ -63,11 +69,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://192.168.100.12:5173",
-                "http://192.168.237.15:5173"
-        ));
+        config.setAllowedOrigins(ALLOWED_ORIGINS);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

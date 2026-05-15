@@ -8,6 +8,9 @@ import java.time.LocalDate;
 
 public class AuthDtos {
 
+    private AuthDtos() {
+    }
+
     // REGISTER
 
     @Getter
@@ -88,7 +91,7 @@ public class AuthDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class JwtResponse {
+    public static class JwtResponse implements ApiPayload {
         private String token;
         private String role;
         private String email;
@@ -100,14 +103,14 @@ public class AuthDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class ApiMessage {
+    public static class ApiMessage implements ApiPayload {
         private String message;
     }
 
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class OtpChallengeResponse {
+    public static class OtpChallengeResponse implements ApiPayload {
         private boolean requiresOtp;
         private String otpToken; // publicId del OTP
         private String message;

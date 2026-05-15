@@ -6,6 +6,8 @@ import com.sinoe.authmfa.domain.user.Tutor;
 import com.sinoe.authmfa.domain.user.TutorRepository;
 import com.sinoe.authmfa.domain.user.User;
 import com.sinoe.authmfa.domain.user.UserRepository;
+import com.sinoe.authmfa.dto.ApiPayload;
+import com.sinoe.authmfa.dto.AuthDtos;
 import com.sinoe.authmfa.dto.MeResponseDto;
 
 import lombok.RequiredArgsConstructor;
@@ -26,18 +28,20 @@ public class UserController {
     private final StudentRepository studentRepository;
     private final TutorRepository tutorRepository;
 
+    private static final String USER_NOT_FOUND_MESSAGE = "Usuario no encontrado";
+
     @GetMapping("/me")
-    public ResponseEntity<?> me(Authentication auth) {
+    public ResponseEntity<ApiPayload> me(Authentication auth) {
 
         if (auth == null || auth.getName() == null) {
-            return ResponseEntity.status(401).body(new ApiMessage("Usuario no autenticado"));
+            return ResponseEntity.status(401).body(new AuthDtos.ApiMessage("Usuario no autenticado"));
         }
 
         String email = auth.getName();
 
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
-            return ResponseEntity.status(404).body(new ApiMessage("Usuario no encontrado"));
+            return ResponseEntity.status(404).body(new AuthDtos.ApiMessage(USER_NOT_FOUND_MESSAGE));
         }
 
         // lastName legacy
@@ -152,6 +156,4 @@ public class UserController {
                 )
         );
     }
-
-    record ApiMessage(String message) {}
 }

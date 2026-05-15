@@ -6,9 +6,9 @@ import com.sinoe.authmfa.domain.user.User;
 import com.sinoe.authmfa.domain.user.UserRepository;
 import com.sinoe.authmfa.domain.user.UserRole;
 import com.sinoe.authmfa.dto.AdminUserDtos;
+import com.sinoe.authmfa.dto.AuthDtos;
 import com.sinoe.authmfa.dto.TutorStudentAssignmentDto;
 import com.sinoe.authmfa.service.AdminUserService;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,13 +37,8 @@ public class AdminUserController {
             String status) {
     }
 
-    record ApiMessage(String message) {
-    }
-
-    // Listar todos los usuarios
-
     @GetMapping
-    public ResponseEntity<?> listAll() {
+    public ResponseEntity<List<UserRow>> listAll() {
         List<UserRow> list = users.findAll()
                 .stream()
                 .map(u -> new UserRow(
@@ -58,103 +53,56 @@ public class AdminUserController {
         return ResponseEntity.ok(list);
     }
 
-    // Listar ESTUDIANTES (con estado, plan, birthDate, phone, etc.)
-
     @GetMapping("/students")
-    public ResponseEntity<?> listStudents() {
+    public ResponseEntity<List<AdminUserDtos.StudentListItem>> listStudents() {
         var list = adminUserService.listStudentsWithProfile();
         return ResponseEntity.ok(list);
     }
 
-    // Crear usuario ESTUDIANTE + perfil
-
     @PostMapping("/students")
-    public ResponseEntity<?> createStudent(@Valid @RequestBody AdminUserDtos.CreateStudentUser dto) {
-        try {
-            Student s = adminUserService.createStudentUser(dto);
-            return ResponseEntity.ok(new ApiMessage("Student user created with id=" + s.getId()));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+    public ResponseEntity<AuthDtos.ApiMessage> createStudent(@Valid @RequestBody AdminUserDtos.CreateStudentUser dto) {
+        Student s = adminUserService.createStudentUser(dto);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Student user created with id=" + s.getId()));
     }
-
-    // Actualizar usuario ESTUDIANTE + perfil
 
     @PutMapping("/students/{userId}")
-    public ResponseEntity<?> updateStudent(
+    public ResponseEntity<AuthDtos.ApiMessage> updateStudent(
             @PathVariable("userId") Long userId,
             @Valid @RequestBody AdminUserDtos.UpdateStudentUser dto) {
-        try {
-            Student s = adminUserService.updateStudentUser(userId, dto);
-            return ResponseEntity.ok(new ApiMessage("Student user updated with studentId=" + s.getId()));
-        } catch (EntityNotFoundException ex) {
-            return ResponseEntity.status(404).body(new ApiMessage(ex.getMessage()));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        Student s = adminUserService.updateStudentUser(userId, dto);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Student user updated with studentId=" + s.getId()));
     }
-
-
-    // Crear usuario TUTOR + perfil
 
     @PostMapping("/tutors")
-    public ResponseEntity<?> createTutor(@Valid @RequestBody AdminUserDtos.CreateTutorUser dto) {
-        try {
-            Tutor t = adminUserService.createTutorUser(dto);
-            return ResponseEntity.ok(new ApiMessage("Tutor user created with id=" + t.getId()));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+    public ResponseEntity<AuthDtos.ApiMessage> createTutor(@Valid @RequestBody AdminUserDtos.CreateTutorUser dto) {
+        Tutor t = adminUserService.createTutorUser(dto);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Tutor user created with id=" + t.getId()));
     }
-
-
-    // Importar ESTUDIANTES desde CSV
 
     @PostMapping("/students/import-csv")
-    public ResponseEntity<?> importStudentsCsv(
+    public ResponseEntity<AdminUserDtos.CsvImportResult> importStudentsCsv(
             @Valid @RequestBody AdminUserDtos.CsvTextRequest dto) {
-        try {
-            var result = adminUserService.importStudentsFromCsv(dto.getCsv());
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        var result = adminUserService.importStudentsFromCsv(dto.getCsv());
+        return ResponseEntity.ok(result);
     }
-
-
-    // Importar TUTORES desde CSV
 
     @PostMapping("/tutors/import-csv")
-    public ResponseEntity<?> importTutorsCsv(
+    public ResponseEntity<AdminUserDtos.CsvImportResult> importTutorsCsv(
             @Valid @RequestBody AdminUserDtos.CsvTextRequest dto) {
-        try {
-            var result = adminUserService.importTutorsFromCsv(dto.getCsv());
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        var result = adminUserService.importTutorsFromCsv(dto.getCsv());
+        return ResponseEntity.ok(result);
     }
-
-
-    // Cambiar estado de usuario
 
     @PatchMapping("/{userId}/status")
-    public ResponseEntity<?> changeStatus(
+    public ResponseEntity<AuthDtos.ApiMessage> changeStatus(
             @PathVariable("userId") Long userId,
             @Valid @RequestBody AdminUserDtos.ChangeUserStatus dto) {
-        try {
-            User u = adminUserService.changeUserStatus(userId, dto.getStatus());
-            return ResponseEntity.ok(new ApiMessage("Estado actualizado a " + u.getStatus().name()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        User u = adminUserService.changeUserStatus(userId, dto.getStatus());
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Estado actualizado a " + u.getStatus().name()));
     }
 
-
-    // Asignar estudiante a tutor
-
     @PostMapping("/tutor-students/assign")
-    public ResponseEntity<?> assignStudentToTutor(
+    public ResponseEntity<AuthDtos.ApiMessage> assignStudentToTutor(
             @Valid @RequestBody AdminUserDtos.AssignStudentToTutor dto,
             Authentication auth) {
 
@@ -166,23 +114,14 @@ public class AdminUserController {
             }
         }
 
-        try {
-            adminUserService.assignStudentToTutor(dto, adminId);
-            return ResponseEntity.ok(
-                    new ApiMessage("Estudiante " + dto.getMatricula()
-                            + " asignado a tutor " + dto.getTutorCode()));
-        } catch (jakarta.persistence.EntityNotFoundException ex) {
-            return ResponseEntity.status(404).body(new ApiMessage(ex.getMessage()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        adminUserService.assignStudentToTutor(dto, adminId);
+        return ResponseEntity.ok(
+                new AuthDtos.ApiMessage("Estudiante " + dto.getMatricula()
+                        + " asignado a tutor " + dto.getTutorCode()));
     }
 
-
-    // Asignación masiva de estudiantes a tutores vía CSV
-
     @PostMapping("/tutor-students/import-csv")
-    public ResponseEntity<?> importTutorStudentsCsv(
+    public ResponseEntity<AdminUserDtos.AssignTutorStudentsCsvResult> importTutorStudentsCsv(
             @Valid @RequestBody AdminUserDtos.AssignTutorStudentsCsvRequest dto,
             Authentication auth) {
         Long adminId = null;
@@ -197,11 +136,8 @@ public class AdminUserController {
         return ResponseEntity.ok(result);
     }
 
-
-    // Listar asignaciones TUTOR–ESTUDIANTE
-
     @GetMapping("/tutor-students")
-    public ResponseEntity<?> listAssignments(
+    public ResponseEntity<List<TutorStudentAssignmentDto>> listAssignments(
             @RequestParam(name = "tutorCode", required = false) String tutorCode,
             @RequestParam(name = "matricula", required = false) String matricula) {
 
@@ -209,51 +145,28 @@ public class AdminUserController {
         return ResponseEntity.ok(list);
     }
 
-
-    // Listar TUTORES (con estado, depto, phone, etc.)
-
     @GetMapping("/tutors")
-    public ResponseEntity<?> listTutors() {
+    public ResponseEntity<List<AdminUserDtos.TutorListRow>> listTutors() {
         var list = adminUserService.listTutorsWithProfile();
         return ResponseEntity.ok(list);
     }
 
-
-    // Actualizar usuario TUTOR + perfil
-
     @PutMapping("/tutors/{userId}")
-    public ResponseEntity<?> updateTutor(
+    public ResponseEntity<AuthDtos.ApiMessage> updateTutor(
             @PathVariable("userId") Long userId,
             @Valid @RequestBody AdminUserDtos.UpdateTutorUser dto) {
-        try {
-            Tutor t = adminUserService.updateTutorUser(userId, dto);
-            return ResponseEntity.ok(new ApiMessage("Tutor user updated with tutorId=" + t.getId()));
-        } catch (EntityNotFoundException ex) {
-            return ResponseEntity.status(404).body(new ApiMessage(ex.getMessage()));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        Tutor t = adminUserService.updateTutorUser(userId, dto);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Tutor user updated with tutorId=" + t.getId()));
     }
-
-
-    // Eliminar asignación TUTOR–ESTUDIANTE (DELETE)
 
     @DeleteMapping("/tutor-students/{id}")
-    public ResponseEntity<?> deleteTutorStudentAssignment(@PathVariable("id") Long id) {
-        try {
-            adminUserService.deleteTutorStudentAssignment(id);
-            return ResponseEntity.ok(new ApiMessage("Asignación eliminada correctamente"));
-        } catch (EntityNotFoundException ex) {
-            return ResponseEntity.status(404).body(new ApiMessage(ex.getMessage()));
-        }
+    public ResponseEntity<AuthDtos.ApiMessage> deleteTutorStudentAssignment(@PathVariable("id") Long id) {
+        adminUserService.deleteTutorStudentAssignment(id);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Asignación eliminada correctamente"));
     }
 
-
-    // Sugerencias de estudiantes NO asignados
-    // (para autocomplete del input de matrícula)
-
     @GetMapping("/tutor-students/suggest-students")
-    public ResponseEntity<?> suggestUnassignedStudents(
+    public ResponseEntity<List<StudentSuggestionDto>> suggestUnassignedStudents(
             @RequestParam(name = "q", required = false) String query
     ) {
         java.util.List<StudentSuggestionDto> suggestions =
@@ -261,11 +174,8 @@ public class AdminUserController {
         return ResponseEntity.ok(suggestions);
     }
 
-
-    // Listar administradores
-
     @GetMapping("/admins")
-    public ResponseEntity<?> listAdmins() {
+    public ResponseEntity<List<UserRow>> listAdmins() {
         List<UserRow> list = users.findByRole(UserRole.ADMIN)
                 .stream()
                 .map(u -> new UserRow(
@@ -281,17 +191,10 @@ public class AdminUserController {
         return ResponseEntity.ok(list);
     }
 
-
-    // Crear usuario ADMIN
-
     @PostMapping("/admins")
-    public ResponseEntity<?> createAdmin(
+    public ResponseEntity<AuthDtos.ApiMessage> createAdmin(
             @Valid @RequestBody AdminUserDtos.CreateAdminUser dto) {
-        try {
-            User u = adminUserService.createAdminUser(dto);
-            return ResponseEntity.ok(new ApiMessage("Admin user created with id=" + u.getId()));
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(new ApiMessage(ex.getMessage()));
-        }
+        User u = adminUserService.createAdminUser(dto);
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Admin user created with id=" + u.getId()));
     }
 }

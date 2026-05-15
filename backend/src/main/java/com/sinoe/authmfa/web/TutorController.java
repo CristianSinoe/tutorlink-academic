@@ -2,16 +2,18 @@ package com.sinoe.authmfa.web;
 
 import com.sinoe.authmfa.domain.qa.*;
 import com.sinoe.authmfa.dto.QaDtos;
+import com.sinoe.authmfa.dto.AuthDtos;
+import com.sinoe.authmfa.dto.qa.AnswerHistoryDto;
 import com.sinoe.authmfa.dto.qa.TutorDashboardSummaryDto;
 import com.sinoe.authmfa.dto.qa.TutorHistoryItemDto;
 import com.sinoe.authmfa.dto.qa.TutorRecentQuestionDto;
 import com.sinoe.authmfa.service.AuditService;
 import com.sinoe.authmfa.service.QaService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -34,13 +36,11 @@ public class TutorController {
     private final AuditService audit;
     private final AnswerRepository answers;
 
-    record ApiMessage(String message) {
+    record AnswerActionResponse(Long answerId, String status) {
     }
 
-    // LISTAR PREGUNTAS PENDIENTES
-
     @GetMapping("/questions/pending")
-    public ResponseEntity<?> pending(@RequestParam(required = false) Scope scope) {
+    public ResponseEntity<List<Question>> pending(@RequestParam(required = false) Scope scope) {
 
         List<Question> out = (scope == null)
                 ? questions.findByStatusOrderByCreatedAtAsc(Status.PENDIENTE)
@@ -49,11 +49,8 @@ public class TutorController {
         return ResponseEntity.ok(out);
     }
 
-
-    // RESPONDER
-
     @PostMapping("/questions/{id}/answer")
-    public ResponseEntity<?> answer(
+    public ResponseEntity<AnswerActionResponse> answer(
             @PathVariable("id") Long id,
             @Valid @RequestBody QaDtos.AnswerRequest dto,
             Authentication auth,
@@ -64,21 +61,13 @@ public class TutorController {
 
         audit.log(req, userId, "ANSWER", true, null, "publicada");
 
-        // respuesta JSON sencilla
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("answerId", ans.getId());
-        body.put("status", ans.getQuestion().getStatus().name());
-
         return ResponseEntity
                 .created(URI.create("/api/student/questions/" + id))
-                .body(body);
+                .body(new AnswerActionResponse(ans.getId(), ans.getQuestion().getStatus().name()));
     }
 
-
-    // CORREGIR
-
     @PostMapping("/questions/{id}/correct")
-    public ResponseEntity<?> correct(
+    public ResponseEntity<AnswerActionResponse> correct(
             @PathVariable("id") Long id,
             @Valid @RequestBody QaDtos.AnswerRequest dto,
             Authentication auth,
@@ -89,21 +78,14 @@ public class TutorController {
 
         audit.log(req, userId, "CORRECT", true, null, "corregida");
 
-        java.util.Map<String, Object> body = new java.util.HashMap<>();
-        body.put("answerId", ans.getId());
-        body.put("status", ans.getQuestion().getStatus().name());
-
         return ResponseEntity
                 .created(URI.create("/api/student/questions/" + id))
-                .body(body);
+                .body(new AnswerActionResponse(ans.getId(), ans.getQuestion().getStatus().name()));
     }
 
-
-    // RECHAZAR
-
     @PostMapping("/questions/{id}/reject")
-    public ResponseEntity<?> reject(
-            @PathVariable("id") Long id, // 👈 CAMBIO
+    public ResponseEntity<AuthDtos.ApiMessage> reject(
+            @PathVariable("id") Long id,
             @Valid @RequestBody QaDtos.RejectRequest dto,
             Authentication auth,
             HttpServletRequest req) {
@@ -113,15 +95,12 @@ public class TutorController {
 
         audit.log(req, userId, "REJECT", true, null, dto.getReason());
 
-        return ResponseEntity.ok(new ApiMessage("REJECTED"));
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("REJECTED"));
     }
 
-
-    // RECLASIFICAR
-
     @PostMapping("/questions/{id}/reclassify")
-    public ResponseEntity<?> reclassify(
-            @PathVariable("id") Long id, // 👈 CAMBIO
+    public ResponseEntity<AuthDtos.ApiMessage> reclassify(
+            @PathVariable("id") Long id,
             @Valid @RequestBody QaDtos.ReclassifyRequest dto,
             Authentication auth,
             HttpServletRequest req) {
@@ -131,12 +110,8 @@ public class TutorController {
 
         audit.log(req, userId, "RECLASSIFY", true, null, "to " + dto.getScope());
 
-        return ResponseEntity.ok(new ApiMessage("RECLASSIFIED"));
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("RECLASSIFIED"));
     }
-
-
-    // DASHBOARD DEL TUTOR
-
 
     @GetMapping("/dashboard/summary")
     public ResponseEntity<TutorDashboardSummaryDto> dashboardSummary(Authentication auth) {
@@ -158,50 +133,37 @@ public class TutorController {
 
         List<TutorRecentQuestionDto> list = qa.findRecentQuestionsForTutor(user.getId(), size);
 
-        return new ResponseEntity<>(list, HttpStatus.OK);
+        return ResponseEntity.ok(list);
     }
 
- 
-    // HISTORIAL DE RESPUESTAS (TUTOR)
-
     @GetMapping("/answers/history")
-    public ResponseEntity<?> getAnswerHistoryForTutor(
+    public ResponseEntity<List<AnswerHistoryDto>> getAnswerHistoryForTutor(
             @RequestParam("questionId") Long questionId,
             Authentication auth) {
-        // 1) Obtener al tutor autenticado
         Long userId = qa.requireUserByEmail(auth.getName()).getId();
         Tutor tutor = qa.requireTutorByUserId(userId);
 
-        // 2) Buscar la pregunta
         Question q = questions.findById(questionId).orElse(null);
         if (q == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ApiMessage("Pregunta no encontrada"));
+            throw new EntityNotFoundException("Pregunta no encontrada");
         }
 
-        // 3) Cargar todas las respuestas de esa pregunta
         List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
 
-        // 4) Verificar si hay al menos una respuesta de ESTE tutor
         boolean hasAnswersFromTutor = allAnswers.stream()
                 .anyMatch(a -> a.getTutor() != null
                         && a.getTutor().getId().equals(tutor.getId()));
 
         if (!hasAnswersFromTutor) {
-            // Si el tutor nunca respondió esta pregunta, devolvemos lista vacía
             return ResponseEntity.ok(List.of());
         }
 
-        // 5) Mapear historial con el mismo DTO que usa el estudiante
-        var list = allAnswers.stream()
+        List<AnswerHistoryDto> list = allAnswers.stream()
                 .map(QaMapper::toHistory)
                 .toList();
 
         return ResponseEntity.ok(list);
     }
-
-
-    // PREGUNTAS PENDIENTES DEL TUTOR
 
     @GetMapping("/questions/pending/my")
     public ResponseEntity<java.util.List<TutorPendingQuestionDto>> myPendingQuestions(
@@ -215,9 +177,6 @@ public class TutorController {
 
         return ResponseEntity.ok(list);
     }
-
-
-    // HISTORIAL DE RESPUESTAS (LISTADO)
 
     @GetMapping("/questions/history")
     public ResponseEntity<java.util.List<TutorHistoryItemDto>> history(
@@ -237,18 +196,15 @@ public class TutorController {
         return ResponseEntity.ok(list);
     }
 
-
-    // PERFIL DEL TUTOR
-
     @GetMapping("/profile")
-    public ResponseEntity<?> getProfile(Authentication auth) {
+    public ResponseEntity<TutorProfileDto> getProfile(Authentication auth) {
         Long userId = qa.requireUserByEmail(auth.getName()).getId();
         TutorProfileDto dto = qa.getTutorProfile(userId);
         return ResponseEntity.ok(dto);
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<?> updateProfile(
+    public ResponseEntity<AuthDtos.ApiMessage> updateProfile(
             @RequestBody TutorProfileDto dto,
             Authentication auth,
             HttpServletRequest req) {
@@ -257,7 +213,7 @@ public class TutorController {
 
         audit.log(req, userId, "UPDATE_TUTOR_PROFILE", true, null, null);
 
-        return ResponseEntity.ok(new ApiMessage("Perfil actualizado"));
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Perfil actualizado"));
     }
 
 }

@@ -4,6 +4,7 @@ import com.sinoe.authmfa.dto.AuthDtos;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<AuthDtos.ApiMessage> illegal(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(new AuthDtos.ApiMessage(ex.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<AuthDtos.ApiMessage> illegalState(IllegalStateException ex) {
+        return ResponseEntity.badRequest().body(new AuthDtos.ApiMessage(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ErrorResponseException.class)
+    public ResponseEntity<AuthDtos.ApiMessage> errorResponse(ErrorResponseException ex) {
+        String message = ex.getBody().getDetail();
+        return ResponseEntity.status(ex.getStatusCode()).body(new AuthDtos.ApiMessage(message));
     }
 
     @ExceptionHandler(Exception.class)

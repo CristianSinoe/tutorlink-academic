@@ -8,6 +8,9 @@ import lombok.*;
 
 public class QaDtos {
 
+    private QaDtos() {
+    }
+
     @Getter
     @Setter
     @NoArgsConstructor

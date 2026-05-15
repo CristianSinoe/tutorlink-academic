@@ -24,4 +24,5 @@ public record MeResponseDto(
         String department,
         String specialty,
         String tutorPhone
-) {}
+) implements ApiPayload {
+}

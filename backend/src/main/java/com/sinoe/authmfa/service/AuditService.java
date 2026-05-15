@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AuditService {
+
+    private static final String SYSTEM = "system";
+
     private final AuditLogRepository repo;
 
     public void log(HttpServletRequest req, Long userId, String action, boolean success, String errorCode,
@@ -27,6 +30,20 @@ public class AuditService {
                 .userAgent(ua)
                 .path(req.getRequestURI())
                 .method(req.getMethod())
+                .build());
+    }
+
+    public void logSystem(Long userId, String action, boolean success, String errorCode, String message) {
+        repo.save(AuditLog.builder()
+                .userId(userId)
+                .action(action)
+                .success(success)
+                .errorCode(errorCode)
+                .message(message)
+                .ip(SYSTEM)
+                .userAgent(SYSTEM)
+                .path(SYSTEM)
+                .method("SYSTEM")
                 .build());
     }
 }
