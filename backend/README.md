@@ -23,10 +23,12 @@ API REST de TutorLink construida con Spring Boot, PostgreSQL, Flyway y JWT.
 Configura las variables necesarias antes de ejecutar la aplicacion:
 
 ```bash
+export SPRING_PROFILES_ACTIVE=demo
+
 export DB_HOST=localhost
 export DB_PORT=5432
-export DB_NAME=tutorlink
-export DB_USER=tutorlink_user
+export DB_NAME=tutorlink_demo
+export DB_USER=change_me
 export DB_PASSWORD=change_me
 
 export SECURITY_JWT_SECRET=replace_with_a_secret_at_least_32_chars_long
@@ -35,14 +37,22 @@ export SECURITY_JWT_EXP_MINUTES=120
 export RECAPTCHA_SITE_KEY=test_site_key
 export RECAPTCHA_SECRET_KEY=test_secret_key
 
-export SPRING_MAIL_HOST=smtp.gmail.com
-export SPRING_MAIL_PORT=587
-export SPRING_MAIL_USERNAME=example@example.com
-export SPRING_MAIL_PASSWORD=change_me
-export SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
-export SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+export APP_SEED_ADMIN_ENABLED=true
+export APP_SEED_ADMIN_EMAIL=admin.demo@example.com
+export APP_SEED_ADMIN_NAME="Administrador TutorLink Demo"
+export APP_SEED_ADMIN_PASSWORD=change_me
 
-export EMAIL_FROM="TutorLink <example@example.com>"
+export ADMIN_BOOTSTRAP_ENABLED=true
+export ADMIN_BOOTSTRAP_TOKEN=change_me_long_secure_token
+
+export MAIL_HOST=smtp.gmail.com
+export MAIL_PORT=587
+export MAIL_USERNAME=change_me@gmail.com
+export MAIL_PASSWORD=change_me_app_password
+export MAIL_FROM=change_me@gmail.com
+export MAIL_SMTP_AUTH=true
+export MAIL_SMTP_STARTTLS_ENABLE=true
+
 export FRONTEND_BASE_URL=http://localhost:5173
 export PORT=8080
 export LOG_LEVEL=INFO
@@ -52,13 +62,14 @@ export APP_OTP_MAX_ATTEMPTS=5
 export APP_OTP_RESEND_COOLDOWN_SECONDS=60
 ```
 
-Consulta [`.env.example`](./.env.example) para una referencia segura.
+Consulta [`.env.example`](./.env.example) para una referencia segura del perfil local y demo.
 
 ## Ejecucion local
 
 Levantar la aplicacion:
 
 ```bash
+source .env.demo
 mvn spring-boot:run
 ```
 
@@ -102,4 +113,6 @@ mvn test
 
 - No subas archivos `.env` reales.
 - No subas secretos SMTP, JWT o reCAPTCHA al repositorio.
+- Para Gmail usa una contrasena de aplicacion, no la contrasena normal de la cuenta.
+- El seed de administrador y el endpoint `/api/internal/bootstrap/admin` son solo para `dev`, `local` y `demo`; no los habilites en produccion.
 - Usa valores de ejemplo en archivos versionados y secretos reales solo en el entorno local o en secretos del proveedor de despliegue.
