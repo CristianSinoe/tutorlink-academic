@@ -1,0 +1,64 @@
+server:
+  address: 0.0.0.0          # expone el backend en la red local
+  port: ${PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tutorlink}?sslmode=${DB_SSL_MODE:disable}
+    username: ${DB_USER:tutorlink_user}
+    password: ${DB_PASSWORD:change_me}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.lob.non_contextual_creation: true
+    open-in-view: false
+
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    org.springframework.security: INFO
+  file:
+    name: logs/app.log
+
+security:
+  jwt:
+    secret: ${SECURITY_JWT_SECRET}
+    exp-minutes: ${SECURITY_JWT_EXP_MINUTES:120}
+
+recaptcha:
+  site-key: ${RECAPTCHA_SITE_KEY}
+  secret-key: ${RECAPTCHA_SECRET_KEY}
+
+otp:
+  exp-minutes: ${APP_OTP_EXP_MINUTES:5}
+  max-attempts: ${APP_OTP_MAX_ATTEMPTS:5}
+  resend-cooldown-seconds: ${APP_OTP_RESEND_COOLDOWN_SECONDS:60}
+
+tutorlink:
+  # URL base del frontend para el link de primer login
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  # correo que aparecerá como remitente
+  mail:
+    from: ${EMAIL_FROM:${SPRING_MAIL_USERNAME}}
