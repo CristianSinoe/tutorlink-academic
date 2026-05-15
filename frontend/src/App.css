@@ -57,3 +57,53 @@
   font-size: 0.9rem;
   font-weight: 600;
 }
+
+.action-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1.2rem;
+  background: #123220;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.action-button:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.action-button.secondary {
+  background: rgba(18, 50, 32, 0.12);
+  color: #123220;
+}
+
+.placeholder-card {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(18, 50, 32, 0.08);
+  box-shadow: 0 18px 48px rgba(18, 50, 32, 0.08);
+}
+
+.placeholder-card h2 {
+  margin: 0;
+  color: #123220;
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+}
+
+.placeholder-card p {
+  margin: 0.9rem 0 0;
+  color: #496355;
+  line-height: 1.7;
+}
+
+.placeholder-eyebrow {
+  margin: 0 0 0.4rem;
+  color: #2d7a4a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
