@@ -33,6 +33,9 @@ import com.sinoe.authmfa.dto.qa.TutorProfileDto;
 @RequiredArgsConstructor
 public class QaService {
 
+    private static final String INVALID_QUESTION_STATUS_MESSAGE = "Estado de pregunta inválido: ";
+    private static final String INVALID_QUESTION_SCOPE_MESSAGE = "Scope de pregunta inválido: ";
+
     private final UserRepository users;
     private final StudentRepository students;
     private final TutorRepository tutors;
@@ -178,8 +181,8 @@ public class QaService {
             String status,
             String scope) {
         validatePageRequest(page, size);
-        Status statusEnum = parseOptionalStatus(status, "Estado de pregunta inválido: ");
-        Scope scopeEnum = parseOptionalScope(scope, "Scope de pregunta inválido: ");
+        Status statusEnum = parseOptionalStatus(status, INVALID_QUESTION_STATUS_MESSAGE);
+        Scope scopeEnum = parseOptionalScope(scope, INVALID_QUESTION_SCOPE_MESSAGE);
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<Question> result = findStudentQuestions(studentId, statusEnum, scopeEnum, pageable);
@@ -284,32 +287,7 @@ public class QaService {
                 org.springframework.data.domain.PageRequest.of(0, limit));
 
         return page.getContent().stream()
-                .map(q -> {
-                    String studentName = null;
-                    String studentEmail = null;
-
-                    if (q.getStudent() != null && q.getStudent().getUser() != null) {
-                        var u = q.getStudent().getUser();
-                        StringBuilder fullName = new StringBuilder();
-                        if (u.getName() != null)
-                            fullName.append(u.getName()).append(" ");
-                        if (u.getLastNamePaterno() != null)
-                            fullName.append(u.getLastNamePaterno()).append(" ");
-                        if (u.getLastNameMaterno() != null)
-                            fullName.append(u.getLastNameMaterno());
-                        studentName = fullName.toString().trim();
-                        studentEmail = u.getEmail();
-                    }
-
-                    return new TutorRecentQuestionDto(
-                            q.getId(),
-                            q.getTitle(),
-                            q.getStatus() != null ? q.getStatus().name() : null,
-                            q.getScope() != null ? q.getScope().name() : null,
-                            q.getCreatedAt(),
-                            studentName,
-                            studentEmail);
-                })
+                .map(this::toTutorRecentQuestionDto)
                 .toList();
     }
 
@@ -322,7 +300,7 @@ public class QaService {
         Tutor tutor = requireTutorByUserId(userId);
         java.util.List<Question> base = questions
                 .findByTutor_IdAndStatusOrderByCreatedAtAsc(tutor.getId(), Status.PENDIENTE);
-        Scope scopeToFilter = parseOptionalScopeAllowAll(scopeRaw, "Scope de pregunta inválido: ");
+        Scope scopeToFilter = parseOptionalScopeAllowAll(scopeRaw, INVALID_QUESTION_SCOPE_MESSAGE);
         String term = normalizeSearchTerm(text);
 
         return base.stream()
@@ -349,8 +327,8 @@ public class QaService {
                 tutor.getId(),
                 baseStatuses);
         Stream<Question> stream = base.stream();
-        Status statusFilter = parseOptionalStatus(status, "Estado de pregunta inválido: ");
-        Scope scopeFilter = parseOptionalScope(scope, "Scope de pregunta inválido: ");
+        Status statusFilter = parseOptionalStatus(status, INVALID_QUESTION_STATUS_MESSAGE);
+        Scope scopeFilter = parseOptionalScope(scope, INVALID_QUESTION_SCOPE_MESSAGE);
         String searchTerm = normalizeSearchTerm(text);
 
         stream = filterTutorHistory(stream, statusFilter, scopeFilter, searchTerm);
@@ -371,8 +349,8 @@ public class QaService {
         Tutor tutor = requireTutorByUserId(userId);
         java.util.List<Answer> allAnswers = answers.findByTutor_IdOrderByCreatedAtDesc(tutor.getId());
         Map<Long, Answer> latestByQuestion = latestAnswersByQuestion(allAnswers);
-        Status statusFilter = parseOptionalStatusAllowAll(statusRaw, "Estado de pregunta inválido: ");
-        Scope scopeFilter = parseOptionalScopeAllowAll(scopeRaw, "Scope de pregunta inválido: ");
+        Status statusFilter = parseOptionalStatusAllowAll(statusRaw, INVALID_QUESTION_STATUS_MESSAGE);
+        Scope scopeFilter = parseOptionalScopeAllowAll(scopeRaw, INVALID_QUESTION_SCOPE_MESSAGE);
         String term = normalizeSearchTerm(text);
 
         return latestByQuestion.values().stream()
@@ -536,6 +514,18 @@ public class QaService {
     private TutorPendingQuestionDto toTutorPendingQuestionDto(Question question) {
         StudentContactInfo studentInfo = extractStudentContactInfo(question);
         return new TutorPendingQuestionDto(
+                question.getId(),
+                question.getTitle(),
+                enumName(question.getStatus()),
+                enumName(question.getScope()),
+                question.getCreatedAt(),
+                studentInfo.name(),
+                studentInfo.email());
+    }
+
+    private TutorRecentQuestionDto toTutorRecentQuestionDto(Question question) {
+        StudentContactInfo studentInfo = extractStudentContactInfo(question);
+        return new TutorRecentQuestionDto(
                 question.getId(),
                 question.getTitle(),
                 enumName(question.getStatus()),
