@@ -25,6 +25,7 @@ nbactions.xml
 .env
 .env.*
 !.env.example
+.env.demo
 
 # Otros binarios
 *.jar
