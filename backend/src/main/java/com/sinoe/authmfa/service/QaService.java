@@ -177,53 +177,14 @@ public class QaService {
             int size,
             String status,
             String scope) {
-        if (page < 0) {
-            throw new IllegalArgumentException("El número de página no puede ser negativo");
-        }
-        if (size <= 0 || size > 100) {
-            throw new IllegalArgumentException("El tamaño de página debe estar entre 1 y 100");
-        }
-
-        Status statusEnum = null;
-        if (status != null && !status.isBlank()) {
-            try {
-                statusEnum = Status.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Estado de pregunta inválido: " + status);
-            }
-        }
-
-        Scope scopeEnum = null;
-        if (scope != null && !scope.isBlank()) {
-            try {
-                scopeEnum = Scope.valueOf(scope.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Scope de pregunta inválido: " + scope);
-            }
-        }
-
+        validatePageRequest(page, size);
+        Status statusEnum = parseOptionalStatus(status, "Estado de pregunta inválido: ");
+        Scope scopeEnum = parseOptionalScope(scope, "Scope de pregunta inválido: ");
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
-        Page<Question> result;
-
-        if (statusEnum == null && scopeEnum == null) {
-            result = questions.findByStudent_Id(studentId, pageable);
-        } else if (statusEnum != null && scopeEnum == null) {
-            result = questions.findByStudent_IdAndStatus(studentId, statusEnum, pageable);
-        } else if (statusEnum == null && scopeEnum != null) {
-            result = questions.findByStudent_IdAndScope(studentId, scopeEnum, pageable);
-        } else {
-            result = questions.findByStudent_IdAndStatusAndScope(studentId, statusEnum, scopeEnum, pageable);
-        }
-
+        Page<Question> result = findStudentQuestions(studentId, statusEnum, scopeEnum, pageable);
         List<QaDtos.QuestionSummary> content = result.getContent().stream()
-                .map(q -> QaDtos.QuestionSummary.builder()
-                        .id(q.getId())
-                        .title(q.getTitle())
-                        .status(q.getStatus() != null ? q.getStatus().name() : null)
-                        .scope(q.getScope() != null ? q.getScope().name() : null)
-                        .createdAt(q.getCreatedAt() != null ? q.getCreatedAt().toString() : null)
-                        .build())
+                .map(this::toQuestionSummary)
                 .toList();
 
         return new PagedResponse<>(
@@ -359,66 +320,15 @@ public class QaService {
             String text) {
 
         Tutor tutor = requireTutorByUserId(userId);
-
-        // 1) Base: todas las preguntas PENDIENTE asignadas a este tutor
         java.util.List<Question> base = questions
                 .findByTutor_IdAndStatusOrderByCreatedAtAsc(tutor.getId(), Status.PENDIENTE);
+        Scope scopeToFilter = parseOptionalScopeAllowAll(scopeRaw, "Scope de pregunta inválido: ");
+        String term = normalizeSearchTerm(text);
 
-        // 2) Scope opcional lo calculamos y luego lo copiamos a una variable final
-        Scope tmpScope = null;
-        if (scopeRaw != null && !scopeRaw.isBlank() && !"ALL".equalsIgnoreCase(scopeRaw)) {
-            try {
-                tmpScope = Scope.valueOf(scopeRaw.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Scope de pregunta inválido: " + scopeRaw);
-            }
-        }
-        final Scope scopeToFilter = tmpScope;
-
-        // 3) Texto opcional normalizado a minúsculas (también final)
-        final String term = (text != null && !text.isBlank())
-                ? text.toLowerCase()
-                : null;
-
-        // 4) Stream con filtros + mapeo a DTO
         return base.stream()
-                // filtrar por scope si aplica
                 .filter(q -> scopeToFilter == null || scopeToFilter.equals(q.getScope()))
-                // filtrar por texto si aplica
-                .filter(q -> {
-                    if (term == null)
-                        return true;
-                    String title = q.getTitle() != null ? q.getTitle().toLowerCase() : "";
-                    String body = q.getBody() != null ? q.getBody().toLowerCase() : "";
-                    return title.contains(term) || body.contains(term);
-                })
-                // mapear a DTO
-                .map(q -> {
-                    String studentName = null;
-                    String studentEmail = null;
-
-                    if (q.getStudent() != null && q.getStudent().getUser() != null) {
-                        var u = q.getStudent().getUser();
-                        StringBuilder fullName = new StringBuilder();
-                        if (u.getName() != null)
-                            fullName.append(u.getName()).append(" ");
-                        if (u.getLastNamePaterno() != null)
-                            fullName.append(u.getLastNamePaterno()).append(" ");
-                        if (u.getLastNameMaterno() != null)
-                            fullName.append(u.getLastNameMaterno());
-                        studentName = fullName.toString().trim();
-                        studentEmail = u.getEmail();
-                    }
-
-                    return new TutorPendingQuestionDto(
-                            q.getId(),
-                            q.getTitle(),
-                            q.getStatus() != null ? q.getStatus().name() : null,
-                            q.getScope() != null ? q.getScope().name() : null,
-                            q.getCreatedAt(),
-                            studentName,
-                            studentEmail);
-                })
+                .filter(q -> matchesQuestionText(q, term))
+                .map(this::toTutorPendingQuestionDto)
                 .toList();
     }
 
@@ -431,89 +341,22 @@ public class QaService {
             String scope,
             String status) {
         Tutor tutor = requireTutorByUserId(userId);
-
-        // Estados que consideramos en el historial
         List<Status> baseStatuses = List.of(
                 Status.PUBLICADA,
                 Status.CORREGIDA,
                 Status.RECHAZADA);
-
-        // Cargamos todas las preguntas de este tutor con esos estados
         List<Question> base = questions.findByTutor_IdAndStatusInOrderByCreatedAtDesc(
                 tutor.getId(),
                 baseStatuses);
-
-        // Filtros opcionales en memoria
         Stream<Question> stream = base.stream();
+        Status statusFilter = parseOptionalStatus(status, "Estado de pregunta inválido: ");
+        Scope scopeFilter = parseOptionalScope(scope, "Scope de pregunta inválido: ");
+        String searchTerm = normalizeSearchTerm(text);
 
-        // Filtro por estado (si viene)
-        if (status != null && !status.isBlank()) {
-            Status statusFilter;
-            try {
-                statusFilter = Status.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Estado de pregunta inválido: " + status);
-            }
-            stream = stream.filter(q -> q.getStatus() == statusFilter);
-        }
-
-        // Filtro por scope (si viene)
-        if (scope != null && !scope.isBlank()) {
-            Scope scopeFilter;
-            try {
-                scopeFilter = Scope.valueOf(scope.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Scope de pregunta inválido: " + scope);
-            }
-            stream = stream.filter(q -> q.getScope() == scopeFilter);
-        }
-
-        // Filtro por texto (en título o cuerpo)
-        if (text != null && !text.isBlank()) {
-            String needle = text.toLowerCase();
-            stream = stream.filter(q -> {
-                String t = q.getTitle() != null ? q.getTitle().toLowerCase() : "";
-                String b = q.getBody() != null ? q.getBody().toLowerCase() : "";
-                return t.contains(needle) || b.contains(needle);
-            });
-        }
+        stream = filterTutorHistory(stream, statusFilter, scopeFilter, searchTerm);
 
         return stream
-                .map(q -> {
-                    String studentName = null;
-                    String studentEmail = null;
-
-                    if (q.getStudent() != null && q.getStudent().getUser() != null) {
-                        var u = q.getStudent().getUser();
-                        StringBuilder fullName = new StringBuilder();
-                        if (u.getName() != null)
-                            fullName.append(u.getName()).append(" ");
-                        if (u.getLastNamePaterno() != null)
-                            fullName.append(u.getLastNamePaterno()).append(" ");
-                        if (u.getLastNameMaterno() != null)
-                            fullName.append(u.getLastNameMaterno());
-                        studentName = fullName.toString().trim();
-                        studentEmail = u.getEmail();
-                    }
-
-                    String answeredAt = null;
-                    if (q.getCurrentAnswer() != null && q.getCurrentAnswer().getCreatedAt() != null) {
-                        answeredAt = q.getCurrentAnswer().getCreatedAt().toString();
-                    } else if (q.getUpdatedAt() != null) {
-                        answeredAt = q.getUpdatedAt().toString();
-                    } else if (q.getCreatedAt() != null) {
-                        answeredAt = q.getCreatedAt().toString();
-                    }
-
-                    return new TutorHistoryItemDto(
-                            q.getId(),
-                            q.getTitle(),
-                            q.getStatus() != null ? q.getStatus().name() : null,
-                            q.getScope() != null ? q.getScope().name() : null,
-                            answeredAt,
-                            studentName,
-                            studentEmail);
-                })
+                .map(this::toTutorHistoryItem)
                 .toList();
     }
 
@@ -526,97 +369,15 @@ public class QaService {
             String statusRaw,
             String text) {
         Tutor tutor = requireTutorByUserId(userId);
-
-        // 1) Todas las respuestas de este tutor, de la más nueva a la más vieja
         java.util.List<Answer> allAnswers = answers.findByTutor_IdOrderByCreatedAtDesc(tutor.getId());
+        Map<Long, Answer> latestByQuestion = latestAnswersByQuestion(allAnswers);
+        Status statusFilter = parseOptionalStatusAllowAll(statusRaw, "Estado de pregunta inválido: ");
+        Scope scopeFilter = parseOptionalScopeAllowAll(scopeRaw, "Scope de pregunta inválido: ");
+        String term = normalizeSearchTerm(text);
 
-        // 2) Nos quedamos SOLO con la última respuesta de cada pregunta
-        Map<Long, Answer> latestByQuestion = new LinkedHashMap<>();
-        for (Answer a : allAnswers) {
-            Long qid = a.getQuestion().getId();
-            // Como vienen ordenadas DESC, la primera que vemos es la última versión
-            if (!latestByQuestion.containsKey(qid)) {
-                latestByQuestion.put(qid, a);
-            }
-        }
-
-        // 3) Parsear filtros (opcionales) usando temporales + finales
-
-        // STATUS
-        Status tmpStatus = null;
-        if (statusRaw != null && !statusRaw.isBlank() && !"ALL".equalsIgnoreCase(statusRaw)) {
-            try {
-                tmpStatus = Status.valueOf(statusRaw.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Estado de pregunta inválido: " + statusRaw);
-            }
-        }
-        final Status statusFilter = tmpStatus;
-
-        // SCOPE
-        Scope tmpScope = null;
-        if (scopeRaw != null && !scopeRaw.isBlank() && !"ALL".equalsIgnoreCase(scopeRaw)) {
-            try {
-                tmpScope = Scope.valueOf(scopeRaw.toUpperCase());
-            } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("Scope de pregunta inválido: " + scopeRaw);
-            }
-        }
-        final Scope scopeFilter = tmpScope;
-
-        // TEXTO
-        final String term = (text != null && !text.isBlank())
-                ? text.toLowerCase()
-                : null;
-
-        // 4) Filtrar + mapear a DTO
         return latestByQuestion.values().stream()
-                .filter(a -> {
-                    Question q = a.getQuestion();
-                    if (statusFilter != null && q.getStatus() != statusFilter)
-                        return false;
-                    if (scopeFilter != null && q.getScope() != scopeFilter)
-                        return false;
-
-                    if (term != null) {
-                        String title = q.getTitle() != null ? q.getTitle().toLowerCase() : "";
-                        String bodyQ = q.getBody() != null ? q.getBody().toLowerCase() : "";
-                        String bodyA = a.getBody() != null ? a.getBody().toLowerCase() : "";
-                        return title.contains(term) || bodyQ.contains(term) || bodyA.contains(term);
-                    }
-                    return true;
-                })
-                .map(a -> {
-                    Question q = a.getQuestion();
-                    String studentName = null;
-                    String studentEmail = null;
-
-                    if (q.getStudent() != null && q.getStudent().getUser() != null) {
-                        var u = q.getStudent().getUser();
-                        StringBuilder fullName = new StringBuilder();
-                        if (u.getName() != null)
-                            fullName.append(u.getName()).append(" ");
-                        if (u.getLastNamePaterno() != null)
-                            fullName.append(u.getLastNamePaterno()).append(" ");
-                        if (u.getLastNameMaterno() != null)
-                            fullName.append(u.getLastNameMaterno());
-                        studentName = fullName.toString().trim();
-                        studentEmail = u.getEmail();
-                    }
-
-                    String answeredAt = a.getCreatedAt() != null
-                            ? a.getCreatedAt().toString()
-                            : null;
-
-                    return new TutorHistoryItemDto(
-                            q.getId(),
-                            q.getTitle(),
-                            q.getStatus() != null ? q.getStatus().name() : null,
-                            q.getScope() != null ? q.getScope().name() : null,
-                            answeredAt,
-                            studentName,
-                            studentEmail);
-                })
+                .filter(answer -> matchesTutorHistoryAnswer(answer, statusFilter, scopeFilter, term))
+                .map(this::toTutorHistoryItem)
                 .toList();
     }
 
@@ -650,55 +411,14 @@ public class QaService {
 
     @Transactional(readOnly = true)
     public StudentQuestionDetailDto getStudentQuestionDetail(Long userId, Long questionId) {
-        // 1) Validar que el usuario sea estudiante y que la pregunta sea suya
         Student student = requireStudentByUserId(userId);
-
         Question q = questions.findById(questionId)
                 .orElseThrow(() -> new IllegalArgumentException("Pregunta no encontrada"));
-
-        if (q.getStudent() == null || !q.getStudent().getId().equals(student.getId())) {
-            // si quieres ser más estricto, puedes lanzar 403 en el controller
-            throw new IllegalArgumentException("No tienes permiso para ver esta pregunta");
-        }
-
-        // 2) Obtener todas las respuestas (ordenadas por versión)
+        validateStudentQuestionOwnership(student, q);
         List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
+        Answer lastAnswer = findLastAnswer(allAnswers);
+        TutorContactInfo tutorInfo = extractTutorContactInfo(lastAnswer);
 
-        Answer lastAnswer = null;
-        if (!allAnswers.isEmpty()) {
-            lastAnswer = allAnswers.get(allAnswers.size() - 1);
-        }
-
-        // 3) Datos del tutor (a partir de la última respuesta)
-        String tutorName = null;
-        String tutorFullName = null;
-        String tutorEmail = null;
-
-        if (lastAnswer != null && lastAnswer.getTutor() != null && lastAnswer.getTutor().getUser() != null) {
-            User tu = lastAnswer.getTutor().getUser();
-            tutorEmail = tu.getEmail();
-
-            String fullName = java.util.stream.Stream.of(
-                    tu.getName(),
-                    tu.getLastNamePaterno(),
-                    tu.getLastNameMaterno())
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.joining(" "));
-
-            tutorName = fullName;
-            tutorFullName = fullName;
-        }
-
-        // 4) Última respuesta
-        String currentAnswerBody = lastAnswer != null ? lastAnswer.getBody() : null;
-        Integer currentAnswerVersion = lastAnswer != null ? lastAnswer.getVersion() : null;
-        boolean wasCorrected = lastAnswer != null
-                && lastAnswer.getVersion() != null
-                && lastAnswer.getVersion() > 1;
-
-        // 5) Armar DTO
         return new StudentQuestionDetailDto(
                 q.getId(),
                 q.getTitle(),
@@ -706,13 +426,237 @@ public class QaService {
                 q.getStatus() != null ? q.getStatus().name() : null,
                 q.getScope() != null ? q.getScope().name() : null,
                 q.getCreatedAt(),
-                tutorName,
-                tutorFullName,
-                tutorEmail,
-                currentAnswerBody,
-                currentAnswerVersion,
-                wasCorrected,
+                tutorInfo.name(),
+                tutorInfo.fullName(),
+                tutorInfo.email(),
+                lastAnswer != null ? lastAnswer.getBody() : null,
+                lastAnswer != null ? lastAnswer.getVersion() : null,
+                wasCorrected(lastAnswer),
                 q.getRejectReason());
+    }
+
+    private void validatePageRequest(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("El número de página no puede ser negativo");
+        }
+        if (size <= 0 || size > 100) {
+            throw new IllegalArgumentException("El tamaño de página debe estar entre 1 y 100");
+        }
+    }
+
+    private Page<Question> findStudentQuestions(Long studentId, Status status, Scope scope, Pageable pageable) {
+        if (status == null && scope == null) {
+            return questions.findByStudent_Id(studentId, pageable);
+        }
+        if (status != null && scope == null) {
+            return questions.findByStudent_IdAndStatus(studentId, status, pageable);
+        }
+        if (status == null) {
+            return questions.findByStudent_IdAndScope(studentId, scope, pageable);
+        }
+        return questions.findByStudent_IdAndStatusAndScope(studentId, status, scope, pageable);
+    }
+
+    private QaDtos.QuestionSummary toQuestionSummary(Question question) {
+        return QaDtos.QuestionSummary.builder()
+                .id(question.getId())
+                .title(question.getTitle())
+                .status(enumName(question.getStatus()))
+                .scope(enumName(question.getScope()))
+                .createdAt(question.getCreatedAt() != null ? question.getCreatedAt().toString() : null)
+                .build();
+    }
+
+    private Status parseOptionalStatus(String value, String messagePrefix) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Status.valueOf(value.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(messagePrefix + value);
+        }
+    }
+
+    private Status parseOptionalStatusAllowAll(String value, String messagePrefix) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) {
+            return null;
+        }
+        return parseOptionalStatus(value, messagePrefix);
+    }
+
+    private Scope parseOptionalScope(String value, String messagePrefix) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Scope.valueOf(value.toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(messagePrefix + value);
+        }
+    }
+
+    private Scope parseOptionalScopeAllowAll(String value, String messagePrefix) {
+        if (value == null || value.isBlank() || "ALL".equalsIgnoreCase(value)) {
+            return null;
+        }
+        return parseOptionalScope(value, messagePrefix);
+    }
+
+    private String normalizeSearchTerm(String text) {
+        return text != null && !text.isBlank() ? text.toLowerCase() : null;
+    }
+
+    private boolean matchesQuestionText(Question question, String term) {
+        if (term == null) {
+            return true;
+        }
+        String title = question.getTitle() != null ? question.getTitle().toLowerCase() : "";
+        String body = question.getBody() != null ? question.getBody().toLowerCase() : "";
+        return title.contains(term) || body.contains(term);
+    }
+
+    private Stream<Question> filterTutorHistory(
+            Stream<Question> stream,
+            Status statusFilter,
+            Scope scopeFilter,
+            String searchTerm) {
+        if (statusFilter != null) {
+            stream = stream.filter(question -> question.getStatus() == statusFilter);
+        }
+        if (scopeFilter != null) {
+            stream = stream.filter(question -> question.getScope() == scopeFilter);
+        }
+        if (searchTerm != null) {
+            stream = stream.filter(question -> matchesQuestionText(question, searchTerm));
+        }
+        return stream;
+    }
+
+    private TutorPendingQuestionDto toTutorPendingQuestionDto(Question question) {
+        StudentContactInfo studentInfo = extractStudentContactInfo(question);
+        return new TutorPendingQuestionDto(
+                question.getId(),
+                question.getTitle(),
+                enumName(question.getStatus()),
+                enumName(question.getScope()),
+                question.getCreatedAt(),
+                studentInfo.name(),
+                studentInfo.email());
+    }
+
+    private TutorHistoryItemDto toTutorHistoryItem(Question question) {
+        StudentContactInfo studentInfo = extractStudentContactInfo(question);
+        return new TutorHistoryItemDto(
+                question.getId(),
+                question.getTitle(),
+                enumName(question.getStatus()),
+                enumName(question.getScope()),
+                resolveHistoryTimestamp(question),
+                studentInfo.name(),
+                studentInfo.email());
+    }
+
+    private TutorHistoryItemDto toTutorHistoryItem(Answer answer) {
+        Question question = answer.getQuestion();
+        StudentContactInfo studentInfo = extractStudentContactInfo(question);
+        return new TutorHistoryItemDto(
+                question.getId(),
+                question.getTitle(),
+                enumName(question.getStatus()),
+                enumName(question.getScope()),
+                answer.getCreatedAt() != null ? answer.getCreatedAt().toString() : null,
+                studentInfo.name(),
+                studentInfo.email());
+    }
+
+    private StudentContactInfo extractStudentContactInfo(Question question) {
+        if (question.getStudent() == null || question.getStudent().getUser() == null) {
+            return StudentContactInfo.empty();
+        }
+        User user = question.getStudent().getUser();
+        return new StudentContactInfo(buildFullName(user), user.getEmail());
+    }
+
+    private TutorContactInfo extractTutorContactInfo(Answer answer) {
+        if (answer == null || answer.getTutor() == null || answer.getTutor().getUser() == null) {
+            return TutorContactInfo.empty();
+        }
+        User user = answer.getTutor().getUser();
+        String fullName = buildFullName(user);
+        return new TutorContactInfo(fullName, fullName, user.getEmail());
+    }
+
+    private String buildFullName(User user) {
+        return Stream.of(user.getName(), user.getLastNamePaterno(), user.getLastNameMaterno())
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .collect(Collectors.joining(" "));
+    }
+
+    private String resolveHistoryTimestamp(Question question) {
+        if (question.getCurrentAnswer() != null && question.getCurrentAnswer().getCreatedAt() != null) {
+            return question.getCurrentAnswer().getCreatedAt().toString();
+        }
+        if (question.getUpdatedAt() != null) {
+            return question.getUpdatedAt().toString();
+        }
+        return question.getCreatedAt() != null ? question.getCreatedAt().toString() : null;
+    }
+
+    private Map<Long, Answer> latestAnswersByQuestion(List<Answer> answers) {
+        Map<Long, Answer> latestByQuestion = new LinkedHashMap<>();
+        for (Answer answer : answers) {
+            latestByQuestion.putIfAbsent(answer.getQuestion().getId(), answer);
+        }
+        return latestByQuestion;
+    }
+
+    private boolean matchesTutorHistoryAnswer(Answer answer, Status statusFilter, Scope scopeFilter, String term) {
+        Question question = answer.getQuestion();
+        if (statusFilter != null && question.getStatus() != statusFilter) {
+            return false;
+        }
+        if (scopeFilter != null && question.getScope() != scopeFilter) {
+            return false;
+        }
+        if (term == null) {
+            return true;
+        }
+
+        String answerBody = answer.getBody() != null ? answer.getBody().toLowerCase() : "";
+        return matchesQuestionText(question, term) || answerBody.contains(term);
+    }
+
+    private void validateStudentQuestionOwnership(Student student, Question question) {
+        if (question.getStudent() == null || !question.getStudent().getId().equals(student.getId())) {
+            throw new IllegalArgumentException("No tienes permiso para ver esta pregunta");
+        }
+    }
+
+    private Answer findLastAnswer(List<Answer> allAnswers) {
+        return allAnswers.isEmpty() ? null : allAnswers.get(allAnswers.size() - 1);
+    }
+
+    private boolean wasCorrected(Answer answer) {
+        return answer != null && answer.getVersion() != null && answer.getVersion() > 1;
+    }
+
+    private String enumName(Enum<?> value) {
+        return value != null ? value.name() : null;
+    }
+
+    private record StudentContactInfo(String name, String email) {
+        private static StudentContactInfo empty() {
+            return new StudentContactInfo(null, null);
+        }
+    }
+
+    private record TutorContactInfo(String name, String fullName, String email) {
+        private static TutorContactInfo empty() {
+            return new TutorContactInfo(null, null, null);
+        }
     }
 
 }
