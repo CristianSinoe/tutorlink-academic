@@ -1,0 +1,30 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Logs
+logs/
+*.log
+*.gz
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+.nb-configuration.xml
+nbactions.xml
+
+# OS
+.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Otros binarios
+*.jar
