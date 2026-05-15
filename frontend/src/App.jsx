@@ -3,75 +3,13 @@ import "./App.css";
 import AdminLayout from "./layout/AdminLayout.jsx";
 import StudentLayout from "./layout/StudentLayout.jsx";
 import TutorLayout from "./layout/TutorLayout.jsx";
-import { useAuth } from "./context/useAuth.js";
 import AdminRoute from "./router/AdminRoute.jsx";
 import ProtectedRoute from "./router/ProtectedRoute.jsx";
 import StudentRoute from "./router/StudentRoute.jsx";
 import TutorRoute from "./router/TutorRoute.jsx";
-
-function LoginPlaceholder() {
-  const { auth, login, logout } = useAuth();
-
-  return (
-    <main className="app-shell">
-      <section className="hero-card">
-        <p className="eyebrow">TutorLink Frontend</p>
-        <h1>Navegacion base lista para integrar modulos.</h1>
-        <p className="hero-copy">
-          Este placeholder nos permite validar layouts, guards y rutas sin
-          subir todavia las pantallas completas por rol.
-        </p>
-
-        <div className="hero-actions">
-          <button
-            className="action-button"
-            onClick={() =>
-              login({
-                token: "demo-admin-token",
-                role: "ADMIN",
-                email: "admin@example.com",
-                name: "Admin Demo",
-              })
-            }
-          >
-            Entrar como admin
-          </button>
-          <button
-            className="action-button"
-            onClick={() =>
-              login({
-                token: "demo-student-token",
-                role: "ESTUDIANTE",
-                email: "student@example.com",
-                name: "Estudiante Demo",
-              })
-            }
-          >
-            Entrar como estudiante
-          </button>
-          <button
-            className="action-button"
-            onClick={() =>
-              login({
-                token: "demo-tutor-token",
-                role: "TUTOR",
-                email: "tutor@example.com",
-                name: "Tutor Demo",
-              })
-            }
-          >
-            Entrar como tutor
-          </button>
-          {auth.token && (
-            <button className="action-button secondary" onClick={logout}>
-              Cerrar sesion demo
-            </button>
-          )}
-        </div>
-      </section>
-    </main>
-  );
-}
+import LoginPage from "./pages/LoginPage.jsx";
+import FirstLoginPage from "./pages/auth/FirstLoginPage.jsx";
+import OtpPage from "./pages/auth/OtpPage.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -86,7 +24,9 @@ function PlaceholderPage({ title, description }) {
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPlaceholder />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/otp" element={<OtpPage />} />
+      <Route path="/first-login" element={<FirstLoginPage />} />
 
       <Route
         path="/admin/*"
