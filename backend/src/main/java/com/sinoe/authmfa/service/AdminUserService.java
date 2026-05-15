@@ -48,19 +48,13 @@ public class AdminUserService {
         }
 
         // 1) Crear usuario base
-        User u = userService.createUser(
+        User u = userService.createUser(new UserService.CreateUserCommand(
                 dto.getName(),
                 dto.getLastNamePaterno(),
                 dto.getLastNameMaterno(),
                 emailLower,
                 dto.getPassword(),
-                UserRole.ESTUDIANTE,
-                dto.getCareer(),
-                dto.getPlan(),
-                dto.getSemester(),
-                dto.getBirthDate(),
-                dto.getPhone()
-        );
+                UserRole.ESTUDIANTE));
 
         // 2) Marcado como creado por admin + token
         u.setStatus(UserStatus.CREATED_BY_ADMIN);
@@ -98,19 +92,13 @@ public class AdminUserService {
         }
 
         // 1) Crear usuario base
-        User u = userService.createUser(
+        User u = userService.createUser(new UserService.CreateUserCommand(
                 dto.getName(),
                 dto.getLastNamePaterno(),
                 dto.getLastNameMaterno(),
                 emailLower,
                 dto.getPassword(),
-                UserRole.TUTOR,
-                null,
-                null,
-                null,
-                null,
-                dto.getPhone()
-        );
+                UserRole.TUTOR));
 
         // 2) Token de primer login
         u.setStatus(UserStatus.CREATED_BY_ADMIN);
@@ -150,19 +138,13 @@ public class AdminUserService {
         String rawPassword = generateTempPassword();
 
         // Crear usuario base como ADMIN
-        User u = userService.createUser(
+        User u = userService.createUser(new UserService.CreateUserCommand(
                 dto.getName(),
                 dto.getLastNamePaterno(),
                 dto.getLastNameMaterno(),
                 emailLower,
                 rawPassword,
-                UserRole.ADMIN,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
+                UserRole.ADMIN));
 
         // Marcar como creado por admin + configurar primer login
         u.setStatus(UserStatus.CREATED_BY_ADMIN);

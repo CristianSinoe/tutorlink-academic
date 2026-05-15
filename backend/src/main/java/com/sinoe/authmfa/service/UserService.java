@@ -5,10 +5,9 @@ import com.sinoe.authmfa.domain.user.UserRepository;
 import com.sinoe.authmfa.domain.user.UserRole;
 import com.sinoe.authmfa.domain.user.UserStatus;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCrypt;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
@@ -17,6 +16,7 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository users;
+    private final PasswordEncoder passwordEncoder;
 
     public Optional<User> findByEmail(String email) {
         if (email == null)
@@ -28,59 +28,22 @@ public class UserService {
         return email != null && users.existsByEmail(email.toLowerCase());
     }
 
-    public User createUser(
-            String name,
-            String lastNamePaterno,
-            String lastNameMaterno, // puede ser null
-            String email,
-            String rawPassword,
-            UserRole role,
-            String career,          
-            String plan,          
-            Integer semester,      
-            LocalDate birthDate,    
-            String phone) {  
-        String hash = BCrypt.hashpw(rawPassword, BCrypt.gensalt());
-        User u = User.builder()
-                .name(name)
-                .lastNamePaterno(emptyToNull(lastNamePaterno))
-                .lastNameMaterno(emptyToNull(lastNameMaterno))
-                .email(email.toLowerCase())
+    public User createUser(CreateUserCommand command) {
+        String hash = passwordEncoder.encode(command.rawPassword());
+        User user = User.builder()
+                .name(command.name())
+                .lastNamePaterno(emptyToNull(command.lastNamePaterno()))
+                .lastNameMaterno(emptyToNull(command.lastNameMaterno()))
+                .email(command.email().toLowerCase())
                 .passwordHash(hash)
-                .role(role)
+                .role(command.role())
                 .status(UserStatus.ACTIVE)
                 .build();
-        return users.save(u);
-    }
-
-    public User createUser(
-            String name,
-            String lastName,
-            String email,
-            String rawPassword,
-            UserRole role,
-            String career,
-            String plan,
-            Integer semester,
-            LocalDate birthDate,
-            String phone) {
-        return createUser(
-                name,
-                lastName,
-                null,
-                email,
-                rawPassword,
-                role,
-                career,
-                plan,
-                semester,
-                birthDate,
-                phone
-        );
+        return users.save(user);
     }
 
     public boolean checkPassword(User u, String rawPassword) {
-        return u != null && BCrypt.checkpw(rawPassword, u.getPasswordHash());
+        return u != null && passwordEncoder.matches(rawPassword, u.getPasswordHash());
     }
 
     public User save(User u) {
@@ -100,5 +63,14 @@ public class UserService {
             return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    public record CreateUserCommand(
+            String name,
+            String lastNamePaterno,
+            String lastNameMaterno,
+            String email,
+            String rawPassword,
+            UserRole role) {
     }
 }
