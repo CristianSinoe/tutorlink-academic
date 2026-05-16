@@ -14,6 +14,10 @@ import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import StudentInfoPage from "./pages/student/StudentInfoPage.jsx";
 import StudentNewQuestion from "./pages/student/StudentNewQuestion.jsx";
 import StudentQuestions from "./pages/student/StudentQuestions.jsx";
+import TutorDashboard from "./pages/tutor/TutorDashboard.jsx";
+import TutorHistoryPage from "./pages/tutor/TutorHistoryPage.jsx";
+import TutorPendingPage from "./pages/tutor/TutorPendingPage.jsx";
+import TutorProfilePage from "./pages/tutor/TutorProfilePage.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -133,42 +137,10 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route
-          index
-          element={
-            <PlaceholderPage
-              title="Dashboard tutor"
-              description="Aqui se integraran las bandejas de preguntas pendientes, historial y perfil del tutor."
-            />
-          }
-        />
-        <Route
-          path="pending"
-          element={
-            <PlaceholderPage
-              title="Pendientes"
-              description="Vista reservada para la bandeja de preguntas pendientes del tutor."
-            />
-          }
-        />
-        <Route
-          path="history"
-          element={
-            <PlaceholderPage
-              title="Historial"
-              description="Vista reservada para el historial de respuestas del tutor."
-            />
-          }
-        />
-        <Route
-          path="profile"
-          element={
-            <PlaceholderPage
-              title="Perfil tutor"
-              description="Vista reservada para el perfil del tutor."
-            />
-          }
-        />
+        <Route index element={<TutorDashboard />} />
+        <Route path="pending" element={<TutorPendingPage />} />
+        <Route path="history" element={<TutorHistoryPage />} />
+        <Route path="profile" element={<TutorProfilePage />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/login" replace />} />
