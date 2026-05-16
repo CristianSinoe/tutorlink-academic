@@ -1,0 +1,109 @@
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.hero-card {
+  width: min(100%, 56rem);
+  padding: clamp(2rem, 4vw, 4rem);
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at top left, rgba(45, 122, 74, 0.16), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(240, 246, 242, 0.95));
+  border: 1px solid rgba(14, 36, 24, 0.08);
+  box-shadow: 0 24px 80px rgba(18, 47, 30, 0.12);
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: #2d7a4a;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hero-card h1 {
+  margin: 0;
+  color: #123220;
+  font-size: clamp(2.4rem, 5vw, 4.6rem);
+  line-height: 0.95;
+}
+
+.hero-copy {
+  margin: 1.5rem 0 0;
+  max-width: 42rem;
+  color: #355143;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  background: rgba(18, 50, 32, 0.06);
+  color: #123220;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.action-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1.2rem;
+  background: #123220;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.action-button:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.action-button.secondary {
+  background: rgba(18, 50, 32, 0.12);
+  color: #123220;
+}
+
+.placeholder-card {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(18, 50, 32, 0.08);
+  box-shadow: 0 18px 48px rgba(18, 50, 32, 0.08);
+}
+
+.placeholder-card h2 {
+  margin: 0;
+  color: #123220;
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+}
+
+.placeholder-card p {
+  margin: 0.9rem 0 0;
+  color: #496355;
+  line-height: 1.7;
+}
+
+.placeholder-eyebrow {
+  margin: 0 0 0.4rem;
+  color: #2d7a4a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
