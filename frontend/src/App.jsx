@@ -10,6 +10,10 @@ import TutorRoute from "./router/TutorRoute.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import FirstLoginPage from "./pages/auth/FirstLoginPage.jsx";
 import OtpPage from "./pages/auth/OtpPage.jsx";
+import StudentDashboard from "./pages/student/StudentDashboard.jsx";
+import StudentInfoPage from "./pages/student/StudentInfoPage.jsx";
+import StudentNewQuestion from "./pages/student/StudentNewQuestion.jsx";
+import StudentQuestions from "./pages/student/StudentQuestions.jsx";
 
 function PlaceholderPage({ title, description }) {
   return (
@@ -113,42 +117,10 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route
-          index
-          element={
-            <PlaceholderPage
-              title="Dashboard estudiante"
-              description="Aqui se integraran las preguntas, informacion academica y seguimiento personal."
-            />
-          }
-        />
-        <Route
-          path="ask"
-          element={
-            <PlaceholderPage
-              title="Nueva pregunta"
-              description="Vista reservada para el formulario de nuevas preguntas."
-            />
-          }
-        />
-        <Route
-          path="questions"
-          element={
-            <PlaceholderPage
-              title="Mis preguntas"
-              description="Vista reservada para el historial y estado de preguntas del estudiante."
-            />
-          }
-        />
-        <Route
-          path="info"
-          element={
-            <PlaceholderPage
-              title="Mi informacion"
-              description="Vista reservada para el perfil e informacion del estudiante."
-            />
-          }
-        />
+        <Route index element={<StudentDashboard />} />
+        <Route path="ask" element={<StudentNewQuestion />} />
+        <Route path="questions" element={<StudentQuestions />} />
+        <Route path="info" element={<StudentInfoPage />} />
       </Route>
 
       <Route
