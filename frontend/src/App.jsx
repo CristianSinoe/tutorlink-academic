@@ -10,6 +10,13 @@ import TutorRoute from "./router/TutorRoute.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import FirstLoginPage from "./pages/auth/FirstLoginPage.jsx";
 import OtpPage from "./pages/auth/OtpPage.jsx";
+import AdminAdminsPage from "./pages/admin/AdminAdminsPage.jsx";
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
+import AdminProfilePage from "./pages/admin/AdminProfilePage.jsx";
+import AssignmentsPage from "./pages/admin/AssignmentsPage.jsx";
+import StudentsPage from "./pages/admin/StudentsPage.jsx";
+import TutorsPage from "./pages/admin/TutorsPage.jsx";
+import UsersPage from "./pages/admin/UsersPage.jsx";
 import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import StudentInfoPage from "./pages/student/StudentInfoPage.jsx";
 import StudentNewQuestion from "./pages/student/StudentNewQuestion.jsx";
@@ -18,16 +25,6 @@ import TutorDashboard from "./pages/tutor/TutorDashboard.jsx";
 import TutorHistoryPage from "./pages/tutor/TutorHistoryPage.jsx";
 import TutorPendingPage from "./pages/tutor/TutorPendingPage.jsx";
 import TutorProfilePage from "./pages/tutor/TutorProfilePage.jsx";
-
-function PlaceholderPage({ title, description }) {
-  return (
-    <section className="placeholder-card">
-      <p className="placeholder-eyebrow">TutorLink</p>
-      <h2>{title}</h2>
-      <p>{description}</p>
-    </section>
-  );
-}
 
 function App() {
   return (
@@ -46,69 +43,13 @@ function App() {
           </ProtectedRoute>
         }
       >
-        <Route
-          index
-          element={
-            <PlaceholderPage
-              title="Dashboard administrativo"
-              description="Aqui se integraran los modulos de estudiantes, tutores, asignaciones y administradores."
-            />
-          }
-        />
-        <Route
-          path="students"
-          element={
-            <PlaceholderPage
-              title="Estudiantes"
-              description="Vista reservada para la gestion de estudiantes en una sesion posterior."
-            />
-          }
-        />
-        <Route
-          path="tutors"
-          element={
-            <PlaceholderPage
-              title="Tutores"
-              description="Vista reservada para la gestion de tutores en una sesion posterior."
-            />
-          }
-        />
-        <Route
-          path="assignments"
-          element={
-            <PlaceholderPage
-              title="Asignaciones"
-              description="Vista reservada para las asignaciones tutor-estudiante."
-            />
-          }
-        />
-        <Route
-          path="users"
-          element={
-            <PlaceholderPage
-              title="Usuarios"
-              description="Vista reservada para la administracion general de usuarios."
-            />
-          }
-        />
-        <Route
-          path="admins"
-          element={
-            <PlaceholderPage
-              title="Administradores"
-              description="Vista reservada para la gestion de administradores."
-            />
-          }
-        />
-        <Route
-          path="profile"
-          element={
-            <PlaceholderPage
-              title="Perfil admin"
-              description="Vista reservada para el perfil del administrador."
-            />
-          }
-        />
+        <Route index element={<AdminDashboard />} />
+        <Route path="students" element={<StudentsPage />} />
+        <Route path="tutors" element={<TutorsPage />} />
+        <Route path="assignments" element={<AssignmentsPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="admins" element={<AdminAdminsPage />} />
+        <Route path="profile" element={<AdminProfilePage />} />
       </Route>
 
       <Route
