@@ -8,23 +8,14 @@ export default function TutorProfilePage() {
   const [loadingMe, setLoadingMe] = useState(true);
   const [error, setError] = useState(null);
 
-  const [profile, setProfile] = useState({
+  const [_profile, setProfile] = useState({
     bio: "",
     academicLink: "",
     professionalLink: "",
     notifyNewQuestions: false,
     weeklySummary: false,
   });
-  const [saving, setSaving] = useState(false);
   const [showChangePass, setShowChangePass] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setProfile((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
 
   useEffect(() => {
     const load = async () => {
@@ -52,24 +43,6 @@ export default function TutorProfilePage() {
     };
     load();
   }, []);
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      await apiClient.put("/api/tutor/profile", profile);
-      alert("Perfil actualizado correctamente.");
-    } catch (err) {
-      console.error("Error guardando perfil de tutor", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Error al guardar el perfil";
-      alert(msg);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -130,7 +103,7 @@ export default function TutorProfilePage() {
         )}
       </section>
 
-      {/* PERFIL PÚBLICO Y PREFERENCIAS */}
+      {/* Seccion oculta temporalmente en la vista del tutor.
       <form
         onSubmit={handleSave}
         className="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 md:p-5 space-y-5"
@@ -220,6 +193,7 @@ export default function TutorProfilePage() {
           </button>
         </div>
       </form>
+      */}
 
       <ChangePasswordModal
         isOpen={showChangePass}
