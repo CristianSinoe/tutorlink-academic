@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "name": "Admin",
+    "lastNamePaterno": "E2E",
+    "lastNameMaterno": "",
+    "email": "admin.e2e@example.test",
+    "role": "ADMIN",
+    "status": "ACTIVE"
+  },
+  {
+    "id": 2,
+    "name": "Tutor",
+    "lastNamePaterno": "Demo",
+    "lastNameMaterno": "",
+    "email": "tutor.e2e@example.test",
+    "role": "TUTOR",
+    "status": "ACTIVE"
+  },
+  {
+    "id": 3,
+    "name": "Estudiante",
+    "lastNamePaterno": "Demo",
+    "lastNameMaterno": "",
+    "email": "student.e2e@example.test",
+    "role": "ESTUDIANTE",
+    "status": "DISABLED"
+  }
+]

@@ -33,8 +33,8 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Run backend tests
-        run: mvn test
+      - name: Run backend tests and JaCoCo report
+        run: mvn test jacoco:report
 
   frontend:
     name: Frontend
@@ -59,6 +59,12 @@ jobs:
 
       - name: Run frontend lint
         run: npm run lint
+
+      - name: Run frontend tests
+        run: npm test
+
+      - name: Run frontend coverage
+        run: npm run test:coverage
 
       - name: Run frontend build
         run: npm run build

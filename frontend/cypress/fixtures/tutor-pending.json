@@ -1,0 +1,39 @@
+{
+  "list": [
+    {
+      "id": 201,
+      "title": "Solicitud de asesoria",
+      "scope": "GENERAL",
+      "createdAt": "2025-01-12T12:00:00Z",
+      "studentName": "Estudiante E2E"
+    }
+  ],
+  "detailPending": {
+    "questionId": 201,
+    "title": "Solicitud de asesoria",
+    "scope": "GENERAL",
+    "status": "PENDIENTE",
+    "createdAt": "2025-01-12T12:00:00Z",
+    "studentName": "Estudiante E2E",
+    "messages": [],
+    "canReply": true
+  },
+  "detailPublished": {
+    "questionId": 201,
+    "title": "Solicitud de asesoria",
+    "scope": "GENERAL",
+    "status": "PUBLICADA",
+    "createdAt": "2025-01-12T12:00:00Z",
+    "studentName": "Estudiante E2E",
+    "messages": [
+      {
+        "id": 1,
+        "body": "Puedes revisar la guia academica.",
+        "authorRole": "TUTOR",
+        "createdAt": "2025-01-12T12:20:00Z",
+        "currentAnswer": true
+      }
+    ],
+    "canReply": true
+  }
+}

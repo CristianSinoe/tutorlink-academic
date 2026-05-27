@@ -40,4 +40,11 @@ class JwtServiceTest {
 
         assertThrows(JwtException.class, () -> validator.parse(token));
     }
+
+    @Test
+    void shouldRejectMalformedToken() {
+        JwtService service = new JwtService(SECRET, 120);
+
+        assertThrows(JwtException.class, () -> service.parse("this.is.not.a.valid.jwt"));
+    }
 }

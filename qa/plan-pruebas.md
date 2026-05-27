@@ -23,6 +23,87 @@ Por lo anterior, este plan distingue entre:
 
 El objetivo es dejar una estrategia de calidad progresiva, tecnica y defendible, alineada con el estado real del repositorio.
 
+## Avance Fase 2
+
+La Fase 2 amplia la cobertura unitaria del backend usando `JUnit 5` y `Mockito`, sin base de datos real y sin levantar el contexto completo de Spring.
+
+Servicios cubiertos en esta fase:
+
+- `OtpService`
+- `UserService`
+- `TutorStudentAssignmentService`
+- `AuditService`
+- ampliaciones sobre `QaService`, `AdminUserService` y `JwtService`
+
+Reglas de negocio protegidas en esta fase:
+
+- generacion, validacion, expiracion e intento maximo de `OTP`;
+- normalizacion de correo, hashing y claims basicos para autenticacion mediante `UserService`, `JwtService` y `OtpService`, dado que no existe `AuthService`;
+- asignacion tutor-estudiante y conteo de resultados de importacion CSV;
+- validaciones reales de preguntas, respuestas y mensajeria conversacional en `QaService`;
+- construccion correcta de registros de auditoria a traves de `AuditService`.
+
+Pendiente para Fase 3:
+
+- pruebas de integracion y de controladores;
+- `Cypress` y validacion `E2E`;
+- `Testcontainers`;
+- `SonarQube` o `SonarCloud`;
+- `JaCoCo` y cobertura formal;
+- evidencia automatizada adicional y compuertas de calidad mas avanzadas.
+
+## Avance Fase 3
+
+La Fase 3 agrega pruebas de integracion backend con `Spring Boot Test`, `MockMvc`, `Flyway` y `Testcontainers` usando `PostgreSQL` aislado para pruebas.
+
+Endpoints cubiertos en esta fase:
+
+- `POST /api/auth/login`
+- `POST /api/auth/login/verify-otp`
+- `GET /api/me`
+- `POST /api/student/questions`
+- `GET /api/student/questions/my`
+- `GET /api/student/questions/{id}`
+- `GET /api/student/questions/{id}/answers`
+- `GET /api/tutor/questions/pending`
+- `POST /api/tutor/questions/{id}/answer`
+- `POST /api/tutor/questions/{id}/reject`
+- `POST /api/tutor/questions/{id}/reclassify`
+- `GET /api/admin/users`
+- `PATCH /api/admin/users/{userId}/status`
+- `POST /api/admin/users/tutor-students/assign`
+- `GET /api/admin/users/tutor-students`
+
+Reglas de seguridad cubiertas:
+
+- acceso permitido con `JWT` valido y rol correcto;
+- bloqueo de acceso por rol incorrecto;
+- cobertura del flujo de autenticacion con `OTP`;
+- cobertura de acceso protegido sobre rutas de estudiante, tutor y administrador.
+
+Auditoria en esta fase:
+
+- cubierta mediante persistencia real sobre `tl_audit_log` para acciones de login, creacion de pregunta y respuesta del tutor.
+
+Estrategia usada:
+
+- `Spring Boot Test`
+- `MockMvc`
+- `Testcontainers PostgreSQL`
+- `Flyway`
+- mocks para `RecaptchaService` y `EmailService`
+
+Limitaciones encontradas:
+
+- el arbol de trabajo del proyecto sigue sucio con cambios funcionales ajenos, por lo que las pruebas de Fase 3 se limitan a infraestructura QA e integracion backend;
+- el comportamiento exacto de respuestas sin autenticacion depende de la configuracion actual de Spring Security del proyecto.
+
+Pendiente para Fase 4:
+
+- pruebas `E2E` con `Cypress`;
+- mayor cobertura de integracion conversacional y flujos administrativos secundarios;
+- incorporacion de analisis estatico avanzado y cobertura formal.
+
 ## 1. Estrategia y Enfoque de las Pruebas
 
 El presente plan define la estrategia de aseguramiento de calidad de `TutorLink`, combinando verificacion estatica y dinamica para contrastar el comportamiento del sistema contra requisitos, reglas de negocio y criterios de aceptacion.
@@ -400,9 +481,149 @@ ci(quality): add advanced quality gates
 docs(qa): add evidence checklist and release criteria refinement
 ```
 
+## Avance de la Fase 4
+
+- se incorpora `Vitest` con entorno `jsdom` y `React Testing Library`;
+- se agregan pruebas frontend sobre `LoginPage`, `OtpPage`, `StudentDashboard`, `StudentNewQuestion`, `StudentQuestions`, `TutorPendingPage`, `UsersPage`, `AssignmentsPage` y guardas de rutas;
+- se validan flujos visibles de autenticacion, OTP, registro de pregunta, historial, respuesta del tutor, gestion visual de usuarios, modal de importacion CSV y control de acceso por rol;
+- la estrategia usada en esta fase se basa en mocks de `apiClient`, `MemoryRouter`, `AuthContext.Provider` y dobles de `reCAPTCHA`, sin dependencia del backend real;
+- se actualiza la compuerta CI frontend para ejecutar `npm ci`, `npm run lint`, `npm test` y `npm run build`.
+
+Limitaciones actuales:
+
+- no se agregan pruebas `E2E`;
+- no se usa `Cypress`;
+- no se introducen snapshots ni cobertura formal;
+- los flujos se validan a nivel de interfaz y comportamiento visible, no contra servicios reales.
+
+Pendiente para Fase 5:
+
+- pruebas `E2E` con `Cypress`;
+- cobertura frontend y backend;
+- evidencias automatizadas adicionales para liberacion;
+- consolidacion de trazabilidad completa entre requisitos, UI, API y pruebas.
+
+## Avance de la Fase 5
+
+- se incorpora `Cypress` para pruebas `E2E` del frontend bajo una estrategia hibrida;
+- se cubren flujos de autenticacion visual, estudiante, tutor, administrador y control de acceso por rol;
+- la ejecucion principal usa `cy.intercept()` y fixtures para evitar dependencia de cuentas reales, `SMTP`, `OTP` externos o backend real;
+- se documenta una ruta opcional de smoke local con `docker compose`, pero no forma parte de la compuerta normal de `cy:run`;
+- se generan evidencias estandar en `frontend/cypress/screenshots/` y `frontend/cypress/videos/`, con respaldo documental en `qa/evidencias/cypress/README.md`.
+
+Limitaciones actuales:
+
+- el login `OTP` completamente real sigue dependiendo de correo y servicios externos;
+- no se integra `Cypress` al workflow CI en esta fase para no volver inestable la compuerta actual;
+- la ruta recomendada y estable es local/manual con frontend levantado y respuestas mockeadas.
+
+Pendiente para Fase 6:
+
+- cobertura y reportes avanzados;
+- integracion progresiva de ejecucion `E2E` en CI cuando exista una estrategia estable para `OTP`/correo;
+- consolidacion de evidencias automatizadas y calidad avanzada.
+
+## Avance de la Fase 6
+
+- se incorpora cobertura backend con `JaCoCo` para generar reportes HTML y XML sin cambiar la logica funcional;
+- se incorpora cobertura frontend con `Vitest` usando el proveedor `v8`, con salidas HTML y `lcov`;
+- en la medicion actual se obtuvo cobertura backend de lineas de `22.87%` y cobertura global frontend de `26.55%`;
+- se prepara `SonarQube` o `SonarCloud` mediante `sonar-project.properties`, sin tokens ni configuracion sensible;
+- se actualiza el workflow CI para conservar las compuertas existentes y agregar generacion de cobertura en backend y frontend;
+- se documentan evidencias reproducibles para `JaCoCo`, cobertura frontend y `Sonar`;
+- no se vuelve obligatorio `Sonar` en CI ni se fuerzan umbrales de cobertura en esta fase.
+
+Limitaciones actuales:
+
+- la cobertura se mide y reporta, pero no se usa todavia como quality gate con umbral estricto;
+- `Cypress` sigue siendo local/manual y no forma parte de la compuerta automatica de esta fase;
+- los tests de integracion backend basados en `Testcontainers` pueden quedar omitidos si el entorno no ofrece Docker operativo.
+
+Pendiente para cierre QA posterior:
+
+- decidir umbrales minimos de cobertura cuando las metricas base ya esten consolidadas;
+- habilitar `Sonar` en CI solo cuando existan secretos y configuracion externa estable;
+- estabilizar por completo la ejecucion `E2E` local para todos los entornos del equipo.
+
+## Metricas QA para `v0.3.0`
+
+| Metrica | Valor / criterio |
+| --- | --- |
+| Pruebas backend totales | `103` al ejecutar `mvn test` |
+| Pruebas frontend totales | `29` al ejecutar `npm test` |
+| Pruebas `E2E` Cypress | Pendiente de medicion estable por entorno local |
+| Cobertura backend JaCoCo | `22.87%` de lineas en la corrida actual |
+| Cobertura frontend Vitest | `26.55%` global en la corrida actual |
+| Estado de lint | `OK` con `npm run lint` |
+| Estado de build frontend | `OK` con `npm run build` |
+| Estado de CI | Compuertas backend y frontend configuradas |
+| Issues Sonar | Pendiente de medicion |
+| Bugs abiertos / cerrados | Pendiente de medicion en `ClickUp` |
+| Criterio de aceptacion `v0.3.0` | backend y frontend validos, cobertura generada, calidad estatica ejecutable, sin cambios de negocio |
+
 ## Observaciones finales
 
-- Esta fase no agrega `Cypress`, `Sonar`, `JaCoCo` ni `Testcontainers`.
-- Esta fase no introduce nuevas pruebas funcionales ni cambia endpoints.
-- La correccion de lint se limita a limpieza estructural no funcional para habilitar la compuerta de calidad.
-- Las incidencias siguen registrandose en `ClickUp`, mientras que las evidencias tecnicas se centralizan gradualmente en `qa/evidencias/`.
+- La fase mantiene un enfoque de medicion y reporte, no de endurecimiento agresivo por umbrales.
+- `Sonar` queda preparado pero no obligatorio mientras no exista una configuracion externa estable.
+- `Cypress` sigue como validacion local/manual hasta que su ejecucion sea repetible en todos los entornos.
+- Las incidencias siguen registrandose en `ClickUp`, mientras que las evidencias tecnicas se centralizan en `qa/evidencias/`.
+
+## Cierre QA v0.3.0
+
+### Resumen de las 7 fases
+
+- Fase 1: se establecio la base documental QA y la compuerta CI minima.
+- Fase 2: se amplio la cobertura unitaria del backend.
+- Fase 3: se implementaron pruebas de integracion backend con seguridad, persistencia y auditoria.
+- Fase 4: se incorporaron pruebas frontend con `Vitest` y `React Testing Library`.
+- Fase 5: se configuro `Cypress` para validacion `E2E` local/manual con estrategia hibrida.
+- Fase 6: se formalizo la cobertura backend/frontend y la preparacion de `Sonar`.
+- Fase 7: se consolida el cierre documental, la trazabilidad, el checklist de release y el control de cambios QA.
+
+### Estado final
+
+Estado recomendado para la version `v0.3.0`: **Aceptada con observaciones**.
+
+Fundamento:
+
+- backend y frontend cuentan con compuertas automatizadas verificables;
+- la cobertura backend y frontend ya es medible y reportable;
+- la trazabilidad funcional y documental queda consolidada;
+- `Cypress` y las integraciones con `Testcontainers` siguen condicionadas al entorno y no deben presentarse como compuertas estables universales.
+
+### Criterios de aceptacion de cierre
+
+Para considerar listo el cierre QA de `v0.3.0` deben mantenerse:
+
+- `mvn test` exitoso;
+- `mvn test jacoco:report` exitoso;
+- `npm run lint` exitoso;
+- `npm test` exitoso;
+- `npm run test:coverage` exitoso;
+- `npm run build` exitoso;
+- documentacion QA de cierre presente;
+- evidencias y reportes generables desde comandos reproducibles;
+- ausencia de secretos en archivos versionados de QA.
+
+### Metricas QA consolidadas
+
+| Metrica | Valor actual |
+| --- | --- |
+| Pruebas backend totales | `103` |
+| Pruebas frontend totales | `29` |
+| Specs Cypress configuradas | `5` |
+| Cobertura backend JaCoCo | `22.87%` |
+| Cobertura frontend Vitest | `26.55%` |
+| Estado lint | Exitoso |
+| Estado build | Exitoso |
+| Estado CI | Workflow configurado para backend y frontend |
+| Estado Sonar | Preparado, no obligatorio en CI |
+| Bugs abiertos/cerrados | Pendiente de medicion |
+
+### Pendientes posteriores a v0.3.0
+
+- estabilizar por completo `Cypress` como compuerta repetible;
+- habilitar entorno Docker valido para ejecucion completa de integracion backend;
+- elevar cobertura de backend y frontend antes de imponer umbrales;
+- activar `Sonar` en CI solo cuando existan secretos y entorno estable;
+- evaluar una fase posterior para carga, rendimiento y seguridad ofensiva.
