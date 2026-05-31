@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -131,6 +132,31 @@ public class OtpService {
         return Instant.now().isAfter(
                 otp.getLastSentAt().plusSeconds(resendCooldown)
         );
+    }
+
+    public long getResendCooldownSeconds() {
+        return resendCooldown;
+    }
+
+    public long getRemainingResendCooldownSeconds(Long userId, String purpose) {
+        Optional<OtpCode> last = otpRepository
+                .findTopByUserIdAndPurposeOrderByCreatedAtDesc(userId, purpose);
+
+        if (last.isEmpty() || last.get().getLastSentAt() == null) {
+            return 0;
+        }
+
+        Instant availableAt = last.get().getLastSentAt().plusSeconds(resendCooldown);
+        long remainingMillis = availableAt.toEpochMilli() - Instant.now().toEpochMilli();
+        if (remainingMillis <= 0) {
+            return 0;
+        }
+
+        return Math.max(1, TimeUnit.MILLISECONDS.toSeconds((remainingMillis + 999) / 1000));
+    }
+
+    public Optional<OtpCode> findLoginOtpByPublicId(String publicId) {
+        return otpRepository.findByPublicIdAndPurpose(publicId, "LOGIN");
     }
 
     // VALIDAR OTP POR publicId (LOGIN)
