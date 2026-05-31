@@ -108,9 +108,15 @@ describe("StudentQuestions", () => {
 
     await user.click(await screen.findByRole("button", { name: /ver detalle/i }));
 
-    await waitFor(() => {
-      expect(screen.getByText(/conversación de mi pregunta/i)).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByRole("heading", {
+        name: /conversación de mi pregunta/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/hilo de conversación/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/aún no hay mensajes registrados para esta pregunta/i),
+    ).toBeInTheDocument();
     expect(apiClient.get).toHaveBeenLastCalledWith("/api/questions/9/messages");
     expect(alertSpy).not.toHaveBeenCalled();
   });

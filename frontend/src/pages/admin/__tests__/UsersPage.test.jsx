@@ -148,8 +148,11 @@ describe("UsersPage", () => {
     );
 
     await screen.findByText("tutor@uv.mx");
-    const actionButtons = screen.getAllByRole("button", { name: /^cambiar estado$/i });
-    await user.click(actionButtons[0]);
+    const tutorRow = screen.getByText("tutor@uv.mx").closest("tr");
+    expect(tutorRow).not.toBeNull();
+    await user.click(
+      within(tutorRow).getByRole("button", { name: /^cambiar estado$/i }),
+    );
 
     await screen.findByText(/cambiar estado de usuario/i);
     const selects = screen.getAllByRole("combobox");
