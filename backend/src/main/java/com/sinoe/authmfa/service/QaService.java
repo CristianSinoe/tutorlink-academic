@@ -3,6 +3,9 @@ package com.sinoe.authmfa.service;
 import com.sinoe.authmfa.domain.qa.*;
 import com.sinoe.authmfa.domain.user.*;
 import com.sinoe.authmfa.dto.QaDtos;
+import com.sinoe.authmfa.dto.qa.QuestionConversationDto;
+import com.sinoe.authmfa.dto.qa.QuestionConversationMessageDto;
+import com.sinoe.authmfa.dto.qa.QuestionConversationMessageVersionDto;
 import com.sinoe.authmfa.dto.qa.TutorDashboardSummaryDto;
 import com.sinoe.authmfa.dto.qa.TutorHistoryItemDto;
 import com.sinoe.authmfa.dto.qa.TutorRecentQuestionDto;
@@ -10,12 +13,18 @@ import com.sinoe.authmfa.dto.qa.TutorRecentQuestionDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.sinoe.authmfa.dto.PagedResponse;
 import org.springframework.data.domain.*;
 import com.sinoe.authmfa.dto.qa.TutorPendingQuestionDto;
+import org.springframework.util.StringUtils;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.stream.Stream;
 import com.sinoe.authmfa.dto.qa.StudentQuestionDetailDto;
 
@@ -42,14 +51,24 @@ public class QaService {
 
     private final QuestionRepository questions;
     private final AnswerRepository answers;
+    private final QuestionMessageRepository questionMessages;
+    private final QuestionMessageRevisionRepository questionMessageRevisions;
     private final TutorStudentRepository tutorStudentRepository;
+    private final EmailService emailService;
+    private final ObjectProvider<QaService> selfProvider;
 
     // HELPERS
 
+    private static final int MAX_MESSAGE_BODY_LENGTH = 8000;
 
     public User requireUserByEmail(String email) {
         return users.findByEmail(email)
                 .orElseThrow(() -> new EntityNotFoundException("user not found: " + email));
+    }
+
+    public User requireUserById(Long userId) {
+        return users.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("user not found: " + userId));
     }
 
     public Student requireStudentByUserId(Long userId) {
@@ -77,35 +96,47 @@ public class QaService {
 
     @Transactional
     public Question createQuestion(Long studentId, Scope scope, String title, String body) {
+        return self().createQuestion(studentId, scope, title, body, null);
+    }
 
-        // 1) Obtenemos al estudiante por ID
+    @Transactional
+    public Question createQuestion(Long studentId, Scope scope, String title, String body, String frontendBaseUrl) {
+        String normalizedBody = normalizeMessageBody(body);
         Student student = requireStudentById(studentId);
-
-        // 2) Buscamos el tutor asignado a este estudiante en tl_tutor_students
         Tutor tutor = tutorStudentRepository.findByStudent_Id(student.getId())
                 .map(TutorStudent::getTutor)
-                .orElse(null); // Si no tiene tutor, se guarda como null
+                .orElse(null);
 
-        // 3) Creamos la pregunta
         var q = Question.builder()
                 .student(student)
-                .tutor(tutor) // ya va con el tutor asignado (si existe)
+                .tutor(tutor)
                 .scope(scope)
                 .title(title)
-                .body(body)
+                .body(normalizedBody)
                 .status(Status.PENDIENTE)
                 .build();
 
-        return questions.save(q);
+        q = questions.save(q);
+
+        createThreadMessage(q, student.getUser(), normalizedBody);
+        notifyTutorAboutNewQuestion(q, tutor, frontendBaseUrl);
+
+        return q;
     }
 
     // RESPONDER O CORREGIR
 
     @Transactional
     public Answer publishOrCorrect(Long userId, Long questionId, String body, boolean correction) {
+        return self().publishOrCorrect(userId, questionId, body, correction, null);
+    }
 
+    @Transactional
+    public Answer publishOrCorrect(Long userId, Long questionId, String body, boolean correction, String frontendBaseUrl) {
+        String normalizedBody = normalizeMessageBody(body);
         Tutor tutor = requireTutorByUserId(userId);
         Question q = requireQuestion(questionId);
+        ensureTutorCanWrite(tutor, q);
 
         if (q.getStatus() == Status.RECHAZADA)
             throw new IllegalStateException("Pregunta rechazada");
@@ -117,11 +148,13 @@ public class QaService {
                 ? 1
                 : q.getCurrentAnswer().getVersion() + 1;
 
+        QuestionMessage threadMessage = createThreadMessage(q, tutor.getUser(), normalizedBody);
         var ans = Answer.builder()
                 .question(q)
                 .tutor(tutor)
-                .body(body)
+                .body(normalizedBody)
                 .version(nextVersion)
+                .threadMessage(threadMessage)
                 .build();
 
         ans = answers.save(ans);
@@ -132,6 +165,7 @@ public class QaService {
         q.setStatus(correction ? Status.CORREGIDA : Status.PUBLICADA);
 
         questions.save(q);
+        notifyStudentAboutTutorReply(q, tutor, threadMessage.getCreatedAt(), frontendBaseUrl);
 
         return ans;
     }
@@ -140,9 +174,9 @@ public class QaService {
 
     @Transactional
     public void reject(Long userId, Long questionId, String reason) {
-
-        requireTutorByUserId(userId);
+        Tutor tutor = requireTutorByUserId(userId);
         Question q = requireQuestion(questionId);
+        ensureTutorCanWrite(tutor, q);
 
         if (q.getStatus() == Status.RECHAZADA)
             return;
@@ -161,14 +195,140 @@ public class QaService {
 
     @Transactional
     public void reclassify(Long userId, Long questionId, Scope newScope) {
-
-        requireTutorByUserId(userId);
+        Tutor tutor = requireTutorByUserId(userId);
         Question q = requireQuestion(questionId);
+        ensureTutorCanWrite(tutor, q);
 
         if (q.getScope() != newScope) {
             q.setScope(newScope);
             questions.save(q);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public QuestionConversationDto getQuestionConversation(Long viewerUserId, Long questionId) {
+        User viewer = requireUserById(viewerUserId);
+        Question question = requireQuestion(questionId);
+        ensureCanReadQuestion(viewer, question);
+
+        List<QuestionMessage> persistedMessages =
+                questionMessages.findByQuestion_IdAndVisibleTrueOrderByCreatedAtAscIdAsc(questionId);
+        Map<Long, List<QuestionMessageRevision>> revisionsByMessageId = loadRevisionsByMessageId(persistedMessages);
+        List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
+
+        List<QuestionConversationMessageDto> messages = new ArrayList<>();
+        if (shouldAddVirtualOpeningMessage(question, persistedMessages)) {
+            messages.add(buildVirtualQuestionOpening(question));
+        }
+
+        for (Answer answer : allAnswers) {
+            if (answer.getThreadMessage() == null) {
+                messages.add(buildVirtualAnswerMessage(answer));
+            }
+        }
+
+        persistedMessages.stream()
+                .map(message -> toConversationMessageDto(message, viewer, revisionsByMessageId.getOrDefault(message.getId(), List.of())))
+                .forEach(messages::add);
+
+        messages.sort(Comparator
+                .comparing(QuestionConversationMessageDto::createdAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(QuestionConversationMessageDto::id, Comparator.nullsLast(Comparator.naturalOrder())));
+
+        StudentContactInfo studentInfo = extractStudentContactInfo(question);
+        TutorContactInfo tutorInfo = extractTutorContactInfo(question, allAnswers);
+
+        return new QuestionConversationDto(
+                question.getId(),
+                question.getTitle(),
+                enumName(question.getStatus()),
+                enumName(question.getScope()),
+                question.getCreatedAt(),
+                question.getRejectReason(),
+                studentInfo.name(),
+                studentInfo.email(),
+                tutorInfo.fullName(),
+                tutorInfo.email(),
+                canReply(viewer, question),
+                messages
+        );
+    }
+
+    @Transactional
+    public QuestionConversationMessageDto addConversationMessage(
+            Long senderUserId,
+            Long questionId,
+            String body,
+            String frontendBaseUrl) {
+        User sender = requireUserById(senderUserId);
+        Question question = requireQuestion(questionId);
+        String normalizedBody = normalizeMessageBody(body);
+
+        if (question.getStatus() == Status.RECHAZADA) {
+            throw new IllegalStateException("No se pueden agregar mensajes a una pregunta rechazada");
+        }
+
+        QuestionMessage message;
+        if (sender.getRole() == UserRole.ESTUDIANTE) {
+            validateStudentQuestionOwnership(sender.getId(), question);
+            message = createThreadMessage(question, sender, normalizedBody);
+            notifyTutorAboutStudentFollowUp(question, message.getCreatedAt(), frontendBaseUrl);
+        } else if (sender.getRole() == UserRole.TUTOR) {
+            Tutor tutor = requireTutorByUserId(sender.getId());
+            ensureTutorCanWrite(tutor, question);
+            message = createThreadMessage(question, sender, normalizedBody);
+            if (question.getCurrentAnswer() == null) {
+                createAnswerFromThreadMessage(question, tutor, normalizedBody, message, false);
+            }
+            notifyStudentAboutTutorReply(question, tutor, message.getCreatedAt(), frontendBaseUrl);
+        } else {
+            throw new IllegalArgumentException("Solo estudiantes o tutores pueden enviar mensajes");
+        }
+
+        return toConversationMessageDto(message, sender, List.of());
+    }
+
+    @Transactional
+    public QuestionConversationMessageDto correctConversationMessage(
+            Long editorUserId,
+            Long messageId,
+            String body,
+            String frontendBaseUrl) {
+        User editor = requireUserById(editorUserId);
+        QuestionMessage message = questionMessages.findById(messageId)
+                .orElseThrow(() -> new EntityNotFoundException("message not found: " + messageId));
+        Question question = message.getQuestion();
+        ensureCanReadQuestion(editor, question);
+        ensureCanCorrectMessage(editor, message);
+
+        String normalizedBody = normalizeMessageBody(body);
+        List<QuestionMessageRevision> existingRevisions =
+                questionMessageRevisions.findByQuestionMessage_IdOrderByCreatedAtAscIdAsc(messageId);
+        String effectiveBody = resolveEffectiveBody(message, existingRevisions);
+
+        if (effectiveBody.equals(normalizedBody)) {
+            return toConversationMessageDto(message, editor, existingRevisions);
+        }
+
+        QuestionMessageRevision revision = QuestionMessageRevision.builder()
+                .questionMessage(message)
+                .createdByUser(editor)
+                .body(normalizedBody)
+                .build();
+        questionMessageRevisions.save(revision);
+
+        if (editor.getRole() == UserRole.TUTOR && question.getStatus() != Status.RECHAZADA) {
+            question.setStatus(Status.CORREGIDA);
+            questions.save(question);
+            Tutor tutor = requireTutorByUserId(editorUserId);
+            notifyStudentAboutTutorReply(question, tutor, revision.getCreatedAt(), frontendBaseUrl);
+        } else if (editor.getRole() == UserRole.ESTUDIANTE) {
+            notifyTutorAboutStudentFollowUp(question, revision.getCreatedAt(), frontendBaseUrl);
+        }
+
+        List<QuestionMessageRevision> refreshedRevisions =
+                questionMessageRevisions.findByQuestionMessage_IdOrderByCreatedAtAscIdAsc(messageId);
+        return toConversationMessageDto(message, editor, refreshedRevisions);
     }
 
     // LISTAR PREGUNTAS DEL ESTUDIANTE (PAGINADO)
@@ -360,6 +520,42 @@ public class QaService {
     }
 
     @Transactional(readOnly = true)
+    public List<com.sinoe.authmfa.dto.qa.AnswerHistoryDto> getAnswerHistoryForQuestion(Long viewerUserId, Long questionId) {
+        User viewer = requireUserById(viewerUserId);
+        Question question = requireQuestion(questionId);
+        ensureCanReadQuestion(viewer, question);
+
+        List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
+        List<com.sinoe.authmfa.dto.qa.AnswerHistoryDto> history = new ArrayList<>();
+        int version = 1;
+
+        for (Answer answer : allAnswers) {
+            history.add(new com.sinoe.authmfa.dto.qa.AnswerHistoryDto(
+                    answer.getId(),
+                    version++,
+                    answer.getBody(),
+                    answer.getCreatedAt()));
+
+            if (answer.getThreadMessage() == null) {
+                continue;
+            }
+
+            List<QuestionMessageRevision> revisions =
+                    questionMessageRevisions.findByQuestionMessage_IdOrderByCreatedAtAscIdAsc(answer.getThreadMessage().getId());
+
+            for (QuestionMessageRevision revision : revisions) {
+                history.add(new com.sinoe.authmfa.dto.qa.AnswerHistoryDto(
+                        revision.getId(),
+                        version++,
+                        revision.getBody(),
+                        revision.getCreatedAt()));
+            }
+        }
+
+        return history;
+    }
+
+    @Transactional(readOnly = true)
     public TutorProfileDto getTutorProfile(Long userId) {
         Tutor tutor = requireTutorByUserId(userId);
 
@@ -395,7 +591,7 @@ public class QaService {
         validateStudentQuestionOwnership(student, q);
         List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
         Answer lastAnswer = findLastAnswer(allAnswers);
-        TutorContactInfo tutorInfo = extractTutorContactInfo(lastAnswer);
+        TutorContactInfo tutorInfo = extractTutorContactInfo(q, allAnswers);
 
         return new StudentQuestionDetailDto(
                 q.getId(),
@@ -516,6 +712,7 @@ public class QaService {
         return new TutorPendingQuestionDto(
                 question.getId(),
                 question.getTitle(),
+                question.getBody(),
                 enumName(question.getStatus()),
                 enumName(question.getScope()),
                 question.getCreatedAt(),
@@ -568,11 +765,16 @@ public class QaService {
         return new StudentContactInfo(buildFullName(user), user.getEmail());
     }
 
-    private TutorContactInfo extractTutorContactInfo(Answer answer) {
-        if (answer == null || answer.getTutor() == null || answer.getTutor().getUser() == null) {
+    private TutorContactInfo extractTutorContactInfo(Question question, List<Answer> allAnswers) {
+        Tutor tutor = question.getTutor();
+        if (tutor == null && !allAnswers.isEmpty()) {
+            Answer lastAnswer = findLastAnswer(allAnswers);
+            tutor = lastAnswer != null ? lastAnswer.getTutor() : null;
+        }
+        if (tutor == null || tutor.getUser() == null) {
             return TutorContactInfo.empty();
         }
-        User user = answer.getTutor().getUser();
+        User user = tutor.getUser();
         String fullName = buildFullName(user);
         return new TutorContactInfo(fullName, fullName, user.getEmail());
     }
@@ -625,6 +827,14 @@ public class QaService {
         }
     }
 
+    private void validateStudentQuestionOwnership(Long studentUserId, Question question) {
+        if (question.getStudent() == null
+                || question.getStudent().getUser() == null
+                || !Objects.equals(question.getStudent().getUser().getId(), studentUserId)) {
+            throw new IllegalArgumentException("No tienes permiso para ver esta pregunta");
+        }
+    }
+
     private Answer findLastAnswer(List<Answer> allAnswers) {
         return allAnswers.isEmpty() ? null : allAnswers.get(allAnswers.size() - 1);
     }
@@ -635,6 +845,323 @@ public class QaService {
 
     private String enumName(Enum<?> value) {
         return value != null ? value.name() : null;
+    }
+
+    private String normalizeMessageBody(String body) {
+        String normalized = body != null ? body.trim() : "";
+        if (!StringUtils.hasText(normalized)) {
+            throw new IllegalArgumentException("El mensaje no puede estar vacío");
+        }
+        if (normalized.length() > MAX_MESSAGE_BODY_LENGTH) {
+            throw new IllegalArgumentException("El mensaje excede la longitud máxima permitida");
+        }
+        return normalized;
+    }
+
+    private QuestionMessage createThreadMessage(Question question, User sender, String body) {
+        QuestionMessage message = QuestionMessage.builder()
+                .question(question)
+                .senderUser(sender)
+                .senderRole(sender.getRole())
+                .messageType(QuestionMessageType.TEXT)
+                .body(body)
+                .visible(true)
+                .build();
+        return questionMessages.save(message);
+    }
+
+    private Answer createAnswerFromThreadMessage(
+            Question question,
+            Tutor tutor,
+            String body,
+            QuestionMessage threadMessage,
+            boolean correction) {
+        int nextVersion = (question.getCurrentAnswer() == null)
+                ? 1
+                : question.getCurrentAnswer().getVersion() + 1;
+
+        Answer answer = Answer.builder()
+                .question(question)
+                .tutor(tutor)
+                .body(body)
+                .version(nextVersion)
+                .threadMessage(threadMessage)
+                .build();
+        answer = answers.save(answer);
+
+        question.setCurrentAnswer(answer);
+        question.setRejectReason(null);
+        question.setTutor(tutor);
+        question.setStatus(correction ? Status.CORREGIDA : Status.PUBLICADA);
+        questions.save(question);
+        return answer;
+    }
+
+    private void notifyTutorAboutNewQuestion(Question question, Tutor tutor, String frontendBaseUrl) {
+        if (tutor == null || tutor.getUser() == null || !StringUtils.hasText(tutor.getUser().getEmail())) {
+            return;
+        }
+        emailService.sendTutorNewQuestionEmail(
+                tutor.getUser().getEmail(),
+                extractStudentContactInfo(question).name(),
+                question.getTitle(),
+                question.getCreatedAt(),
+                question.getId(),
+                frontendBaseUrl
+        );
+    }
+
+    private void notifyStudentAboutTutorReply(
+            Question question,
+            Tutor tutor,
+            Instant eventAt,
+            String frontendBaseUrl) {
+        if (question.getStudent() == null
+                || question.getStudent().getUser() == null
+                || !StringUtils.hasText(question.getStudent().getUser().getEmail())) {
+            return;
+        }
+        String tutorName = tutor != null && tutor.getUser() != null
+                ? buildFullName(tutor.getUser())
+                : extractTutorContactInfo(question, answers.findByQuestion_IdOrderByVersionAsc(question.getId())).fullName();
+        emailService.sendStudentTutorReplyEmail(
+                question.getStudent().getUser().getEmail(),
+                tutorName,
+                question.getTitle(),
+                eventAt,
+                question.getId(),
+                frontendBaseUrl
+        );
+    }
+
+    private void notifyTutorAboutStudentFollowUp(Question question, Instant eventAt, String frontendBaseUrl) {
+        Tutor tutor = question.getTutor();
+        if (tutor == null && question.getStudent() != null) {
+            tutor = tutorStudentRepository.findByStudent_Id(question.getStudent().getId())
+                    .map(TutorStudent::getTutor)
+                    .orElse(null);
+        }
+        if (tutor == null || tutor.getUser() == null || !StringUtils.hasText(tutor.getUser().getEmail())) {
+            return;
+        }
+        emailService.sendTutorStudentFollowUpEmail(
+                tutor.getUser().getEmail(),
+                extractStudentContactInfo(question).name(),
+                question.getTitle(),
+                eventAt,
+                question.getId(),
+                frontendBaseUrl
+        );
+    }
+
+    private QuestionConversationMessageDto toConversationMessageDto(
+            QuestionMessage message,
+            User viewer,
+            List<QuestionMessageRevision> revisions) {
+        List<QuestionConversationMessageVersionDto> versions = buildVersionHistory(
+                message.getBody(),
+                message.getCreatedAt(),
+                revisions);
+        QuestionConversationMessageVersionDto currentVersion = versions.get(versions.size() - 1);
+        return new QuestionConversationMessageDto(
+                message.getId(),
+                buildFullName(message.getSenderUser()),
+                enumName(message.getSenderRole()),
+                currentVersion.body(),
+                currentVersion.createdAt(),
+                "MESSAGE",
+                false,
+                false,
+                versions.size() > 1,
+                canCorrectMessage(viewer, message),
+                versions
+        );
+    }
+
+    private QuestionConversationMessageDto buildVirtualQuestionOpening(Question question) {
+        return new QuestionConversationMessageDto(
+                null,
+                extractStudentContactInfo(question).name(),
+                UserRole.ESTUDIANTE.name(),
+                question.getBody(),
+                question.getCreatedAt(),
+                "QUESTION",
+                true,
+                false,
+                false,
+                false,
+                List.of(new QuestionConversationMessageVersionDto(
+                        null,
+                        1,
+                        question.getBody(),
+                        question.getCreatedAt(),
+                        true,
+                        true
+                ))
+        );
+    }
+
+    private QuestionConversationMessageDto buildVirtualAnswerMessage(Answer answer) {
+        User tutorUser = answer.getTutor() != null ? answer.getTutor().getUser() : null;
+        return new QuestionConversationMessageDto(
+                null,
+                tutorUser != null ? buildFullName(tutorUser) : null,
+                UserRole.TUTOR.name(),
+                answer.getBody(),
+                answer.getCreatedAt(),
+                "ANSWER",
+                true,
+                answer.getQuestion() != null
+                        && answer.getQuestion().getCurrentAnswer() != null
+                        && Objects.equals(answer.getQuestion().getCurrentAnswer().getId(), answer.getId()),
+                false,
+                false,
+                List.of(new QuestionConversationMessageVersionDto(
+                        null,
+                        1,
+                        answer.getBody(),
+                        answer.getCreatedAt(),
+                        true,
+                        true
+                ))
+        );
+    }
+
+    private QaService self() {
+        return selfProvider.getObject();
+    }
+
+    private boolean shouldAddVirtualOpeningMessage(Question question, List<QuestionMessage> persistedMessages) {
+        if (persistedMessages.isEmpty()) {
+            return true;
+        }
+        return persistedMessages.stream().noneMatch(message ->
+                message.getSenderRole() == UserRole.ESTUDIANTE
+                        && message.getSenderUser() != null
+                        && question.getStudent() != null
+                        && question.getStudent().getUser() != null
+                        && Objects.equals(message.getSenderUser().getId(), question.getStudent().getUser().getId())
+                        && Objects.equals(message.getBody(), question.getBody()));
+    }
+
+    private boolean canReply(User viewer, Question question) {
+        if (question.getStatus() == Status.RECHAZADA) {
+            return false;
+        }
+        return switch (viewer.getRole()) {
+            case ESTUDIANTE -> question.getStudent() != null
+                    && question.getStudent().getUser() != null
+                    && Objects.equals(question.getStudent().getUser().getId(), viewer.getId());
+            case TUTOR -> canTutorAccessQuestion(requireTutorByUserId(viewer.getId()), question);
+            case ADMIN -> false;
+        };
+    }
+
+    private boolean canCorrectMessage(User viewer, QuestionMessage message) {
+        if (viewer.getRole() == UserRole.ADMIN || message.getQuestion() == null) {
+            return false;
+        }
+        if (message.getQuestion().getStatus() == Status.RECHAZADA) {
+            return false;
+        }
+        return message.getSenderUser() != null
+                && Objects.equals(message.getSenderUser().getId(), viewer.getId());
+    }
+
+    private void ensureCanCorrectMessage(User viewer, QuestionMessage message) {
+        if (!canCorrectMessage(viewer, message)) {
+            throw new SecurityException("No puedes corregir este mensaje");
+        }
+    }
+
+    private void ensureCanReadQuestion(User viewer, Question question) {
+        switch (viewer.getRole()) {
+            case ESTUDIANTE -> validateStudentQuestionOwnership(viewer.getId(), question);
+            case TUTOR -> ensureTutorCanRead(requireTutorByUserId(viewer.getId()), question);
+            case ADMIN -> {
+                // lectura permitida
+            }
+        }
+    }
+
+    private void ensureTutorCanRead(Tutor tutor, Question question) {
+        if (!canTutorAccessQuestion(tutor, question)) {
+            throw new IllegalArgumentException("No tienes permiso para ver esta pregunta");
+        }
+    }
+
+    private void ensureTutorCanWrite(Tutor tutor, Question question) {
+        if (!canTutorAccessQuestion(tutor, question)) {
+            throw new IllegalArgumentException("No tienes permiso para responder esta pregunta");
+        }
+    }
+
+    private boolean canTutorAccessQuestion(Tutor tutor, Question question) {
+        if (question.getTutor() != null && Objects.equals(question.getTutor().getId(), tutor.getId())) {
+            return true;
+        }
+        if (question.getStudent() == null) {
+            return false;
+        }
+        return tutorStudentRepository.findByStudent_Id(question.getStudent().getId())
+                .map(TutorStudent::getTutor)
+                .map(Tutor::getId)
+                .filter(tutorId -> Objects.equals(tutorId, tutor.getId()))
+                .isPresent();
+    }
+
+    private Map<Long, List<QuestionMessageRevision>> loadRevisionsByMessageId(List<QuestionMessage> messages) {
+        List<Long> messageIds = messages.stream()
+                .map(QuestionMessage::getId)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (messageIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return questionMessageRevisions.findByQuestionMessage_IdInOrderByCreatedAtAscIdAsc(messageIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        revision -> revision.getQuestionMessage().getId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+    }
+
+    private List<QuestionConversationMessageVersionDto> buildVersionHistory(
+            String originalBody,
+            Instant originalCreatedAt,
+            List<QuestionMessageRevision> revisions) {
+        List<QuestionConversationMessageVersionDto> versions = new ArrayList<>();
+        versions.add(new QuestionConversationMessageVersionDto(
+                null,
+                1,
+                originalBody,
+                originalCreatedAt,
+                revisions.isEmpty(),
+                true
+        ));
+
+        for (int i = 0; i < revisions.size(); i++) {
+            QuestionMessageRevision revision = revisions.get(i);
+            versions.add(new QuestionConversationMessageVersionDto(
+                    revision.getId(),
+                    i + 2,
+                    revision.getBody(),
+                    revision.getCreatedAt(),
+                    i == revisions.size() - 1,
+                    false
+            ));
+        }
+
+        return versions;
+    }
+
+    private String resolveEffectiveBody(QuestionMessage message, List<QuestionMessageRevision> revisions) {
+        if (revisions.isEmpty()) {
+            return message.getBody();
+        }
+        return revisions.get(revisions.size() - 1).getBody();
     }
 
     private record StudentContactInfo(String name, String email) {

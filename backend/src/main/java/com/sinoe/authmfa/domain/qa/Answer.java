@@ -34,6 +34,10 @@ public class Answer {
     @Column(nullable = false)
     private Integer version;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "thread_message_id")
+    private QuestionMessage threadMessage;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
