@@ -36,7 +36,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
 
   const handleClose = () => {
     resetState();
-    onClose && onClose();
+    onClose?.();
   };
 
   const handleStartRequest = async (e) => {

@@ -152,8 +152,12 @@ Cypress.Commands.add("mockAdminApis", () => {
 
 Cypress.Commands.add("loginViaUiAs", (role) => {
   cy.fixture("users").then((users) => {
-    const user = users[role];
-    const roleName = String(role);
+    const roleValue =
+      typeof role === "object"
+        ? role?.name ?? role?.value ?? role?.role ?? JSON.stringify(role)
+        : role;
+    const roleName = String(roleValue);
+    const user = users[roleName];
 
     if (roleName === "student") {
       cy.mockStudentApis();

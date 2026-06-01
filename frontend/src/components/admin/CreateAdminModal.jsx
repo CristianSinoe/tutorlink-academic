@@ -45,7 +45,7 @@ export default function CreateAdminModal({ onClose, onCreated }) {
         email: form.email.trim(),
       });
 
-      onCreated && onCreated();
+      onCreated?.();
     } catch (err) {
       console.error("Error creando administrador", err);
       const msg =

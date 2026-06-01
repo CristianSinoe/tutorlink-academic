@@ -181,6 +181,78 @@ export default function StudentQuestions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const renderQuestionsList = () => {
+    if (loadingQuestions) {
+      return (
+        <p className="text-sm text-slate-500">
+          Cargando preguntas…
+        </p>
+      );
+    }
+
+    if (filteredQuestions.length === 0) {
+      return (
+        <p className="text-sm text-slate-500">
+          No se encontraron preguntas con los filtros actuales.
+        </p>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-slate-100/80">
+            <tr>
+              <th className="p-2.5">Pregunta</th>
+              <th className="p-2.5">Estado</th>
+              <th className="p-2.5">Fecha</th>
+              <th className="p-2.5">Alcance</th>
+              <th className="p-2.5">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredQuestions.map((q) => (
+              <tr
+                key={q.id}
+                data-cy="student-question-row"
+                className="border-t border-slate-100 hover:bg-slate-50"
+              >
+                <td
+                  className="p-2.5 max-w-md truncate"
+                  title={q.title}
+                >
+                  {q.title}
+                </td>
+
+                <td className="p-2.5">
+                  <QuestionStatusBadge status={q.status} />
+                </td>
+
+                <td className="p-2.5">
+                  {formatDateTime(q.createdAt || q.updatedAt)}
+                </td>
+
+                <td className="p-2.5">
+                  {q.scope || "—"}
+                </td>
+
+                <td className="p-2.5">
+                  <button
+                    onClick={() => openDetail(q.id)}
+                    data-cy="student-question-detail"
+                    className="px-3 py-1 border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    Ver detalle
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-full bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-6 lg:py-8 space-y-6">
@@ -275,68 +347,7 @@ export default function StudentQuestions() {
             Listado
           </h2>
 
-          {loadingQuestions ? (
-            <p className="text-sm text-slate-500">
-              Cargando preguntas…
-            </p>
-          ) : filteredQuestions.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No se encontraron preguntas con los filtros actuales.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-100/80">
-                  <tr>
-                    <th className="p-2.5">Pregunta</th>
-                    <th className="p-2.5">Estado</th>
-                    <th className="p-2.5">Fecha</th>
-                    <th className="p-2.5">Alcance</th>
-                    <th className="p-2.5">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredQuestions.map((q) => (
-                    <tr
-                      key={q.id}
-                      data-cy="student-question-row"
-                      className="border-t border-slate-100 hover:bg-slate-50"
-                    >
-                      <td
-                        className="p-2.5 max-w-md truncate"
-                        title={q.title}
-                      >
-                        {q.title}
-                      </td>
-
-                      <td className="p-2.5">
-                        <QuestionStatusBadge status={q.status} />
-                      </td>
-
-                      {/* FECHA FORMATEADA: createdAt primero, luego updatedAt */}
-                      <td className="p-2.5">
-                        {formatDateTime(q.createdAt || q.updatedAt)}
-                      </td>
-
-                      <td className="p-2.5">
-                        {q.scope || "—"}
-                      </td>
-
-                      <td className="p-2.5">
-                        <button
-                          onClick={() => openDetail(q.id)}
-                          data-cy="student-question-detail"
-                          className="px-3 py-1 border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-slate-100 transition"
-                        >
-                          Ver detalle
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {renderQuestionsList()}
 
           <p className="mt-3 text-xs text-slate-500">
             * Aquí puedes revisar todas tus preguntas y acceder al detalle y la

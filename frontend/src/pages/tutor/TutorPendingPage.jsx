@@ -263,6 +263,68 @@ export default function TutorPendingPage() {
     }
   };
 
+  const renderPendingQuestions = () => {
+    if (loading) {
+      return <p className="px-4 pb-4 text-sm text-slate-500">Cargando...</p>;
+    }
+
+    if (questions.length === 0) {
+      return (
+        <p className="px-4 pb-4 text-sm text-slate-500">
+          No tienes preguntas pendientes por el momento.
+        </p>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm text-left">
+          <thead className="bg-slate-100/70 text-slate-700">
+            <tr>
+              <th className="px-3 py-2.5">Pregunta</th>
+              <th className="px-3 py-2.5">Estudiante</th>
+              <th className="px-3 py-2.5">Alcance</th>
+              <th className="px-3 py-2.5">Fecha</th>
+              <th className="px-3 py-2.5">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {questions.map((q) => (
+              <tr
+                key={q.id}
+                data-cy="tutor-pending-row"
+                className="border-t border-slate-100 hover:bg-slate-50"
+              >
+                <td
+                  className="px-3 py-2.5 max-w-xs truncate"
+                  title={q.title}
+                >
+                  {q.title}
+                </td>
+                <td className="px-3 py-2.5">
+                  {q.studentName || q.studentEmail || "—"}
+                </td>
+                <td className="px-3 py-2.5">{q.scope || "—"}</td>
+                <td className="px-3 py-2.5">
+                  {formatDateTime(q.createdAt || q.updatedAt)}
+                </td>
+                <td className="px-3 py-2.5">
+                  <button
+                    className="px-3 py-1 rounded-full border border-uvBlue text-uvBlue text-xs font-medium hover:bg-uvBlue hover:text-white transition"
+                    data-cy="tutor-open-detail"
+                    onClick={() => openDetail(q.id)}
+                  >
+                    Ver detalle / Responder
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -346,59 +408,7 @@ export default function TutorPendingPage() {
           Listado
         </h2>
 
-        {loading ? (
-          <p className="px-4 pb-4 text-sm text-slate-500">Cargando...</p>
-        ) : questions.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-slate-500">
-            No tienes preguntas pendientes por el momento.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-left">
-              <thead className="bg-slate-100/70 text-slate-700">
-                <tr>
-                  <th className="px-3 py-2.5">Pregunta</th>
-                  <th className="px-3 py-2.5">Estudiante</th>
-                  <th className="px-3 py-2.5">Alcance</th>
-                  <th className="px-3 py-2.5">Fecha</th>
-                  <th className="px-3 py-2.5">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {questions.map((q) => (
-                  <tr
-                    key={q.id}
-                    data-cy="tutor-pending-row"
-                    className="border-t border-slate-100 hover:bg-slate-50"
-                  >
-                    <td
-                      className="px-3 py-2.5 max-w-xs truncate"
-                      title={q.title}
-                    >
-                      {q.title}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {q.studentName || q.studentEmail || "—"}
-                    </td>
-                    <td className="px-3 py-2.5">{q.scope || "—"}</td>
-                    <td className="px-3 py-2.5">
-                      {formatDateTime(q.createdAt || q.updatedAt)}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <button
-                        className="px-3 py-1 rounded-full border border-uvBlue text-uvBlue text-xs font-medium hover:bg-uvBlue hover:text-white transition"
-                        data-cy="tutor-open-detail"
-                        onClick={() => openDetail(q.id)}
-                      >
-                        Ver detalle / Responder
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {renderPendingQuestions()}
 
         <p className="px-4 pb-4 text-xs text-slate-500">
           * Desde aquí priorizas qué preguntas atender primero.

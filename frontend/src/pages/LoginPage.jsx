@@ -1,17 +1,54 @@
 // src/pages/LoginPage.jsx
 import { useState, useEffect } from "react";
 import apiClient from "../api/axiosClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
 import Logo from "../components/Logo";
 import LoginPreloader from "../components/LoginPreloader";
 import { useAuth } from "../context/useAuth.js";
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim() || "";
+
+function renderRecaptchaStatus({ isCypressE2E, isRecaptchaConfigured, onChange }) {
+  if (isCypressE2E) {
+    return (
+      <output
+        className="w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-xs text-sky-800"
+        data-cy="login-recaptcha-bypassed"
+        aria-live="polite"
+      >
+        Verificación reCAPTCHA omitida solo para pruebas E2E con Cypress.
+      </output>
+    );
+  }
+
+  if (isRecaptchaConfigured) {
+    return (
+      <ReCAPTCHA
+        sitekey={RECAPTCHA_SITE_KEY}
+        onChange={onChange}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800"
+      role="alert"
+    >
+      Falta configurar <code>VITE_RECAPTCHA_SITE_KEY</code> en el frontend.
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const isRecaptchaConfigured = Boolean(RECAPTCHA_SITE_KEY);
+  const isCypressE2E =
+    globalThis.window !== undefined && Boolean(globalThis.window.Cypress);
+  const nextPath = searchParams.get("next");
 
   const [showPreloader, setShowPreloader] = useState(true);
 
@@ -47,7 +84,18 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    if (!form.recaptchaToken) {
+    if (!isRecaptchaConfigured && !isCypressE2E) {
+      setError(
+        "reCAPTCHA no esta configurado en el frontend. Reinicia el servicio despues de definir VITE_RECAPTCHA_SITE_KEY.",
+      );
+      return;
+    }
+
+    const recaptchaToken = isCypressE2E
+      ? form.recaptchaToken || "cypress-e2e-bypass-token"
+      : form.recaptchaToken;
+
+    if (!recaptchaToken) {
       setError("Debes confirmar que no eres un robot.");
       return;
     }
@@ -55,7 +103,10 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const { data } = await apiClient.post("/api/auth/login", form);
+      const { data } = await apiClient.post("/api/auth/login", {
+        ...form,
+        recaptchaToken,
+      });
 
       // 1️⃣ EL BACKEND PIDE OTP
       if (data.requiresOtp) {
@@ -64,6 +115,8 @@ export default function LoginPage() {
             otpToken: data.otpToken,
             email: form.email,
             message: data.message,
+            resendCooldownSeconds: data.resendCooldownSeconds,
+            nextPath,
           },
         });
         return;
@@ -73,7 +126,8 @@ export default function LoginPage() {
       const { token, role, name, email } = data;
       login({ token, role, email, name });
 
-      if (role === "ADMIN") navigate("/admin");
+      if (nextPath) navigate(nextPath);
+      else if (role === "ADMIN") navigate("/admin");
       else if (role === "ESTUDIANTE") navigate("/student");
       else if (role === "TUTOR") navigate("/tutor");
     } catch (err) {
@@ -173,6 +227,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   name="email"
+                  data-cy="login-email"
                   value={form.email}
                   onChange={handleChange}
                   className="
@@ -199,6 +254,7 @@ export default function LoginPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     name="password"
+                    data-cy="login-password"
                     value={form.password}
                     onChange={handleChange}
                     className="
@@ -232,11 +288,12 @@ export default function LoginPage() {
               </div>
 
               {/* reCAPTCHA */}
-              <div className="flex justify-center mt-2">
-                <ReCAPTCHA
-                  sitekey={RECAPTCHA_SITE_KEY}
-                  onChange={handleRecaptchaChange}
-                />
+              <div className="flex justify-center mt-2" data-cy="login-recaptcha">
+                {renderRecaptchaStatus({
+                  isCypressE2E,
+                  isRecaptchaConfigured,
+                  onChange: handleRecaptchaChange,
+                })}
               </div>
 
               {error && (
@@ -254,6 +311,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
+                data-cy="login-submit"
                 className="
                   w-full mt-2 inline-flex items-center justify-center
                   rounded-full px-4 py-2.5 text-sm font-semibold
