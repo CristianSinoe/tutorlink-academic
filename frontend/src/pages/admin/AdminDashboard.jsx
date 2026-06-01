@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 
@@ -92,9 +93,9 @@ export default function AdminDashboard() {
           <p className="text-sm text-slate-600 mt-1">
             Bienvenido,{" "}
             <span className="font-semibold text-slate-800">
-              {adminName}
-            </span>
-            . Aquí puedes ver un resumen general de TutorLink.
+              {adminName}.
+            </span>{" "}
+            Aquí puedes ver un resumen general de TutorLink.
           </p>
         </div>
 
@@ -222,62 +223,7 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {loading && latestAssignments.length === 0 ? (
-          <p className="text-sm text-slate-600">Cargando datos...</p>
-        ) : latestAssignments.length === 0 ? (
-          <p className="text-sm text-slate-600">
-            Aún no hay asignaciones registradas.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Código tutor
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Nombre tutor
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    Estudiante
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestAssignments.map((a) => {
-                  const tutorName =
-                    a.tutorName ||
-                    `${a.tutorFirstName || ""} ${
-                      a.tutorLastName || ""
-                    }`.trim();
-                  const studentName =
-                    a.studentName ||
-                    `${a.studentFirstName || ""} ${
-                      a.studentLastName || ""
-                    }`.trim();
-
-                  return (
-                    <tr
-                      key={a.id}
-                      className="border-t border-slate-200 hover:bg-slate-50/80"
-                    >
-                      <td className="px-4 py-2 text-slate-800">
-                        {a.tutorCode}
-                      </td>
-                      <td className="px-4 py-2 text-slate-700">
-                        {tutorName || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-slate-700">
-                        {studentName || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {renderLatestAssignments({ loading, latestAssignments })}
       </section>
     </div>
   );
@@ -320,6 +266,13 @@ function SummaryCard({ title, value, subtitle, tone = "neutral" }) {
   );
 }
 
+SummaryCard.propTypes = {
+  title: PropTypes.string,
+  value: PropTypes.node,
+  subtitle: PropTypes.string,
+  tone: PropTypes.string,
+};
+
 function QuickLinkCard({ to, title, description }) {
   return (
     <Link
@@ -341,5 +294,62 @@ function QuickLinkCard({ to, title, description }) {
         Ir al módulo →
       </div>
     </Link>
+  );
+}
+
+QuickLinkCard.propTypes = {
+  to: PropTypes.string,
+  title: PropTypes.string,
+  description: PropTypes.string,
+};
+
+function renderLatestAssignments({ loading, latestAssignments }) {
+  if (loading && latestAssignments.length === 0) {
+    return <p className="text-sm text-slate-600">Cargando datos...</p>;
+  }
+
+  if (latestAssignments.length === 0) {
+    return (
+      <p className="text-sm text-slate-600">
+        Aún no hay asignaciones registradas.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead className="bg-slate-50">
+          <tr>
+            <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Código tutor
+            </th>
+            <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Nombre tutor
+            </th>
+            <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Estudiante
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {latestAssignments.map((a) => {
+            const tutorName =
+              a.tutorName || `${a.tutorFirstName || ""} ${a.tutorLastName || ""}`.trim();
+            const studentName =
+              a.studentName ||
+              `${a.studentFirstName || ""} ${a.studentLastName || ""}`.trim();
+
+            return (
+              <tr key={a.id} className="border-t border-slate-200 hover:bg-slate-50/80">
+                <td className="px-4 py-2 text-slate-800">{a.tutorCode}</td>
+                <td className="px-4 py-2 text-slate-700">{tutorName || "—"}</td>
+                <td className="px-4 py-2 text-slate-700">{studentName || "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

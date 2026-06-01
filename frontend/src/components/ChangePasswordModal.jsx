@@ -1,5 +1,6 @@
 // src/components/ChangePasswordModal.jsx
 import { useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../api/axiosClient";
 
 export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
@@ -35,7 +36,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
 
   const handleClose = () => {
     resetState();
-    onClose && onClose();
+    onClose?.();
   };
 
   const handleStartRequest = async (e) => {
@@ -66,8 +67,8 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
     } catch (err) {
       console.error("Error solicitando OTP de cambio de contraseña", err);
       const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
+        err?.response?.data?.message ??
+        err?.response?.data?.error ??
         "No se pudo enviar el código. Inténtalo más tarde.";
       setError(msg);
     } finally {
@@ -110,14 +111,14 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
   if (!isOpen) return null;
 
   return (
-    <div
+    <dialog
+      open
       className="
         fixed inset-0 z-50 flex items-center justify-center 
         bg-black/40 backdrop-blur-sm 
         px-4 sm:px-0
         animate-fadeIn
       "
-      role="dialog"
       aria-modal="true"
     >
       <div
@@ -333,15 +334,15 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
               </div>
             )}
             {info && (
-              <div
+              <output
                 className="
                   text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 
                   rounded-lg px-3 py-2 animate-fadeIn
                 "
-                role="status"
+                aria-live="polite"
               >
                 {info}
-              </div>
+              </output>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
@@ -436,15 +437,15 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
               </div>
             )}
             {info && (
-              <div
+              <output
                 className="
                   text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 
                   rounded-lg px-3 py-2 animate-fadeIn
                 "
-                role="status"
+                aria-live="polite"
               >
                 {info}
-              </div>
+              </output>
             )}
 
             <div className="flex justify-between items-center pt-2">
@@ -529,6 +530,12 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
           </div>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }
+
+ChangePasswordModal.propTypes = {
+  isOpen: PropTypes.bool,
+  onClose: PropTypes.func,
+  userEmail: PropTypes.string,
+};

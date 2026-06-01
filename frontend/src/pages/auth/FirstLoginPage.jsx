@@ -116,12 +116,12 @@ export default function FirstLoginPage() {
         )}
 
         {message && (
-          <p
+          <output
             className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-3"
-            role="status"
+            aria-live="polite"
           >
             {message}
-          </p>
+          </output>
         )}
 
         {/* FORMULARIO */}

@@ -7,6 +7,7 @@ import com.sinoe.authmfa.dto.TutorStudentAssignmentDto;
 import com.sinoe.authmfa.validation.AgeValidator;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,11 +32,12 @@ public class AdminUserService {
     private final TutorStudentAssignmentService tutorStudentAssignmentService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final ObjectProvider<AdminUserService> selfProvider;
 
     // Crear ESTUDIANTE + perfil
 
     @Transactional
-    public Student createStudentUser(AdminUserDtos.CreateStudentUser dto) {
+    public Student createStudentUser(AdminUserDtos.CreateStudentUser dto, String frontendBaseUrl) {
 
         String emailLower = dto.getEmail().toLowerCase();
 
@@ -75,15 +77,20 @@ public class AdminUserService {
         s = students.save(s);
 
         // 4) Enviar correo de primer login
-        emailService.sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken());
+        sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken(), frontendBaseUrl);
 
         return s;
+    }
+
+    @Transactional
+    public Student createStudentUser(AdminUserDtos.CreateStudentUser dto) {
+        return self().createStudentUser(dto, null);
     }
 
     // Crear TUTOR
 
     @Transactional
-    public Tutor createTutorUser(AdminUserDtos.CreateTutorUser dto) {
+    public Tutor createTutorUser(AdminUserDtos.CreateTutorUser dto, String frontendBaseUrl) {
 
         String emailLower = dto.getEmail().toLowerCase();
 
@@ -117,15 +124,20 @@ public class AdminUserService {
         t = tutors.save(t);
 
         // 4) Email de primer login
-        emailService.sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken());
+        sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken(), frontendBaseUrl);
 
         return t;
+    }
+
+    @Transactional
+    public Tutor createTutorUser(AdminUserDtos.CreateTutorUser dto) {
+        return self().createTutorUser(dto, null);
     }
 
     //Crear ADMIN
 
     @Transactional
-    public User createAdminUser(AdminUserDtos.CreateAdminUser dto) {
+    public User createAdminUser(AdminUserDtos.CreateAdminUser dto, String frontendBaseUrl) {
 
         String emailLower = dto.getEmail().toLowerCase().trim();
 
@@ -152,54 +164,82 @@ public class AdminUserService {
         u = users.save(u);
 
         // Enviar correo de primer login (link para definir contraseña)
-        emailService.sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken());
+        sendFirstLoginEmail(u.getEmail(), u.getFirstLoginToken(), frontendBaseUrl);
 
         return u;
+    }
+
+    @Transactional
+    public User createAdminUser(AdminUserDtos.CreateAdminUser dto) {
+        return self().createAdminUser(dto, null);
     }
 
     // Cambiar estado
     
     @Transactional
-    public User changeUserStatus(Long userId, String statusRaw) {
+    public User changeUserStatus(Long userId, String statusRaw, Long actorUserId) {
         User u = findUserByIdOrThrow(userId);
         UserStatus newStatus = parseUserStatus(statusRaw);
+
+        if (actorUserId != null && actorUserId.equals(userId)) {
+            throw new SecurityException("No puedes cambiar tu propio estado de usuario.");
+        }
 
         u.setStatus(newStatus);
         return users.save(u);
     }
 
+    @Transactional
+    public User changeUserStatus(Long userId, String statusRaw) {
+        return self().changeUserStatus(userId, statusRaw, null);
+    }
+
     // Importar ESTUDIANTES CSV
 
     @Transactional
-    public AdminUserDtos.CsvImportResult importStudentsFromCsv(String csv) {
+    public AdminUserDtos.CsvImportResult importStudentsFromCsv(String csv, String frontendBaseUrl) {
         CsvImportCounters counters = new CsvImportCounters();
         String[] lines = normalizeCsvLines(csv);
 
         for (int i = 0; i < lines.length; i++) {
-            processStudentCsvLine(lines[i], i == 0, counters);
+            processStudentCsvLine(lines[i], i == 0, counters, frontendBaseUrl);
         }
 
         return counters.toCsvImportResult();
     }
 
+    @Transactional
+    public AdminUserDtos.CsvImportResult importStudentsFromCsv(String csv) {
+        return self().importStudentsFromCsv(csv, null);
+    }
+
     // Importar TUTORES CSV
 
     @Transactional
-    public AdminUserDtos.CsvImportResult importTutorsFromCsv(String csv) {
+    public AdminUserDtos.CsvImportResult importTutorsFromCsv(String csv, String frontendBaseUrl) {
         CsvImportCounters counters = new CsvImportCounters();
         String[] lines = normalizeCsvLines(csv);
 
         for (int i = 0; i < lines.length; i++) {
-            processTutorCsvLine(lines[i], i == 0, counters);
+            processTutorCsvLine(lines[i], i == 0, counters, frontendBaseUrl);
         }
 
         return counters.toCsvImportResult();
+    }
+
+    @Transactional
+    public AdminUserDtos.CsvImportResult importTutorsFromCsv(String csv) {
+        return self().importTutorsFromCsv(csv, null);
     }
 
     // contraseña temporal
     private static String generateTempPassword() {
         String base = UUID.randomUUID().toString().replace("-", "");
         return "Tmp" + base.substring(0, 8) + "!";
+    }
+
+    private AdminUserService self() {
+        return selfProvider.getObject();
     }
 
     private static String emptyToNull(String s) {
@@ -467,7 +507,11 @@ public class AdminUserService {
         return csv.replace("\r", "").split("\n");
     }
 
-    private void processStudentCsvLine(String rawLine, boolean firstLine, CsvImportCounters counters) {
+    private void processStudentCsvLine(
+            String rawLine,
+            boolean firstLine,
+            CsvImportCounters counters,
+            String frontendBaseUrl) {
         String line = normalizeCsvLine(rawLine);
         if (line == null || isStudentHeader(line, firstLine)) {
             return;
@@ -480,11 +524,15 @@ public class AdminUserService {
             return;
         }
 
-        createStudentFromCsvRow(row);
+        createStudentFromCsvRow(row, frontendBaseUrl);
         counters.incrementCreated();
     }
 
-    private void processTutorCsvLine(String rawLine, boolean firstLine, CsvImportCounters counters) {
+    private void processTutorCsvLine(
+            String rawLine,
+            boolean firstLine,
+            CsvImportCounters counters,
+            String frontendBaseUrl) {
         String line = normalizeCsvLine(rawLine);
         if (line == null || isTutorHeader(line, firstLine)) {
             return;
@@ -497,7 +545,7 @@ public class AdminUserService {
             return;
         }
 
-        createTutorFromCsvRow(row);
+        createTutorFromCsvRow(row, frontendBaseUrl);
         counters.incrementCreated();
     }
 
@@ -603,7 +651,7 @@ public class AdminUserService {
                 .build();
     }
 
-    private void createStudentFromCsvRow(StudentCsvRow row) {
+    private void createStudentFromCsvRow(StudentCsvRow row, String frontendBaseUrl) {
         User user = buildCsvUser(
                 row.name(),
                 row.lastNamePaterno(),
@@ -621,10 +669,10 @@ public class AdminUserService {
                 .phone(row.phone())
                 .build());
 
-        emailService.sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken());
+        sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken(), frontendBaseUrl);
     }
 
-    private void createTutorFromCsvRow(TutorCsvRow row) {
+    private void createTutorFromCsvRow(TutorCsvRow row, String frontendBaseUrl) {
         User user = buildCsvUser(
                 row.name(),
                 row.lastNamePaterno(),
@@ -641,7 +689,7 @@ public class AdminUserService {
                 .phone(row.phone())
                 .build());
 
-        emailService.sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken());
+        sendFirstLoginEmail(user.getEmail(), user.getFirstLoginToken(), frontendBaseUrl);
     }
 
     private User buildCsvUser(
@@ -664,6 +712,15 @@ public class AdminUserService {
     private User saveUserWithFirstLogin(User user) {
         initFirstLogin(user);
         return users.save(user);
+    }
+
+    private void sendFirstLoginEmail(String email, String token, String frontendBaseUrl) {
+        if (frontendBaseUrl == null || frontendBaseUrl.isBlank()) {
+            emailService.sendFirstLoginEmail(email, token);
+            return;
+        }
+
+        emailService.sendFirstLoginEmail(email, token, frontendBaseUrl);
     }
 
     private Integer parseSemester(String[] cols, int index) {

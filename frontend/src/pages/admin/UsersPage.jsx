@@ -1,6 +1,59 @@
 // src/pages/admin/UsersPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
+
+const VISIBLE_STATUS_OPTIONS = new Set(["ACTIVE", "DISABLED"]);
+
+const USER_STATUS = {
+  ACTIVE: {
+    classes: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+    label: "ACTIVO",
+  },
+  CREATED_BY_ADMIN: {
+    classes: "bg-amber-50 text-amber-700 border border-amber-100",
+    label: "CREADO POR ADMIN",
+  },
+  DISABLED: {
+    classes: "bg-slate-100 text-slate-600 border border-slate-200",
+    label: "DESHABILITADO",
+  },
+  BLOCKED: {
+    classes: "bg-red-50 text-red-700 border border-red-100",
+    label: "BLOQUEADO",
+  },
+};
+
+const USER_ROLES = {
+  ADMIN: {
+    classes: "bg-purple-50 text-purple-700 border border-purple-100",
+    label: "ADMIN",
+  },
+  ESTUDIANTE: {
+    classes: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+    label: "ESTUDIANTE",
+  },
+  TUTOR: {
+    classes: "bg-sky-50 text-sky-700 border border-sky-100",
+    label: "TUTOR",
+  },
+};
+
+function getStatusAction(user, currentUserEmail) {
+  if (isCurrentAdminUser(user, currentUserEmail)) {
+    return {
+      disabled: true,
+      title: "No puedes cambiar tu propio estado.",
+    };
+  }
+  if (isCreatedByAdminStatus(user)) {
+    return {
+      disabled: true,
+      title: "Este usuario debe salir primero del estado 'CREADO POR ADMIN'.",
+    };
+  }
+  return { disabled: false, title: "" };
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -21,6 +74,16 @@ export default function UsersPage() {
   // Paginación
   const [page, setPage] = useState(1);
   const pageSize = 5;
+
+  let currentUserEmail = null;
+  try {
+    const savedAuth = localStorage.getItem("auth");
+    if (savedAuth) {
+      currentUserEmail = JSON.parse(savedAuth)?.email?.toLowerCase() || null;
+    }
+  } catch {
+    currentUserEmail = null;
+  }
 
   // ============================
   // CARGAR LISTA DE USUARIOS
@@ -106,14 +169,29 @@ export default function UsersPage() {
   // ============================
   // CAMBIAR ESTADO
   // ============================
-  const allowedStatus = ["ACTIVE", "DISABLED", "BLOCKED"];
-
   const openStatusModal = (user) => {
+    if (isCurrentAdminUser(user, currentUserEmail)) {
+      setFeedback({
+        type: "error",
+        message: "No puedes cambiar tu propio estado de usuario.",
+      });
+      return;
+    }
+
+    if (isCreatedByAdminStatus(user)) {
+      setFeedback({
+        type: "error",
+        message:
+          "No puedes cambiar el estado de un usuario mientras siga en 'CREADO POR ADMIN'.",
+      });
+      return;
+    }
+
     setSelectedUser(user);
     setFeedback(null);
 
     const current = user.status;
-    const initial = allowedStatus.includes(current) ? current : "ACTIVE";
+    const initial = VISIBLE_STATUS_OPTIONS.has(current) ? current : "ACTIVE";
     setSelectedStatus(initial);
   };
 
@@ -183,15 +261,16 @@ export default function UsersPage() {
 
       {/* FEEDBACK */}
       {feedback && (
-        <div
+        <output
           className={`px-4 py-3 rounded-xl text-sm border ${feedback.type === "error"
               ? "bg-red-50 border-red-200 text-red-800"
               : "bg-emerald-50 border-emerald-200 text-emerald-800"
             }`}
-          role={feedback.type === "error" ? "alert" : "status"}
+          role={feedback.type === "error" ? "alert" : undefined}
+          aria-live={feedback.type === "error" ? undefined : "polite"}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
 
       {/* FILTROS */}
@@ -201,12 +280,17 @@ export default function UsersPage() {
     md:flex-row md:items-start md:justify-between
   ">
         <div className="flex-1">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="users-search"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Buscar
           </label>
           <input
+            id="users-search"
             type="text"
             placeholder="Nombre, correo o rol"
+            data-cy="admin-users-search"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -218,10 +302,15 @@ export default function UsersPage() {
         </div>
 
         <div className="w-full md:w-48">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="users-role-filter"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Rol
           </label>
           <select
+            id="users-role-filter"
+            data-cy="admin-users-role-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -234,10 +323,15 @@ export default function UsersPage() {
         </div>
 
         <div className="w-full md:w-52">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="users-status-filter"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Estado
           </label>
           <select
+            id="users-status-filter"
+            data-cy="admin-users-status-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -319,17 +413,11 @@ export default function UsersPage() {
                         <StatusBadge status={u.status} />
                       </td>
                       <td className="px-4 py-2">
-                        <button
-                          onClick={() => openStatusModal(u)}
-                          className="
-                            inline-flex items-center px-3 py-1.5 
-                            border border-slate-300 rounded-full 
-                            text-slate-700 text-xs hover:bg-slate-100 
-                            transition
-                          "
-                        >
-                          Cambiar estado
-                        </button>
+                        <StatusAction
+                          user={u}
+                          currentUserEmail={currentUserEmail}
+                          onOpen={openStatusModal}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -439,21 +527,24 @@ export default function UsersPage() {
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label
+              htmlFor="user-new-status"
+              className="block text-sm font-medium text-slate-700 mb-1"
+            >
               Nuevo estado
             </label>
             <select
+              id="user-new-status"
               className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
             >
               <option value="ACTIVE">Activo</option>
               <option value="DISABLED">Deshabilitado</option>
-              <option value="BLOCKED">Bloqueado</option>
             </select>
             <p className="text-xs text-slate-500 mt-1">
               No se puede volver a &quot;CREATED_BY_ADMIN&quot; desde aquí;
-              solo puedes alternar entre ACTIVE, DISABLED y BLOCKED.
+              solo puedes alternar entre ACTIVE y DISABLED.
             </p>
           </div>
 
@@ -474,6 +565,7 @@ export default function UsersPage() {
               type="button"
               disabled={updatingStatus}
               onClick={handleUpdateStatus}
+              data-cy="admin-status-submit"
               className="
                 px-6 py-2 rounded-full 
                 bg-uvGreen hover:bg-green-600 
@@ -489,6 +581,62 @@ export default function UsersPage() {
       )}
     </div>
   );
+}
+
+function StatusAction({ user, currentUserEmail, onOpen }) {
+  const action = getStatusAction(user, currentUserEmail);
+
+  if (action.disabled) {
+    return (
+      <span
+        className="inline-flex items-center px-3 py-1.5 border border-slate-200 rounded-full text-slate-400 text-xs bg-slate-50 cursor-not-allowed"
+        title={action.title}
+      >
+        Cambiar estado
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => onOpen(user)}
+      data-cy="admin-user-change-status"
+      className="
+        inline-flex items-center px-3 py-1.5
+        border border-slate-300 rounded-full
+        text-slate-700 text-xs hover:bg-slate-100
+        transition
+      "
+    >
+      Cambiar estado
+    </button>
+  );
+}
+
+StatusAction.propTypes = {
+  currentUserEmail: PropTypes.string,
+  onOpen: PropTypes.func.isRequired,
+  user: PropTypes.shape({
+    email: PropTypes.string,
+    status: PropTypes.string,
+  }).isRequired,
+};
+
+function isCurrentAdminUser(user, currentUserEmail) {
+  if (!user || !currentUserEmail) {
+    return false;
+  }
+
+  return (user.email || "").toLowerCase() === currentUserEmail;
+}
+
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
+
+function isCreatedByAdminStatus(user) {
+  return (user?.status || "").toUpperCase() === "CREATED_BY_ADMIN";
 }
 
 /* ============================
@@ -537,35 +685,10 @@ function StatusBadge({ status }) {
     );
   }
 
-  let classes =
-    "bg-slate-100 text-slate-700 border border-slate-200";
-  let label = status;
-
-  switch (status) {
-    case "ACTIVE":
-      classes =
-        "bg-emerald-50 text-emerald-700 border border-emerald-100";
-      label = "ACTIVO";
-      break;
-    case "CREATED_BY_ADMIN":
-      classes =
-        "bg-amber-50 text-amber-700 border border-amber-100";
-      label = "CREADO POR ADMIN";
-      break;
-    case "DISABLED":
-      classes =
-        "bg-slate-100 text-slate-600 border border-slate-200";
-      label = "DESHABILITADO";
-      break;
-    case "BLOCKED":
-      classes = "bg-red-50 text-red-700 border border-red-100";
-      label = "BLOQUEADO";
-      break;
-    default:
-      classes =
-        "bg-slate-100 text-slate-700 border border-slate-200";
-      label = status;
-  }
+  const { classes, label } = USER_STATUS[status] ?? {
+    classes: "bg-slate-100 text-slate-700 border border-slate-200",
+    label: status,
+  };
 
   return (
     <span
@@ -575,6 +698,10 @@ function StatusBadge({ status }) {
     </span>
   );
 }
+
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
 
 function RoleBadge({ role }) {
   if (!role) {
@@ -587,31 +714,10 @@ function RoleBadge({ role }) {
 
   const r = (role || "").toUpperCase();
 
-  let classes =
-    "bg-slate-100 text-slate-700 border border-slate-200";
-  let label = r;
-
-  switch (r) {
-    case "ADMIN":
-      classes =
-        "bg-purple-50 text-purple-700 border border-purple-100";
-      label = "ADMIN";
-      break;
-    case "ESTUDIANTE":
-      classes =
-        "bg-emerald-50 text-emerald-700 border border-emerald-100";
-      label = "ESTUDIANTE";
-      break;
-    case "TUTOR":
-      classes =
-        "bg-sky-50 text-sky-700 border border-sky-100";
-      label = "TUTOR";
-      break;
-    default:
-      classes =
-        "bg-slate-100 text-slate-700 border border-slate-200";
-      label = r;
-  }
+  const { classes, label } = USER_ROLES[r] ?? {
+    classes: "bg-slate-100 text-slate-700 border border-slate-200",
+    label: r,
+  };
 
   return (
     <span
@@ -621,3 +727,7 @@ function RoleBadge({ role }) {
     </span>
   );
 }
+
+RoleBadge.propTypes = {
+  role: PropTypes.string,
+};

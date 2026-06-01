@@ -1,0 +1,47 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  mail:
+    host: localhost
+    port: 2525
+    username: qa
+    password: qa
+
+security:
+  jwt:
+    secret: 01234567890123456789012345678901
+    exp-minutes: 120
+
+recaptcha:
+  site-key: test-site-key
+  secret-key: test-secret-key
+
+otp:
+  exp-minutes: 5
+  max-attempts: 5
+  resend-cooldown-seconds: 30
+
+tutorlink:
+  frontend-base-url: http://localhost:5173
+  mail:
+    from: qa@tutorlink.test
+
+app:
+  seed-admin:
+    enabled: false
+
+admin:
+  bootstrap:
+    enabled: false
+
+logging:
+  level:
+    root: WARN

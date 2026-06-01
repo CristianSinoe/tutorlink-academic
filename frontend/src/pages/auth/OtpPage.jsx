@@ -5,6 +5,13 @@ import apiClient from "../../api/axiosClient";
 import { useAuth } from "../../context/useAuth.js";
 import Logo from "../../components/Logo";
 
+const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
+
+function getCooldownSeconds(value) {
+  const parsed = Number(value);
+  return parsed > 0 ? parsed : DEFAULT_RESEND_COOLDOWN_SECONDS;
+}
+
 export default function OtpPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -16,17 +23,47 @@ export default function OtpPage() {
 
   const [code, setCode] = useState("");
   const [error, setError] = useState(null);
+  const [infoMessage, setInfoMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  const hasOtpState = Boolean(state?.otpToken);
+  const initialCooldownSeconds = getCooldownSeconds(state?.resendCooldownSeconds);
+  const [currentOtpToken, setCurrentOtpToken] = useState(state?.otpToken ?? "");
+  const [secondsLeft, setSecondsLeft] = useState(initialCooldownSeconds);
+  const email = state?.email ?? "";
+  const nextPath = state?.nextPath ?? "";
 
   // 🔒 Protección: si no hay otpToken, mandar al login
   useEffect(() => {
-    if (!state || !state.otpToken) {
+    if (!hasOtpState) {
       navigate("/login", { replace: true });
     }
-  }, [state, navigate]);
+  }, [hasOtpState, navigate]);
+
+  useEffect(() => {
+    setCurrentOtpToken(state?.otpToken ?? "");
+    setSecondsLeft(getCooldownSeconds(state?.resendCooldownSeconds));
+  }, [state]);
+
+  useEffect(() => {
+    setInfoMessage(state?.message || null);
+  }, [state]);
+
+  useEffect(() => {
+    if (secondsLeft <= 0) {
+      return undefined;
+    }
+
+    const timerId = globalThis.setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => globalThis.clearInterval(timerId);
+  }, [secondsLeft]);
 
   // Si todavía no hay state (primer render), mostramos algo simple
-  if (!state || !state.otpToken) {
+  if (!hasOtpState) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-600">
@@ -35,8 +72,6 @@ export default function OtpPage() {
       </div>
     );
   }
-
-  const { otpToken, email, message } = state;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,7 +86,7 @@ export default function OtpPage() {
       setSubmitting(true);
 
       const { data } = await apiClient.post("/api/auth/login/verify-otp", {
-        otpToken,
+        otpToken: currentOtpToken,
         code,
       });
 
@@ -64,7 +99,8 @@ export default function OtpPage() {
       });
 
       // Redirigir según rol
-      if (data.role === "ADMIN") navigate("/admin");
+      if (nextPath) navigate(nextPath);
+      else if (data.role === "ADMIN") navigate("/admin");
       else if (data.role === "ESTUDIANTE") navigate("/student");
       else if (data.role === "TUTOR") navigate("/tutor");
       else navigate("/");
@@ -82,6 +118,38 @@ export default function OtpPage() {
 
   const handleBackToLogin = () => {
     navigate("/login");
+  };
+
+  const handleResendCode = async () => {
+    if (secondsLeft > 0) {
+      return;
+    }
+
+    try {
+      setError(null);
+      setResending(true);
+
+      const { data } = await apiClient.post("/api/auth/login/resend-otp", {
+        otpToken: currentOtpToken,
+      });
+
+      setCurrentOtpToken(data.otpToken);
+      setInfoMessage(
+        data.message ||
+          "Se envió un nuevo código de verificación a tu correo institucional.",
+      );
+      setSecondsLeft(getCooldownSeconds(data.resendCooldownSeconds));
+      setCode("");
+    } catch (err) {
+      console.error("Error reenviando OTP", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "No se pudo reenviar el código.";
+      setError(msg);
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -157,11 +225,12 @@ export default function OtpPage() {
               </p>
             </div>
 
-            {message && (
+            {infoMessage && (
               <p className="text-[11px] text-slate-500 text-center mb-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
-                {message}
+                {infoMessage}
               </p>
             )}
+
 
             {error && (
               <div className="mb-4 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">
@@ -171,13 +240,15 @@ export default function OtpPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label htmlFor="otp-code" className="block text-xs font-semibold text-slate-600 mb-1">
                   Código de verificación
                 </label>
                 <input
+                  id="otp-code"
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
+                  data-cy="otp-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="
@@ -198,6 +269,7 @@ export default function OtpPage() {
               <button
                 type="submit"
                 disabled={submitting}
+                data-cy="otp-submit"
                 className="
                   w-full inline-flex items-center justify-center
                   rounded-full px-4 py-2.5 text-sm font-semibold
@@ -210,6 +282,28 @@ export default function OtpPage() {
                 {submitting ? "Verificando..." : "Confirmar código"}
               </button>
             </form>
+
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={handleResendCode}
+                disabled={resending || submitting || secondsLeft > 0}
+                data-cy="otp-resend"
+                className="
+                  w-full inline-flex items-center justify-center
+                  rounded-full px-4 py-2.5 text-sm font-semibold
+                  border border-slate-300 text-slate-700 bg-white
+                  hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-300
+                  transition
+                "
+              >
+                {getResendButtonLabel({ resending, secondsLeft })}
+              </button>
+              <p className="mt-2 text-[11px] text-slate-500 text-center">
+                Solo puedes solicitar un nuevo código cada 60 segundos.
+              </p>
+            </div>
 
             <button
               type="button"
@@ -234,4 +328,16 @@ export default function OtpPage() {
       </main>
     </div>
   );
+}
+
+function getResendButtonLabel({ resending, secondsLeft }) {
+  if (resending) {
+    return "Reenviando...";
+  }
+
+  if (secondsLeft > 0) {
+    return `Reenviar código en ${secondsLeft}s`;
+  }
+
+  return "Reenviar código";
 }

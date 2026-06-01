@@ -9,5 +9,29 @@ export default defineConfig({
     port: 5173,        // puerto fijo
     strictPort: true,  // si está ocupado, marca error en vez de cambiarlo
     cors: true         // habilita CORS por si haces llamadas desde móviles
-  }
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.js",
+    globals: true,
+    css: true,
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      exclude: [
+        "cypress/**",
+        "dist/**",
+        "node_modules/**",
+        "src/test/**",
+        "src/**/__tests__/**",
+        "**/*.test.jsx",
+        "**/*.spec.jsx",
+        "vite.config.js",
+        "eslint.config.js",
+        "postcss.config.js",
+        "tailwind.config.js",
+      ],
+    },
+  },
 })

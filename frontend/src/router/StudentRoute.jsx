@@ -1,5 +1,6 @@
 // src/router/StudentRoute.jsx
 import { Navigate } from "react-router-dom";
+import PropTypes from "prop-types";
 import ProtectedRoute from "./ProtectedRoute";
 import { useAuth } from "../context/useAuth.js";
 
@@ -12,3 +13,7 @@ export default function StudentRoute({ children }) {
     </ProtectedRoute>
   );
 }
+
+StudentRoute.propTypes = {
+  children: PropTypes.node,
+};

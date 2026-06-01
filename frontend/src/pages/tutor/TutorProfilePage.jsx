@@ -1,5 +1,6 @@
 // src/pages/tutor/TutorProfilePage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 
@@ -8,23 +9,7 @@ export default function TutorProfilePage() {
   const [loadingMe, setLoadingMe] = useState(true);
   const [error, setError] = useState(null);
 
-  const [profile, setProfile] = useState({
-    bio: "",
-    academicLink: "",
-    professionalLink: "",
-    notifyNewQuestions: false,
-    weeklySummary: false,
-  });
-  const [saving, setSaving] = useState(false);
   const [showChangePass, setShowChangePass] = useState(false);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setProfile((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
 
   useEffect(() => {
     const load = async () => {
@@ -35,10 +20,7 @@ export default function TutorProfilePage() {
         const { data: meData } = await apiClient.get("/api/me");
         setMe(meData);
 
-        const { data: profileData } = await apiClient.get(
-          "/api/tutor/profile"
-        );
-        setProfile((prev) => ({ ...prev, ...(profileData || {}) }));
+        await apiClient.get("/api/tutor/profile");
       } catch (err) {
         console.error("Error cargando perfil de tutor", err);
         const msg =
@@ -52,24 +34,6 @@ export default function TutorProfilePage() {
     };
     load();
   }, []);
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      await apiClient.put("/api/tutor/profile", profile);
-      alert("Perfil actualizado correctamente.");
-    } catch (err) {
-      console.error("Error guardando perfil de tutor", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        "Error al guardar el perfil";
-      alert(msg);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -107,30 +71,10 @@ export default function TutorProfilePage() {
           Información básica
         </h2>
 
-        {loadingMe ? (
-          <p className="text-sm text-slate-500">Cargando datos...</p>
-        ) : !me ? (
-          <p className="text-sm text-slate-500">
-            No se pudo cargar la información de tu usuario.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <InfoRow
-              label="Nombre completo"
-              value={`${me.name || ""} ${me.lastNamePaterno || ""} ${
-                me.lastNameMaterno || ""
-              }`}
-            />
-            <InfoRow label="Correo institucional" value={me.email} />
-            <InfoRow label="Código de tutor" value={me.tutorCode} />
-            <InfoRow label="Departamento" value={me.department} />
-            <InfoRow label="Especialidad" value={me.specialty} />
-            <InfoRow label="Teléfono" value={me.tutorPhone || me.phone} />
-          </div>
-        )}
+        {renderTutorProfileContent({ loadingMe, me })}
       </section>
 
-      {/* PERFIL PÚBLICO Y PREFERENCIAS */}
+      {/* Seccion oculta temporalmente en la vista del tutor.
       <form
         onSubmit={handleSave}
         className="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 md:p-5 space-y-5"
@@ -220,6 +164,7 @@ export default function TutorProfilePage() {
           </button>
         </div>
       </form>
+      */}
 
       <ChangePasswordModal
         isOpen={showChangePass}
@@ -235,6 +180,39 @@ function InfoRow({ label, value }) {
     <div>
       <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className="text-sm text-slate-900 mt-0.5">{value || "—"}</p>
+    </div>
+  );
+}
+
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.node,
+};
+
+function renderTutorProfileContent({ loadingMe, me }) {
+  if (loadingMe) {
+    return <p className="text-sm text-slate-500">Cargando datos...</p>;
+  }
+
+  if (!me) {
+    return (
+      <p className="text-sm text-slate-500">
+        No se pudo cargar la información de tu usuario.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <InfoRow
+        label="Nombre completo"
+        value={`${me.name || ""} ${me.lastNamePaterno || ""} ${me.lastNameMaterno || ""}`}
+      />
+      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Código de tutor" value={me.tutorCode} />
+      <InfoRow label="Departamento" value={me.department} />
+      <InfoRow label="Especialidad" value={me.specialty} />
+      <InfoRow label="Teléfono" value={me.tutorPhone || me.phone} />
     </div>
   );
 }
