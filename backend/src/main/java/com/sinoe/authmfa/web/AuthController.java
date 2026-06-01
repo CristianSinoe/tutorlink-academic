@@ -40,6 +40,14 @@ public class AuthController {
     private static final String USER_NOT_FOUND = "USER_NOT_FOUND";
     private static final String USER_NOT_FOUND_MESSAGE = "Usuario no encontrado";
     private static final String INVALID_RECAPTCHA_MESSAGE = "reCAPTCHA inválido";
+    private static final String ACCOUNT_NOT_ACTIVATED_MESSAGE =
+            "Cuenta no activada. Revisa tu correo o contacta al administrador.";
+    private static final String ACCOUNT_DISABLED_MESSAGE =
+            "Cuenta deshabilitada. Contacta al administrador.";
+    private static final String ACCOUNT_LOCKED_MESSAGE =
+            "Cuenta bloqueada. Contacta al administrador.";
+    private static final String INVALID_ACCOUNT_STATUS_MESSAGE =
+            "Estado de cuenta inválido.";
 
     private final UserRepository users;
     private final JwtService jwt;
@@ -233,19 +241,19 @@ public class AuthController {
                 switch (u.getStatus()) {
                     case CREATED_BY_ADMIN -> {
                         code = "ACCOUNT_NOT_ACTIVE";
-                        msg = "Cuenta no activada. Revisa tu correo o contacta al administrador.";
+                        msg = ACCOUNT_NOT_ACTIVATED_MESSAGE;
                     }
                     case DISABLED -> {
                         code = "ACCOUNT_DISABLED";
-                        msg = "Cuenta deshabilitada. Contacta al administrador.";
+                        msg = ACCOUNT_DISABLED_MESSAGE;
                     }
                     case BLOCKED -> {
                         code = "ACCOUNT_BLOCKED";
-                        msg = "Cuenta bloqueada. Contacta al administrador.";
+                        msg = ACCOUNT_LOCKED_MESSAGE;
                     }
                     default -> {
                         code = "ACCOUNT_INVALID_STATUS";
-                        msg = "Estado de cuenta inválido.";
+                        msg = INVALID_ACCOUNT_STATUS_MESSAGE;
                     }
                 }
 
@@ -302,10 +310,10 @@ public class AuthController {
             if (u.getStatus() != UserStatus.ACTIVE) {
                 String msg;
                 switch (u.getStatus()) {
-                    case CREATED_BY_ADMIN -> msg = "Cuenta no activada. Revisa tu correo o contacta al administrador.";
-                    case DISABLED -> msg = "Cuenta deshabilitada. Contacta al administrador.";
-                    case BLOCKED -> msg = "Cuenta bloqueada. Contacta al administrador.";
-                    default -> msg = "Estado de cuenta inválido.";
+                    case CREATED_BY_ADMIN -> msg = ACCOUNT_NOT_ACTIVATED_MESSAGE;
+                    case DISABLED -> msg = ACCOUNT_DISABLED_MESSAGE;
+                    case BLOCKED -> msg = ACCOUNT_LOCKED_MESSAGE;
+                    default -> msg = INVALID_ACCOUNT_STATUS_MESSAGE;
                 }
 
                 audit.log(http, uid, LOGIN_OTP, false, "ACCOUNT_STATUS", msg);

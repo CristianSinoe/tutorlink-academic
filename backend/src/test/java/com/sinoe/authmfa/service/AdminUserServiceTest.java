@@ -1,6 +1,5 @@
 package com.sinoe.authmfa.service;
 
-import com.sinoe.authmfa.domain.user.Student;
 import com.sinoe.authmfa.domain.user.StudentRepository;
 import com.sinoe.authmfa.domain.user.TutorRepository;
 import com.sinoe.authmfa.domain.user.TutorStudentRepository;
