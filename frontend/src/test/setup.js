@@ -2,6 +2,8 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+vi.stubEnv("VITE_RECAPTCHA_SITE_KEY", "test-site-key");
+
 beforeAll(() => {
   Object.defineProperty(globalThis.window, "matchMedia", {
     writable: true,
