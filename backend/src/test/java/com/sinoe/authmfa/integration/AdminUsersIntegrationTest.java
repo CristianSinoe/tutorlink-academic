@@ -94,7 +94,7 @@ class AdminUsersIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].tutorCode", equalTo("T400")))
-                .andExpect(jsonPath("$[0].matricula", equalTo("A400")));
+                .andExpect(jsonPath("$[0].studentMatricula", equalTo("A400")));
     }
 
     @Test

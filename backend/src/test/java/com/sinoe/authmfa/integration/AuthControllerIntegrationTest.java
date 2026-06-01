@@ -39,7 +39,7 @@ class AuthControllerIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.requiresOtp").value(true))
                 .andExpect(jsonPath("$.otpToken", notNullValue()))
-                .andExpect(jsonPath("$.resendCooldownSeconds").value(30))
+                .andExpect(jsonPath("$.message", equalTo("Se envió un código de verificación a tu correo institucional.")))
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
