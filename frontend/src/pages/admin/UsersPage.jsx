@@ -22,6 +22,16 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const pageSize = 5;
 
+  let currentUserEmail = null;
+  try {
+    const savedAuth = localStorage.getItem("auth");
+    if (savedAuth) {
+      currentUserEmail = JSON.parse(savedAuth)?.email?.toLowerCase() || null;
+    }
+  } catch {
+    currentUserEmail = null;
+  }
+
   // ============================
   // CARGAR LISTA DE USUARIOS
   // ============================
@@ -106,14 +116,31 @@ export default function UsersPage() {
   // ============================
   // CAMBIAR ESTADO
   // ============================
-  const allowedStatus = ["ACTIVE", "DISABLED", "BLOCKED"];
+  const visibleStatusOptions = ["ACTIVE", "DISABLED"];
 
   const openStatusModal = (user) => {
+    if (isCurrentAdminUser(user, currentUserEmail)) {
+      setFeedback({
+        type: "error",
+        message: "No puedes cambiar tu propio estado de usuario.",
+      });
+      return;
+    }
+
+    if (isCreatedByAdminStatus(user)) {
+      setFeedback({
+        type: "error",
+        message:
+          "No puedes cambiar el estado de un usuario mientras siga en 'CREADO POR ADMIN'.",
+      });
+      return;
+    }
+
     setSelectedUser(user);
     setFeedback(null);
 
     const current = user.status;
-    const initial = allowedStatus.includes(current) ? current : "ACTIVE";
+    const initial = visibleStatusOptions.includes(current) ? current : "ACTIVE";
     setSelectedStatus(initial);
   };
 
@@ -207,6 +234,7 @@ export default function UsersPage() {
           <input
             type="text"
             placeholder="Nombre, correo o rol"
+            data-cy="admin-users-search"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -222,6 +250,7 @@ export default function UsersPage() {
             Rol
           </label>
           <select
+            data-cy="admin-users-role-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
@@ -238,6 +267,7 @@ export default function UsersPage() {
             Estado
           </label>
           <select
+            data-cy="admin-users-status-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -319,8 +349,24 @@ export default function UsersPage() {
                         <StatusBadge status={u.status} />
                       </td>
                       <td className="px-4 py-2">
+                        {isCurrentAdminUser(u, currentUserEmail) ? (
+                          <span
+                            className="inline-flex items-center px-3 py-1.5 border border-slate-200 rounded-full text-slate-400 text-xs bg-slate-50 cursor-not-allowed"
+                            title="No puedes cambiar tu propio estado."
+                          >
+                            Cambiar estado
+                          </span>
+                        ) : isCreatedByAdminStatus(u) ? (
+                          <span
+                            className="inline-flex items-center px-3 py-1.5 border border-slate-200 rounded-full text-slate-400 text-xs bg-slate-50 cursor-not-allowed"
+                            title="Este usuario debe salir primero del estado 'CREADO POR ADMIN'."
+                          >
+                            Cambiar estado
+                          </span>
+                        ) : (
                         <button
                           onClick={() => openStatusModal(u)}
+                          data-cy="admin-user-change-status"
                           className="
                             inline-flex items-center px-3 py-1.5 
                             border border-slate-300 rounded-full 
@@ -330,6 +376,7 @@ export default function UsersPage() {
                         >
                           Cambiar estado
                         </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -449,11 +496,10 @@ export default function UsersPage() {
             >
               <option value="ACTIVE">Activo</option>
               <option value="DISABLED">Deshabilitado</option>
-              <option value="BLOCKED">Bloqueado</option>
             </select>
             <p className="text-xs text-slate-500 mt-1">
               No se puede volver a &quot;CREATED_BY_ADMIN&quot; desde aquí;
-              solo puedes alternar entre ACTIVE, DISABLED y BLOCKED.
+              solo puedes alternar entre ACTIVE y DISABLED.
             </p>
           </div>
 
@@ -474,6 +520,7 @@ export default function UsersPage() {
               type="button"
               disabled={updatingStatus}
               onClick={handleUpdateStatus}
+              data-cy="admin-status-submit"
               className="
                 px-6 py-2 rounded-full 
                 bg-uvGreen hover:bg-green-600 
@@ -489,6 +536,18 @@ export default function UsersPage() {
       )}
     </div>
   );
+}
+
+function isCurrentAdminUser(user, currentUserEmail) {
+  if (!user || !currentUserEmail) {
+    return false;
+  }
+
+  return (user.email || "").toLowerCase() === currentUserEmail;
+}
+
+function isCreatedByAdminStatus(user) {
+  return (user?.status || "").toUpperCase() === "CREATED_BY_ADMIN";
 }
 
 /* ============================

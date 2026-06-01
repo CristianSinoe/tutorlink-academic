@@ -3,6 +3,8 @@ package com.sinoe.authmfa.domain.user;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+import org.hibernate.annotations.JdbcType;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -41,7 +43,8 @@ public class User {
     private UserRole role;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(nullable = false, columnDefinition = "user_status")
     private UserStatus status;
 
     @Column(name = "activation_token", length = 255)
