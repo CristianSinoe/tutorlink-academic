@@ -40,7 +40,7 @@ public class TutorController {
     }
 
     @GetMapping("/questions/pending")
-    public ResponseEntity<List<Question>> pending(@RequestParam(required = false) Scope scope) {
+    public ResponseEntity<List<Question>> pending(@RequestParam(name = "scope", required = false) Scope scope) {
 
         List<Question> out = (scope == null)
                 ? questions.findByStatusOrderByCreatedAtAsc(Status.PENDIENTE)
