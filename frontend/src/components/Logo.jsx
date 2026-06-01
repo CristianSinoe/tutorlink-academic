@@ -1,3 +1,5 @@
+import PropTypes from "prop-types";
+
 export default function Logo({
   variant = "horizontal", // horizontal | vertical | isotype | monoWhite | black
   className = "",
@@ -20,3 +22,9 @@ export default function Logo({
     />
   );
 }
+
+Logo.propTypes = {
+  variant: PropTypes.string,
+  className: PropTypes.string,
+  alt: PropTypes.string,
+};

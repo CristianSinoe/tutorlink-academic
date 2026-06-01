@@ -81,6 +81,7 @@ export default function StudentLayout() {
         <div className="px-4 pb-5 pt-2 border-t border-slate-200">
           <button
             onClick={handleLogout}
+            data-cy="logout-button"
             className="
               w-full inline-flex items-center justify-center 
               px-4 py-2 rounded-full 
@@ -122,6 +123,7 @@ export default function StudentLayout() {
               <div className="flex items-center gap-3 md:hidden">
                 <button
                   onClick={handleLogout}
+                  data-cy="logout-button"
                   className="
                     inline-flex items-center justify-center 
                     px-4 py-1.5 rounded-full 
@@ -147,6 +149,7 @@ export default function StudentLayout() {
                 </div>
                 <button
                   onClick={handleLogout}
+                  data-cy="logout-button"
                   className="
                     inline-flex items-center justify-center 
                     px-4 py-2 rounded-full 

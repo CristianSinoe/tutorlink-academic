@@ -10,10 +10,13 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class OtpService {
+
+    private static final String LOGIN_PURPOSE = "LOGIN";
 
     private final OtpRepository otpRepository;
     private final SecureRandom random = new SecureRandom();
@@ -108,7 +111,7 @@ public class OtpService {
                 .userId(userId)
                 .code(code)
                 .publicId(publicId)
-                .purpose("LOGIN")
+                .purpose(LOGIN_PURPOSE)
                 .attempts(0)
                 .createdAt(now)
                 .lastSentAt(now)
@@ -133,10 +136,35 @@ public class OtpService {
         );
     }
 
+    public long getResendCooldownSeconds() {
+        return resendCooldown;
+    }
+
+    public long getRemainingResendCooldownSeconds(Long userId, String purpose) {
+        Optional<OtpCode> last = otpRepository
+                .findTopByUserIdAndPurposeOrderByCreatedAtDesc(userId, purpose);
+
+        if (last.isEmpty() || last.get().getLastSentAt() == null) {
+            return 0;
+        }
+
+        Instant availableAt = last.get().getLastSentAt().plusSeconds(resendCooldown);
+        long remainingMillis = availableAt.toEpochMilli() - Instant.now().toEpochMilli();
+        if (remainingMillis <= 0) {
+            return 0;
+        }
+
+        return Math.max(1, TimeUnit.MILLISECONDS.toSeconds((remainingMillis + 999) / 1000));
+    }
+
+    public Optional<OtpCode> findLoginOtpByPublicId(String publicId) {
+        return otpRepository.findByPublicIdAndPurpose(publicId, LOGIN_PURPOSE);
+    }
+
     // VALIDAR OTP POR publicId (LOGIN)
 
     public OtpCode validateForLogin(String publicId, String code) {
-        Optional<OtpCode> opt = otpRepository.findByPublicIdAndPurpose(publicId, "LOGIN");
+        Optional<OtpCode> opt = otpRepository.findByPublicIdAndPurpose(publicId, LOGIN_PURPOSE);
         if (opt.isEmpty()) {
             return null;
         }

@@ -10,6 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.time.Year;
 
 @Service
@@ -30,7 +31,12 @@ public class EmailService {
     // =========================
 
     public void sendFirstLoginEmail(String toEmail, String activationToken) {
-        String url = frontendBaseUrl + "/first-login?token=" + activationToken;
+        sendFirstLoginEmail(toEmail, activationToken, null);
+    }
+
+    public void sendFirstLoginEmail(String toEmail, String activationToken, String frontendBaseUrlOverride) {
+        String baseUrl = normalizeBaseUrl(frontendBaseUrlOverride);
+        String url = baseUrl + "/first-login?token=" + activationToken;
         String subject = "TutorLink - Activa tu cuenta y crea tu contraseña";
 
         String html = buildActionEmail(
@@ -43,6 +49,21 @@ public class EmailService {
         );
 
         sendEmail(toEmail, subject, html);
+    }
+
+    private String normalizeBaseUrl(String frontendBaseUrlOverride) {
+        String baseUrl = frontendBaseUrlOverride;
+
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = frontendBaseUrl;
+        }
+
+        baseUrl = baseUrl.trim();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        return baseUrl;
     }
 
     // ==============================
@@ -75,6 +96,126 @@ public class EmailService {
                 "Código de verificación",
                 "Recibiste este mensaje porque se solicitó un cambio de contraseña para tu cuenta en TutorLink.",
                 extraHtml
+        );
+
+        sendEmail(toEmail, subject, html);
+    }
+
+    public void sendTutorNewQuestionEmail(
+            String toEmail,
+            String studentName,
+            String questionTitle,
+            Instant createdAt,
+            Long questionId,
+            String frontendBaseUrlOverride) {
+        String url = normalizeBaseUrl(frontendBaseUrlOverride) + "/tutor/pending?questionId=" + questionId;
+        String subject = "TutorLink - Tienes una nueva pregunta asignada";
+
+        String extraHtml = """
+                <p style="margin:0 0 12px; font-size:14px; color:#4b5563;">
+                  Se ha creado una nueva pregunta en TutorLink y te fue asignada para seguimiento.
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Estudiante:</strong> %s
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Pregunta:</strong> %s
+                </p>
+                <p style="margin:0; font-size:13px; color:#374151;">
+                  <strong>Fecha:</strong> %s
+                </p>
+                """.formatted(
+                safeText(studentName),
+                safeText(questionTitle),
+                formatInstant(createdAt));
+
+        String html = buildActionEmail(
+                "Nueva pregunta asignada en TutorLink.",
+                "Tienes una nueva pregunta asignada",
+                "Ingresa a la plataforma para revisar el hilo y responder al estudiante.",
+                extraHtml,
+                "Abrir pregunta",
+                url
+        );
+
+        sendEmail(toEmail, subject, html);
+    }
+
+    public void sendStudentTutorReplyEmail(
+            String toEmail,
+            String tutorName,
+            String questionTitle,
+            Instant createdAt,
+            Long questionId,
+            String frontendBaseUrlOverride) {
+        String url = normalizeBaseUrl(frontendBaseUrlOverride) + "/student/questions?questionId=" + questionId;
+        String subject = "TutorLink - Tu pregunta recibió una respuesta";
+
+        String extraHtml = """
+                <p style="margin:0 0 12px; font-size:14px; color:#4b5563;">
+                  Tu tutor agregó una nueva respuesta en el hilo de tu pregunta.
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Tutor:</strong> %s
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Pregunta:</strong> %s
+                </p>
+                <p style="margin:0; font-size:13px; color:#374151;">
+                  <strong>Fecha:</strong> %s
+                </p>
+                """.formatted(
+                safeText(tutorName),
+                safeText(questionTitle),
+                formatInstant(createdAt));
+
+        String html = buildActionEmail(
+                "Tu pregunta recibió una respuesta en TutorLink.",
+                "Tu tutor respondió tu pregunta",
+                "Ingresa a la plataforma para ver el detalle completo del hilo.",
+                extraHtml,
+                "Ver conversación",
+                url
+        );
+
+        sendEmail(toEmail, subject, html);
+    }
+
+    public void sendTutorStudentFollowUpEmail(
+            String toEmail,
+            String studentName,
+            String questionTitle,
+            Instant createdAt,
+            Long questionId,
+            String frontendBaseUrlOverride) {
+        String url = normalizeBaseUrl(frontendBaseUrlOverride) + "/tutor/pending?questionId=" + questionId;
+        String subject = "TutorLink - El estudiante agregó un nuevo mensaje";
+
+        String extraHtml = """
+                <p style="margin:0 0 12px; font-size:14px; color:#4b5563;">
+                  El estudiante agregó un nuevo mensaje dentro del hilo de conversación.
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Estudiante:</strong> %s
+                </p>
+                <p style="margin:0 0 8px; font-size:13px; color:#374151;">
+                  <strong>Pregunta:</strong> %s
+                </p>
+                <p style="margin:0; font-size:13px; color:#374151;">
+                  <strong>Fecha:</strong> %s
+                </p>
+                """.formatted(
+                safeText(studentName),
+                safeText(questionTitle),
+                formatInstant(createdAt));
+
+        String html = buildActionEmail(
+                "Nuevo mensaje del estudiante en TutorLink.",
+                "El estudiante agregó un nuevo mensaje",
+                "Ingresa a la plataforma para revisar el seguimiento y responder si es necesario.",
+                extraHtml,
+                "Abrir conversación",
+                url
         );
 
         sendEmail(toEmail, subject, html);
@@ -305,6 +446,14 @@ public class EmailService {
                 extraHtml,  // contenido extra (caja de código)
                 year        // footer
         );
+    }
+
+    private String safeText(String value) {
+        return value == null || value.isBlank() ? "—" : value.trim();
+    }
+
+    private String formatInstant(Instant value) {
+        return value != null ? value.toString() : "—";
     }
 
     // ======================================================

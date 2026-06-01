@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { AuthContext } from "./auth-context.js";
 
 function readStoredAuth() {
@@ -37,13 +38,13 @@ function readStoredAuth() {
 export default function AuthProvider({ children }) {
   const [auth, setAuth] = useState(readStoredAuth);
 
-  const login = ({ token, role, email, name }) => {
+  const login = useCallback(({ token, role, email, name }) => {
     const data = { token, role, email, name };
     localStorage.setItem("auth", JSON.stringify(data));
     setAuth({ ...data, loading: false });
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("auth");
     setAuth({
       token: null,
@@ -52,11 +53,17 @@ export default function AuthProvider({ children }) {
       name: null,
       loading: false,
     });
-  };
+  }, []);
+
+  const value = useMemo(() => ({ auth, login, logout }), [auth, login, logout]);
 
   return (
-    <AuthContext.Provider value={{ auth, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
+
+AuthProvider.propTypes = {
+  children: PropTypes.node,
+};

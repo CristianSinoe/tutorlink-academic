@@ -1,8 +1,28 @@
 // src/pages/student/StudentDashboard.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
+
+const STATUS_CHIP = {
+  PUBLICADA: {
+    label: "Respondida",
+    classes: "bg-emerald-100 text-emerald-800",
+  },
+  CORREGIDA: {
+    label: "Corregida",
+    classes: "bg-blue-100 text-blue-800",
+  },
+  PENDIENTE: {
+    label: "Pendiente",
+    classes: "bg-amber-100 text-amber-800",
+  },
+  RECHAZADA: {
+    label: "Rechazada",
+    classes: "bg-red-100 text-red-700",
+  },
+};
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -166,64 +186,7 @@ export default function StudentDashboard() {
           </h2>
 
           <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 md:p-5">
-            {loadingQuestions ? (
-              <p className="text-sm text-slate-500">
-                Cargando información de tus preguntas…
-              </p>
-            ) : latestAnswered.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                Aún no tienes preguntas respondidas. Cuando tus tutores te
-                respondan, verás aquí un resumen de las más recientes.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm text-left">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-500">
-                      <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
-                        Pregunta
-                      </th>
-                      <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
-                        Estado
-                      </th>
-                      <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
-                        Fecha
-                      </th>
-                      <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
-                        Alcance
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {latestAnswered.map((q) => (
-                      <tr
-                        key={q.id}
-                        className="border-b last:border-0 border-slate-100"
-                      >
-                        <td
-                          className="py-2 pr-4 max-w-xs truncate"
-                          title={q.title}
-                        >
-                          {q.title}
-                        </td>
-
-                        <td className="py-2 pr-4">
-                          <StatusChip status={q.status} />
-                        </td>
-
-                        <td className="py-2 pr-4">
-                          {formatDateTime(q.createdAt)}
-                        </td>
-
-                        <td className="py-2 pr-4">
-                          {q.scope || "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {renderLatestAnswers({ loadingQuestions, latestAnswered })}
           </div>
 
           <p className="text-xs text-slate-500">
@@ -236,6 +199,7 @@ export default function StudentDashboard() {
             >
               Mis preguntas
             </button>
+            {" "}
             .
           </p>
         </section>
@@ -274,6 +238,12 @@ function SummaryCard({ label, value, helper }) {
   );
 }
 
+SummaryCard.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.node,
+  helper: PropTypes.string,
+};
+
 function StatusChip({ status }) {
   if (!status) {
     return (
@@ -283,29 +253,10 @@ function StatusChip({ status }) {
     );
   }
 
-  let label = status;
-  let classes = "bg-slate-100 text-slate-700";
-
-  switch (status) {
-    case "PUBLICADA":
-      label = "Respondida";
-      classes = "bg-emerald-100 text-emerald-800";
-      break;
-    case "CORREGIDA":
-      label = "Corregida";
-      classes = "bg-blue-100 text-blue-800";
-      break;
-    case "PENDIENTE":
-      label = "Pendiente";
-      classes = "bg-amber-100 text-amber-800";
-      break;
-    case "RECHAZADA":
-      label = "Rechazada";
-      classes = "bg-red-100 text-red-700";
-      break;
-    default:
-      label = status;
-  }
+  const { label, classes } = STATUS_CHIP[status] ?? {
+    label: status,
+    classes: "bg-slate-100 text-slate-700",
+  };
 
   return (
     <span
@@ -313,5 +264,65 @@ function StatusChip({ status }) {
     >
       {label}
     </span>
+  );
+}
+
+StatusChip.propTypes = {
+  status: PropTypes.string,
+};
+
+function renderLatestAnswers({ loadingQuestions, latestAnswered }) {
+  if (loadingQuestions) {
+    return (
+      <p className="text-sm text-slate-500">
+        Cargando información de tus preguntas…
+      </p>
+    );
+  }
+
+  if (latestAnswered.length === 0) {
+    return (
+      <p className="text-sm text-slate-500">
+        Aún no tienes preguntas respondidas. Cuando tus tutores te respondan,
+        verás aquí un resumen de las más recientes.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm text-left">
+        <thead>
+          <tr className="border-b border-slate-100 text-slate-500">
+            <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
+              Pregunta
+            </th>
+            <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
+              Estado
+            </th>
+            <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
+              Fecha
+            </th>
+            <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
+              Alcance
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {latestAnswered.map((q) => (
+            <tr key={q.id} className="border-b last:border-0 border-slate-100">
+              <td className="py-2 pr-4 max-w-xs truncate" title={q.title}>
+                {q.title}
+              </td>
+              <td className="py-2 pr-4">
+                <StatusChip status={q.status} />
+              </td>
+              <td className="py-2 pr-4">{formatDateTime(q.createdAt)}</td>
+              <td className="py-2 pr-4">{q.scope || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

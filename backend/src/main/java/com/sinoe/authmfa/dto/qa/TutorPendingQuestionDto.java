@@ -6,6 +6,7 @@ import java.time.Instant;
 public record TutorPendingQuestionDto(
         Long id,
         String title,
+        String body,
         String status,
         String scope,
         Instant createdAt,

@@ -1,0 +1,23 @@
+{
+  "student": {
+    "email": "student.e2e@example.test",
+    "password": "Password123!",
+    "role": "ESTUDIANTE",
+    "name": "Estudiante E2E",
+    "token": "jwt-student-e2e"
+  },
+  "tutor": {
+    "email": "tutor.e2e@example.test",
+    "password": "Password123!",
+    "role": "TUTOR",
+    "name": "Tutor E2E",
+    "token": "jwt-tutor-e2e"
+  },
+  "admin": {
+    "email": "admin.e2e@example.test",
+    "password": "Password123!",
+    "role": "ADMIN",
+    "name": "Admin E2E",
+    "token": "jwt-admin-e2e"
+  }
+}

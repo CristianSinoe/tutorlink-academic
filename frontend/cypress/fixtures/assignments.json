@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "id": 301,
+      "tutorId": 11,
+      "tutorCode": "TUT001",
+      "tutorName": "Tutor E2E",
+      "tutorEmail": "tutor.e2e@example.test",
+      "tutorDepartment": "Ingenieria",
+      "tutorSpecialty": "Programacion",
+      "studentMatricula": "S230010",
+      "studentName": "Estudiante E2E",
+      "studentEmail": "student.e2e@example.test"
+    }
+  ],
+  "importResult": {
+    "total": 2,
+    "created": 2,
+    "skippedExisting": 0
+  }
+}

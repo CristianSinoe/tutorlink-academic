@@ -1,5 +1,6 @@
 // src/pages/student/StudentInfoPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
@@ -65,31 +66,7 @@ export default function StudentInfoPage() {
             Datos generales
           </h2>
 
-          {loading ? (
-            <p className="text-sm text-slate-500">Cargando información…</p>
-          ) : !me ? (
-            <p className="text-sm text-slate-500">
-              No se pudo cargar tu información. Intenta recargar la página.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
-              <InfoRow label="Nombre completo" value={fullName} />
-              <InfoRow label="Correo institucional" value={me.email} />
-              <InfoRow label="Matrícula" value={me.matricula} />
-              <InfoRow label="Carrera" value={me.career} />
-              <InfoRow label="Plan de estudios" value={me.plan} />
-              <InfoRow label="Semestre" value={me.semester} />
-              <InfoRow label="Teléfono" value={me.studentPhone} />
-              <InfoRow
-                label="Fecha de nacimiento"
-                value={birthDateFormatted}
-              />
-              <InfoRow
-                label="Estado de cuenta"
-                value={me.status || "—"}
-              />
-            </div>
-          )}
+          {renderStudentInfoContent({ loading, me, fullName, birthDateFormatted })}
         </section>
 
         <section className="text-xs text-slate-500">
@@ -113,6 +90,39 @@ function InfoRow({ label, value }) {
     <div>
       <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className="text-sm text-slate-900 mt-0.5">{value || "—"}</p>
+    </div>
+  );
+}
+
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.node,
+};
+
+function renderStudentInfoContent({ loading, me, fullName, birthDateFormatted }) {
+  if (loading) {
+    return <p className="text-sm text-slate-500">Cargando información…</p>;
+  }
+
+  if (!me) {
+    return (
+      <p className="text-sm text-slate-500">
+        No se pudo cargar tu información. Intenta recargar la página.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
+      <InfoRow label="Nombre completo" value={fullName} />
+      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Matrícula" value={me.matricula} />
+      <InfoRow label="Carrera" value={me.career} />
+      <InfoRow label="Plan de estudios" value={me.plan} />
+      <InfoRow label="Semestre" value={me.semester} />
+      <InfoRow label="Teléfono" value={me.studentPhone} />
+      <InfoRow label="Fecha de nacimiento" value={birthDateFormatted} />
+      <InfoRow label="Estado de cuenta" value={me.status || "—"} />
     </div>
   );
 }

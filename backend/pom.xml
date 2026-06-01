@@ -14,6 +14,8 @@
     <spring.boot.version>3.3.4</spring.boot.version>
     <jjwt.version>0.11.5</jjwt.version>
     <lombok.version>1.18.34</lombok.version>
+    <testcontainers.version>1.20.4</testcontainers.version>
+    <jacoco.version>0.8.12</jacoco.version>
   </properties>
 
   <dependencyManagement>
@@ -113,6 +115,23 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${testcontainers.version}</version>
+      <scope>test</scope>
+    </dependency>
     
     <!-- Resend -->
     <dependency>
@@ -146,6 +165,7 @@
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
+          <parameters>true</parameters>
           <annotationProcessorPaths>
             <path>
               <groupId>org.projectlombok</groupId>
@@ -160,6 +180,32 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
+        <configuration>
+          <environmentVariables>
+            <DOCKER_API_VERSION>1.40</DOCKER_API_VERSION>
+          </environmentVariables>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <executions>
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

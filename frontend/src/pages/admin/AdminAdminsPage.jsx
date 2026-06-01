@@ -1,5 +1,6 @@
 // src/pages/admin/AdminAdminsPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import CreateAdminModal from "../../components/admin/CreateAdminModal";
 
@@ -272,3 +273,7 @@ function StatusBadge({ status }) {
     </span>
   );
 }
+
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
