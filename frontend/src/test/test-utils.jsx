@@ -13,11 +13,11 @@ const defaultAuth = {
 
 export function seedStoredAuth(auth) {
   if (!auth) {
-    window.localStorage.removeItem("auth");
+    globalThis.window.localStorage.removeItem("auth");
     return;
   }
 
-  window.localStorage.setItem(
+  globalThis.window.localStorage.setItem(
     "auth",
     JSON.stringify({
       token: auth.token ?? null,

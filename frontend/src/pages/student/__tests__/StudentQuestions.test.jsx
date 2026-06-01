@@ -61,7 +61,7 @@ describe("StudentQuestions", () => {
   });
 
   it("abre el detalle sin depender de backend real", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     apiClient.get
       .mockResolvedValueOnce({
         data: {

@@ -1,5 +1,6 @@
 // src/pages/student/StudentQuestions.jsx
 import { useEffect, useMemo, useState } from "react";
+import PropTypes from "prop-types";
 import { useSearchParams } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
@@ -20,6 +21,36 @@ const SCOPE_OPTIONS = [
   { value: "SEMESTRE", label: "Semestre" },
   { value: "ACADEMICO", label: "Académico" },
 ];
+
+const QUESTION_STATUS = {
+  PENDIENTE: {
+    classes: "bg-amber-100 text-amber-800",
+    label: "Pendiente",
+  },
+  PUBLICADA: {
+    classes: "bg-emerald-100 text-emerald-800",
+    label: "Respondida",
+  },
+  CORREGIDA: {
+    classes: "bg-blue-100 text-blue-800",
+    label: "Corregida",
+  },
+  RECHAZADA: {
+    classes: "bg-red-100 text-red-700",
+    label: "Rechazada",
+  },
+};
+
+function getFeedbackSummary(count) {
+  if (count === 0) {
+    return "Aún no hay respuestas del tutor";
+  }
+  return `${count} ${count > 1 ? "versiones" : "versión"} registradas`;
+}
+
+function getHistoryButtonLabel(isOpen) {
+  return isOpen ? "Ocultar historial" : "Ver historial";
+}
 
 export default function StudentQuestions() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -150,6 +181,78 @@ export default function StudentQuestions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const renderQuestionsList = () => {
+    if (loadingQuestions) {
+      return (
+        <p className="text-sm text-slate-500">
+          Cargando preguntas…
+        </p>
+      );
+    }
+
+    if (filteredQuestions.length === 0) {
+      return (
+        <p className="text-sm text-slate-500">
+          No se encontraron preguntas con los filtros actuales.
+        </p>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-slate-100/80">
+            <tr>
+              <th className="p-2.5">Pregunta</th>
+              <th className="p-2.5">Estado</th>
+              <th className="p-2.5">Fecha</th>
+              <th className="p-2.5">Alcance</th>
+              <th className="p-2.5">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredQuestions.map((q) => (
+              <tr
+                key={q.id}
+                data-cy="student-question-row"
+                className="border-t border-slate-100 hover:bg-slate-50"
+              >
+                <td
+                  className="p-2.5 max-w-md truncate"
+                  title={q.title}
+                >
+                  {q.title}
+                </td>
+
+                <td className="p-2.5">
+                  <QuestionStatusBadge status={q.status} />
+                </td>
+
+                <td className="p-2.5">
+                  {formatDateTime(q.createdAt || q.updatedAt)}
+                </td>
+
+                <td className="p-2.5">
+                  {q.scope || "—"}
+                </td>
+
+                <td className="p-2.5">
+                  <button
+                    onClick={() => openDetail(q.id)}
+                    data-cy="student-question-detail"
+                    className="px-3 py-1 border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-slate-100 transition"
+                  >
+                    Ver detalle
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-full bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-6 lg:py-8 space-y-6">
@@ -168,10 +271,14 @@ export default function StudentQuestions() {
 
           <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr,1fr] gap-4 text-sm">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
+              <label
+                htmlFor="student-question-search"
+                className="block text-xs font-semibold text-slate-500 mb-1"
+              >
                 Buscar
               </label>
               <input
+                id="student-question-search"
                 type="text"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
@@ -181,10 +288,14 @@ export default function StudentQuestions() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
+              <label
+                htmlFor="student-question-status"
+                className="block text-xs font-semibold text-slate-500 mb-1"
+              >
                 Estado
               </label>
               <select
+                id="student-question-status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none"
@@ -198,10 +309,14 @@ export default function StudentQuestions() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
+              <label
+                htmlFor="student-question-scope"
+                className="block text-xs font-semibold text-slate-500 mb-1"
+              >
                 Alcance
               </label>
               <select
+                id="student-question-scope"
                 value={scopeFilter}
                 onChange={(e) => setScopeFilter(e.target.value)}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none"
@@ -232,68 +347,7 @@ export default function StudentQuestions() {
             Listado
           </h2>
 
-          {loadingQuestions ? (
-            <p className="text-sm text-slate-500">
-              Cargando preguntas…
-            </p>
-          ) : filteredQuestions.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No se encontraron preguntas con los filtros actuales.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-100/80">
-                  <tr>
-                    <th className="p-2.5">Pregunta</th>
-                    <th className="p-2.5">Estado</th>
-                    <th className="p-2.5">Fecha</th>
-                    <th className="p-2.5">Alcance</th>
-                    <th className="p-2.5">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredQuestions.map((q) => (
-                    <tr
-                      key={q.id}
-                      data-cy="student-question-row"
-                      className="border-t border-slate-100 hover:bg-slate-50"
-                    >
-                      <td
-                        className="p-2.5 max-w-md truncate"
-                        title={q.title}
-                      >
-                        {q.title}
-                      </td>
-
-                      <td className="p-2.5">
-                        <QuestionStatusBadge status={q.status} />
-                      </td>
-
-                      {/* FECHA FORMATEADA: createdAt primero, luego updatedAt */}
-                      <td className="p-2.5">
-                        {formatDateTime(q.createdAt || q.updatedAt)}
-                      </td>
-
-                      <td className="p-2.5">
-                        {q.scope || "—"}
-                      </td>
-
-                      <td className="p-2.5">
-                        <button
-                          onClick={() => openDetail(q.id)}
-                          data-cy="student-question-detail"
-                          className="px-3 py-1 border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-slate-100 transition"
-                        >
-                          Ver detalle
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {renderQuestionsList()}
 
           <p className="mt-3 text-xs text-slate-500">
             * Aquí puedes revisar todas tus preguntas y acceder al detalle y la
@@ -348,30 +402,10 @@ function QuestionStatusBadge({ status }) {
     );
   }
 
-  let classes = "";
-  let label = status;
-
-  switch (status) {
-    case "PENDIENTE":
-      classes = "bg-amber-100 text-amber-800";
-      label = "Pendiente";
-      break;
-    case "PUBLICADA":
-      classes = "bg-emerald-100 text-emerald-800";
-      label = "Respondida";
-      break;
-    case "CORREGIDA":
-      classes = "bg-blue-100 text-blue-800";
-      label = "Corregida";
-      break;
-    case "RECHAZADA":
-      classes = "bg-red-100 text-red-700";
-      label = "Rechazada";
-      break;
-    default:
-      classes = "bg-slate-100 text-slate-700";
-      label = status;
-  }
+  const { classes, label } = QUESTION_STATUS[status] ?? {
+    classes: "bg-slate-100 text-slate-700",
+    label: status,
+  };
 
   return (
     <span
@@ -381,6 +415,10 @@ function QuestionStatusBadge({ status }) {
     </span>
   );
 }
+
+QuestionStatusBadge.propTypes = {
+  status: PropTypes.string,
+};
 
 function QuestionDetail({
   question,
@@ -512,11 +550,7 @@ function QuestionDetail({
               Retroalimentación e historial
             </p>
             <p className="text-xs text-slate-500 mt-1">
-              {tutorFeedbackMessages.length
-                ? `${tutorFeedbackMessages.length} version${
-                    tutorFeedbackMessages.length > 1 ? "es" : ""
-                  } registradas`
-                : "Aún no hay respuestas del tutor"}
+              {getFeedbackSummary(tutorFeedbackMessages.length)}
             </p>
           </div>
           <span className="text-slate-500 text-lg">
@@ -569,10 +603,14 @@ function QuestionDetail({
       {question.canReply && question.status !== "RECHAZADA" && (
         <form onSubmit={onSendMessage} className="space-y-3">
           <div>
-            <label className="block text-sm font-semibold text-slate-900 mb-2">
+            <label
+              htmlFor="student-question-message"
+              className="block text-sm font-semibold text-slate-900 mb-2"
+            >
               Agregar mensaje
             </label>
             <textarea
+              id="student-question-message"
               value={messageBody}
               onChange={(e) => onMessageBodyChange(e.target.value)}
               className="w-full border border-slate-300 rounded-lg px-3 py-2 h-28 resize-vertical focus:ring-2 focus:ring-uvBlue outline-none"
@@ -625,10 +663,14 @@ function QuestionDetail({
 
             <form onSubmit={handleSubmitCorrection} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label
+                  htmlFor="student-question-correction"
+                  className="block text-xs font-semibold text-slate-500 mb-1"
+                >
                   Texto corregido
                 </label>
                 <textarea
+                  id="student-question-correction"
                   value={editingText}
                   onChange={(e) => setEditingText(e.target.value)}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 h-32 resize-vertical focus:ring-2 focus:ring-uvBlue outline-none"
@@ -672,6 +714,27 @@ function QuestionDetail({
     </div>
   );
 }
+
+QuestionDetail.propTypes = {
+  question: PropTypes.shape({
+    canReply: PropTypes.bool,
+    createdAt: PropTypes.string,
+    messages: PropTypes.arrayOf(PropTypes.object),
+    questionId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+    rejectReason: PropTypes.string,
+    scope: PropTypes.string,
+    status: PropTypes.string,
+    title: PropTypes.string,
+    tutorEmail: PropTypes.string,
+    tutorName: PropTypes.string,
+  }).isRequired,
+  messageBody: PropTypes.string.isRequired,
+  onMessageBodyChange: PropTypes.func.isRequired,
+  onRefreshQuestion: PropTypes.func.isRequired,
+  onRefreshQuestions: PropTypes.func.isRequired,
+  onSendMessage: PropTypes.func.isRequired,
+  sendingMessage: PropTypes.bool.isRequired,
+};
 
 function ConversationThread({ messages, onCorrectMessage = null }) {
   const [openHistories, setOpenHistories] = useState({});
@@ -758,9 +821,7 @@ function ConversationThread({ messages, onCorrectMessage = null }) {
                         : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    {openHistories[messageKey]
-                      ? "Ocultar historial"
-                      : "Ver historial"}
+                    {getHistoryButtonLabel(openHistories[messageKey])}
                   </button>
                 )}
                 {message.canCorrect && onCorrectMessage && (
@@ -797,6 +858,11 @@ function ConversationThread({ messages, onCorrectMessage = null }) {
     </ul>
   );
 }
+
+ConversationThread.propTypes = {
+  messages: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onCorrectMessage: PropTypes.func,
+};
 
 function MessageVersionList({ versions, inverted = false }) {
   return (
@@ -852,6 +918,11 @@ function MessageVersionList({ versions, inverted = false }) {
   );
 }
 
+MessageVersionList.propTypes = {
+  inverted: PropTypes.bool,
+  versions: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
+
 function InfoBox({ label, value }) {
   return (
     <div className="border border-slate-200 rounded-lg px-3 py-2 bg-white">
@@ -866,6 +937,11 @@ function InfoBox({ label, value }) {
     </div>
   );
 }
+
+InfoBox.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node,
+};
 
 function Modal({ children, onClose }) {
   return (
@@ -882,3 +958,8 @@ function Modal({ children, onClose }) {
     </div>
   );
 }
+
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};

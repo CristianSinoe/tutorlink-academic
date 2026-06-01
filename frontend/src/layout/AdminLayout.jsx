@@ -1,5 +1,6 @@
 // src/layout/AdminLayout.jsx
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 import Logo from "../components/Logo";
@@ -57,6 +58,7 @@ export default function AdminLayout() {
 
           <button
             onClick={handleLogout}
+            data-cy="logout-button"
             className="
               w-full py-2.5 
               bg-uvGreen hover:bg-[#1f8644]
@@ -73,12 +75,12 @@ export default function AdminLayout() {
 
       {/* SIDEBAR MÓVIL (overlay) */}
       {sidebarOpen && (
-        <div
+        <dialog
+          open
           className="
             fixed inset-0 z-40 flex lg:hidden
             bg-black/40 backdrop-blur-sm
           "
-          role="dialog"
           aria-modal="true"
         >
           <aside
@@ -163,6 +165,7 @@ export default function AdminLayout() {
 
               <button
                 onClick={handleLogout}
+                data-cy="logout-button"
                 className="
                   w-full py-2.5 
                   bg-uvGreen hover:bg-[#1f8644]
@@ -184,7 +187,7 @@ export default function AdminLayout() {
             onClick={() => setSidebarOpen(false)}
             aria-label="Cerrar menú"
           />
-        </div>
+        </dialog>
       )}
 
       {/* CONTENEDOR PRINCIPAL */}
@@ -250,6 +253,12 @@ export default function AdminLayout() {
     </div>
   );
 }
+
+NavItem.propTypes = {
+  label: PropTypes.string.isRequired,
+  onNavigate: PropTypes.func,
+  to: PropTypes.string.isRequired,
+};
 
 function NavItem({ to, label, onNavigate }) {
   return (

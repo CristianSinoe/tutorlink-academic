@@ -90,7 +90,7 @@ describe("TutorPendingPage", () => {
   });
 
   it("bloquea respuesta vacía del tutor", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     apiClient.get
       .mockResolvedValueOnce({
         data: [

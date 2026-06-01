@@ -36,10 +36,6 @@ function OtpLocationProbe() {
 }
 
 describe("LoginPage", () => {
-  beforeEach(() => {
-    import.meta.env.VITE_RECAPTCHA_SITE_KEY = "test-site-key";
-  });
-
   async function renderLogin() {
     vi.useFakeTimers();
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 
 export default function AssignmentsPage() {
@@ -246,7 +247,6 @@ export default function AssignmentsPage() {
         message: "Asignación creada correctamente.",
       });
 
-      // Simplificamos: cerramos modal y recargamos todo
       closeTutorDetail();
       await loadAssignments();
     } catch (err) {
@@ -265,7 +265,7 @@ export default function AssignmentsPage() {
   const handleRemoveAssignment = async (assignment) => {
     if (!selectedTutor) return;
 
-    const confirmRemove = window.confirm(
+    const confirmRemove = globalThis.window.confirm(
       `¿Quitar al estudiante ${assignment.studentName} (${assignment.matricula}) de este tutor?`
     );
     if (!confirmRemove) return;
@@ -357,6 +357,7 @@ export default function AssignmentsPage() {
 
         <button
           onClick={() => setIsImportOpen(true)}
+          data-cy="admin-assignments-import-open"
           className="
             px-4 py-2 rounded-full 
             bg-uvBlue hover:bg-blue-700 
@@ -370,16 +371,17 @@ export default function AssignmentsPage() {
 
       {/* NOTIFICACIONES */}
       {feedback && (
-        <div
+        <output
           className={`px-4 py-3 rounded-xl text-sm border ${
             feedback.type === "error"
               ? "bg-red-50 border-red-200 text-red-800"
               : "bg-emerald-50 border-emerald-200 text-emerald-800"
           }`}
-          role={feedback.type === "error" ? "alert" : "status"}
+          role={feedback.type === "error" ? "alert" : undefined}
+          aria-live={feedback.type === "error" ? undefined : "polite"}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
 
       {/* FILTRO POR TUTOR */}
@@ -389,10 +391,14 @@ export default function AssignmentsPage() {
     md:flex-row md:items-start md:justify-between
   ">
         <div className="flex-1">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="assignments-search"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Buscar tutor
           </label>
           <input
+            id="assignments-search"
             type="text"
             placeholder="Nombre, correo o código"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
@@ -621,6 +627,7 @@ export default function AssignmentsPage() {
               type="button"
               disabled={importing}
               onClick={handleImportCSV}
+              data-cy="admin-assignments-import-submit"
               className="
                 px-6 py-2 rounded-full 
                 bg-uvBlue hover:bg-blue-700 
@@ -679,10 +686,14 @@ export default function AssignmentsPage() {
               className="flex flex-col md:flex-row gap-3 md:items-center relative"
             >
               <div className="flex-1">
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label
+                  htmlFor="assignment-student-matricula"
+                  className="block text-xs font-medium text-slate-700 mb-1"
+                >
                   Matrícula del estudiante
                 </label>
                 <input
+                  id="assignment-student-matricula"
                   type="text"
                   value={newMatricula}
                   onChange={handleChangeMatricula}
@@ -843,6 +854,11 @@ export default function AssignmentsPage() {
     </div>
   );
 }
+
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
 
 /* ============================
    COMPONENTES AUXILIARES

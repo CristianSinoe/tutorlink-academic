@@ -1,5 +1,6 @@
 // src/pages/tutor/TutorDashboard.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
@@ -138,57 +139,7 @@ export default function TutorDashboard() {
         </div>
 
         <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-          {loading ? (
-            <p className="p-4 text-sm text-slate-500">Cargando...</p>
-          ) : recentQuestions.length === 0 ? (
-            <p className="p-4 text-sm text-slate-500">
-              No tienes preguntas asignadas recientemente.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm text-left">
-                <thead className="bg-slate-100/70 text-slate-700">
-                  <tr>
-                    <th className="px-3 py-2.5">Pregunta</th>
-                    <th className="px-3 py-2.5">Estudiante</th>
-                    <th className="px-3 py-2.5">Alcance</th>
-                    <th className="px-3 py-2.5">Fecha</th>
-                    <th className="px-3 py-2.5">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentQuestions.map((q) => (
-                    <tr
-                      key={q.id}
-                      className="border-t border-slate-100 hover:bg-slate-50"
-                    >
-                      <td
-                        className="px-3 py-2.5 max-w-xs truncate"
-                        title={q.title}
-                      >
-                        {q.title}
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        {q.studentName || q.studentEmail || "—"}
-                      </td>
-
-                      <td className="px-3 py-2.5">{q.scope || "—"}</td>
-
-                      {/* ← AQUÍ SE USA formatDateTime */}
-                      <td className="px-3 py-2.5">
-                        {formatDateTime(q.createdAt)}
-                      </td>
-
-                      <td className="px-3 py-2.5">
-                        <StatusBadge status={q.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {renderRecentQuestions({ loading, recentQuestions })}
         </div>
 
         <p className="text-xs text-slate-500 mt-1">
@@ -214,6 +165,12 @@ function SummaryCard({ label, value, accent }) {
     </div>
   );
 }
+
+SummaryCard.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.node,
+  accent: PropTypes.string,
+};
 
 function StatusBadge({ status }) {
   if (!status) {
@@ -255,5 +212,56 @@ function StatusBadge({ status }) {
     >
       {label}
     </span>
+  );
+}
+
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
+
+function renderRecentQuestions({ loading, recentQuestions }) {
+  if (loading) {
+    return <p className="p-4 text-sm text-slate-500">Cargando...</p>;
+  }
+
+  if (recentQuestions.length === 0) {
+    return (
+      <p className="p-4 text-sm text-slate-500">
+        No tienes preguntas asignadas recientemente.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm text-left">
+        <thead className="bg-slate-100/70 text-slate-700">
+          <tr>
+            <th className="px-3 py-2.5">Pregunta</th>
+            <th className="px-3 py-2.5">Estudiante</th>
+            <th className="px-3 py-2.5">Alcance</th>
+            <th className="px-3 py-2.5">Fecha</th>
+            <th className="px-3 py-2.5">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recentQuestions.map((q) => (
+            <tr key={q.id} className="border-t border-slate-100 hover:bg-slate-50">
+              <td className="px-3 py-2.5 max-w-xs truncate" title={q.title}>
+                {q.title}
+              </td>
+              <td className="px-3 py-2.5">
+                {q.studentName || q.studentEmail || "—"}
+              </td>
+              <td className="px-3 py-2.5">{q.scope || "—"}</td>
+              <td className="px-3 py-2.5">{formatDateTime(q.createdAt)}</td>
+              <td className="px-3 py-2.5">
+                <StatusBadge status={q.status} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

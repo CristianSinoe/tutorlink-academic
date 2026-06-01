@@ -16,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class OtpService {
 
+    private static final String LOGIN_PURPOSE = "LOGIN";
+
     private final OtpRepository otpRepository;
     private final SecureRandom random = new SecureRandom();
 
@@ -109,7 +111,7 @@ public class OtpService {
                 .userId(userId)
                 .code(code)
                 .publicId(publicId)
-                .purpose("LOGIN")
+                .purpose(LOGIN_PURPOSE)
                 .attempts(0)
                 .createdAt(now)
                 .lastSentAt(now)
@@ -156,13 +158,13 @@ public class OtpService {
     }
 
     public Optional<OtpCode> findLoginOtpByPublicId(String publicId) {
-        return otpRepository.findByPublicIdAndPurpose(publicId, "LOGIN");
+        return otpRepository.findByPublicIdAndPurpose(publicId, LOGIN_PURPOSE);
     }
 
     // VALIDAR OTP POR publicId (LOGIN)
 
     public OtpCode validateForLogin(String publicId, String code) {
-        Optional<OtpCode> opt = otpRepository.findByPublicIdAndPurpose(publicId, "LOGIN");
+        Optional<OtpCode> opt = otpRepository.findByPublicIdAndPurpose(publicId, LOGIN_PURPOSE);
         if (opt.isEmpty()) {
             return null;
         }

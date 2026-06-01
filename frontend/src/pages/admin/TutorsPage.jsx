@@ -1,89 +1,148 @@
 // src/pages/admin/TutorsPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
+
+const TUTOR_STATUS = {
+  ACTIVE: {
+    classes: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+    label: "ACTIVO",
+  },
+  CREATED_BY_ADMIN: {
+    classes: "bg-amber-50 text-amber-700 border border-amber-100",
+    label: "CREADO POR ADMIN",
+  },
+  DISABLED: {
+    classes: "bg-slate-100 text-slate-600 border border-slate-200",
+    label: "DESHABILITADO",
+  },
+  BLOCKED: {
+    classes: "bg-red-50 text-red-700 border border-red-100",
+    label: "BLOQUEADO",
+  },
+};
+
+const LETTERS_AND_SPACES_PATTERN = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/;
+
+function isEmpty(value) {
+  return !value || !String(value).trim();
+}
+
+function getInputType(type, showPassword) {
+  if (type !== "password") {
+    return type;
+  }
+  return showPassword ? "text" : "password";
+}
+
+function getDetailValue(value) {
+  return value === undefined || value === null || value === "" ? "—" : value;
+}
+
+function validateTutorLettersField(errors, values, field, messages, optional = false) {
+  const value = values[field];
+  if (optional && isEmpty(value)) {
+    return;
+  }
+
+  if (isEmpty(value)) {
+    errors[field] = messages.required;
+    return;
+  }
+
+  const trimmedValue = value.trim();
+  if (trimmedValue.length < 2) {
+    errors[field] = messages.min;
+    return;
+  }
+
+  if (!LETTERS_AND_SPACES_PATTERN.test(trimmedValue)) {
+    errors[field] = messages.pattern;
+  }
+}
+
+function validateTutorEmail(errors, values) {
+  if (isEmpty(values.email)) {
+    errors.email = "El correo es obligatorio.";
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+    errors.email = "Ingresa un correo válido.";
+  }
+}
+
+function validateTutorPassword(errors, values, isEdit) {
+  if (isEdit) {
+    return;
+  }
+
+  if (isEmpty(values.password)) {
+    errors.password = "La contraseña es obligatoria.";
+    return;
+  }
+
+  if (values.password.length < 8) {
+    errors.password = "Debe tener al menos 8 caracteres.";
+  }
+}
+
+function validateTutorMinField(errors, values, field, messages, minLength = 2) {
+  if (isEmpty(values[field])) {
+    errors[field] = messages.required;
+    return;
+  }
+
+  if (values[field].trim().length < minLength) {
+    errors[field] = messages.min;
+  }
+}
+
+function validateTutorPhone(errors, values) {
+  if (isEmpty(values.phone)) {
+    return;
+  }
+
+  const digits = values.phone.replaceAll(/\D/g, "");
+  if (digits.length !== 10) {
+    errors.phone = "El teléfono debe tener 10 dígitos.";
+  }
+}
 
 /* ============================
    VALIDACIÓN DE TUTORES
 ============================= */
 function validateTutor(values, { isEdit = false } = {}) {
   const errors = {};
-  const isEmpty = (v) => !v || !String(v).trim();
-
-  // Nombre
-  if (isEmpty(values.name)) {
-    errors.name = "El nombre es obligatorio.";
-  } else if (values.name.trim().length < 2) {
-    errors.name = "El nombre debe tener al menos 2 caracteres.";
-  } else if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.name.trim())) {
-    errors.name = "El nombre solo puede contener letras y espacios.";
-  }
-
-  // Apellido paterno
-  if (isEmpty(values.lastNamePaterno)) {
-    errors.lastNamePaterno = "El apellido paterno es obligatorio.";
-  } else if (values.lastNamePaterno.trim().length < 2) {
-    errors.lastNamePaterno = "Debe tener mínimo 2 caracteres.";
-  } else if (
-    !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.lastNamePaterno.trim())
-  ) {
-    errors.lastNamePaterno = "Solo letras y espacios.";
-  }
-
-  // Apellido materno (opcional)
-  if (!isEmpty(values.lastNameMaterno)) {
-    if (values.lastNameMaterno.trim().length < 2) {
-      errors.lastNameMaterno = "Debe tener mínimo 2 caracteres.";
-    } else if (
-      !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.lastNameMaterno.trim())
-    ) {
-      errors.lastNameMaterno = "Solo letras y espacios.";
-    }
-  }
-
-  // Email
-  if (isEmpty(values.email)) {
-    errors.email = "El correo es obligatorio.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
-    errors.email = "Ingresa un correo válido.";
-  }
-
-  // Contraseña (solo al crear)
-  if (!isEdit) {
-    if (isEmpty(values.password)) {
-      errors.password = "La contraseña es obligatoria.";
-    } else if (values.password.length < 8) {
-      errors.password = "Debe tener al menos 8 caracteres.";
-    }
-  }
-
-  // Código de tutor
-  if (isEmpty(values.tutorCode)) {
-    errors.tutorCode = "El código de tutor es obligatorio.";
-  } else if (values.tutorCode.trim().length < 3) {
-    errors.tutorCode = "Debe tener al menos 3 caracteres.";
-  }
-
-  // Departamento
-  if (isEmpty(values.department)) {
-    errors.department = "El departamento es obligatorio.";
-  } else if (values.department.trim().length < 2) {
-    errors.department = "Debe tener al menos 2 caracteres.";
-  }
-
-  // Especialidad
-  if (isEmpty(values.specialty)) {
-    errors.specialty = "La especialidad es obligatoria.";
-  } else if (values.specialty.trim().length < 2) {
-    errors.specialty = "Debe tener al menos 2 caracteres.";
-  }
-
-  // Teléfono
-  if (!isEmpty(values.phone)) {
-    const digits = values.phone.replace(/\D/g, "");
-    if (digits.length !== 10) {
-      errors.phone = "El teléfono debe tener 10 dígitos.";
-    }
-  }
+  validateTutorLettersField(errors, values, "name", {
+    required: "El nombre es obligatorio.",
+    min: "El nombre debe tener al menos 2 caracteres.",
+    pattern: "El nombre solo puede contener letras y espacios.",
+  });
+  validateTutorLettersField(errors, values, "lastNamePaterno", {
+    required: "El apellido paterno es obligatorio.",
+    min: "Debe tener mínimo 2 caracteres.",
+    pattern: "Solo letras y espacios.",
+  });
+  validateTutorLettersField(errors, values, "lastNameMaterno", {
+    min: "Debe tener mínimo 2 caracteres.",
+    pattern: "Solo letras y espacios.",
+  }, true);
+  validateTutorEmail(errors, values);
+  validateTutorPassword(errors, values, isEdit);
+  validateTutorMinField(errors, values, "tutorCode", {
+    required: "El código de tutor es obligatorio.",
+    min: "Debe tener al menos 3 caracteres.",
+  }, 3);
+  validateTutorMinField(errors, values, "department", {
+    required: "El departamento es obligatorio.",
+    min: "Debe tener al menos 2 caracteres.",
+  });
+  validateTutorMinField(errors, values, "specialty", {
+    required: "La especialidad es obligatoria.",
+    min: "Debe tener al menos 2 caracteres.",
+  });
+  validateTutorPhone(errors, values);
 
   return errors;
 }
@@ -333,7 +392,8 @@ export default function TutorsPage() {
       setEditError(null);
 
       // 1) Actualizar datos generales (PUT)
-      const { status: _status, ...body } = editForm;
+      const body = { ...editForm };
+      delete body.status;
       await apiClient.put(`/api/admin/users/tutors/${editTutor.id}`, body);
 
       // 2) Actualizar estado (PATCH)
@@ -456,15 +516,16 @@ export default function TutorsPage() {
 
       {/* FEEDBACK GLOBAL */}
       {feedback && (
-        <div
+        <output
           className={`px-4 py-3 rounded-xl text-sm border ${feedback.type === "error"
               ? "bg-red-50 border-red-200 text-red-800"
               : "bg-emerald-50 border-emerald-200 text-emerald-800"
             }`}
-          role={feedback.type === "error" ? "alert" : "status"}
+          role={feedback.type === "error" ? "alert" : undefined}
+          aria-live={feedback.type === "error" ? undefined : "polite"}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
 
       {/* FILTROS */}
@@ -476,10 +537,14 @@ export default function TutorsPage() {
         "
       >
         <div className="flex-1">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="tutors-search"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Buscar
           </label>
           <input
+            id="tutors-search"
             type="text"
             placeholder="Nombre, correo o código de tutor"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
@@ -493,10 +558,14 @@ export default function TutorsPage() {
         </div>
 
         <div className="w-full md:w-64">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="tutors-status-filter"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Estado
           </label>
           <select
+            id="tutors-status-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -991,10 +1060,14 @@ export default function TutorsPage() {
             />
 
             <div className="col-span-full">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                htmlFor="tutor-edit-status"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Estado
               </label>
               <select
+                id="tutor-edit-status"
                 name="status"
                 value={editForm.status}
                 onChange={handleEditChange}
@@ -1056,10 +1129,13 @@ function Input({ label, name, value, onChange, type = "text", error }) {
 
   return (
     <div className="flex flex-col">
-      <label className="text-slate-700 mb-1 text-sm">{label}</label>
+      <label htmlFor={`tutor-${name}`} className="text-slate-700 mb-1 text-sm">
+        {label}
+      </label>
       <div className="relative">
         <input
-          type={isPassword ? (showPassword ? "text" : "password") : type}
+          id={`tutor-${name}`}
+          type={getInputType(type, showPassword)}
           name={name}
           value={value}
           onChange={onChange}
@@ -1090,6 +1166,15 @@ function Input({ label, name, value, onChange, type = "text", error }) {
     </div>
   );
 }
+
+Input.propTypes = {
+  error: PropTypes.string,
+  label: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  type: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+};
 
 function Modal({ children, onClose }) {
   return (
@@ -1128,6 +1213,11 @@ function Modal({ children, onClose }) {
   );
 }
 
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
+
 function StatusBadge({ status }) {
   if (!status) {
     return (
@@ -1137,34 +1227,10 @@ function StatusBadge({ status }) {
     );
   }
 
-  let classes = "bg-slate-100 text-slate-700 border border-slate-200";
-  let label = status;
-
-  switch (status) {
-    case "ACTIVE":
-      classes =
-        "bg-emerald-50 text-emerald-700 border border-emerald-100";
-      label = "ACTIVO";
-      break;
-    case "CREATED_BY_ADMIN":
-      classes =
-        "bg-amber-50 text-amber-700 border border-amber-100";
-      label = "CREADO POR ADMIN";
-      break;
-    case "DISABLED":
-      classes =
-        "bg-slate-100 text-slate-600 border border-slate-200";
-      label = "DESHABILITADO";
-      break;
-    case "BLOCKED":
-      classes = "bg-red-50 text-red-700 border border-red-100";
-      label = "BLOQUEADO";
-      break;
-    default:
-      classes =
-        "bg-slate-100 text-slate-700 border border-slate-200";
-      label = status;
-  }
+  const { classes, label } = TUTOR_STATUS[status] ?? {
+    classes: "bg-slate-100 text-slate-700 border border-slate-200",
+    label: status,
+  };
 
   return (
     <span
@@ -1175,13 +1241,22 @@ function StatusBadge({ status }) {
   );
 }
 
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
+
 function Detail({ label, value }) {
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className="text-sm text-slate-800 mt-0.5">
-        {value === undefined || value === null || value === "" ? "—" : value}
+        {getDetailValue(value)}
       </p>
     </div>
   );
 }
+
+Detail.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node,
+};
