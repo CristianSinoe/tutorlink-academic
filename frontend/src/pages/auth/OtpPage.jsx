@@ -5,8 +5,14 @@ import apiClient from "../../api/axiosClient";
 import { useAuth } from "../../context/useAuth.js";
 import Logo from "../../components/Logo";
 
+const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
+
+function getCooldownSeconds(value) {
+  const parsed = Number(value);
+  return parsed > 0 ? parsed : DEFAULT_RESEND_COOLDOWN_SECONDS;
+}
+
 export default function OtpPage() {
-  const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,10 +28,7 @@ export default function OtpPage() {
   const [resending, setResending] = useState(false);
 
   const hasOtpState = Boolean(state?.otpToken);
-  const initialCooldownSeconds =
-    Number(state?.resendCooldownSeconds) > 0
-      ? Number(state.resendCooldownSeconds)
-      : DEFAULT_RESEND_COOLDOWN_SECONDS;
+  const initialCooldownSeconds = getCooldownSeconds(state?.resendCooldownSeconds);
   const [currentOtpToken, setCurrentOtpToken] = useState(state?.otpToken ?? "");
   const [secondsLeft, setSecondsLeft] = useState(initialCooldownSeconds);
   const email = state?.email ?? "";
@@ -40,11 +43,7 @@ export default function OtpPage() {
 
   useEffect(() => {
     setCurrentOtpToken(state?.otpToken ?? "");
-    setSecondsLeft(
-      Number(state?.resendCooldownSeconds) > 0
-        ? Number(state.resendCooldownSeconds)
-        : DEFAULT_RESEND_COOLDOWN_SECONDS,
-    );
+    setSecondsLeft(getCooldownSeconds(state?.resendCooldownSeconds));
   }, [state]);
 
   useEffect(() => {
@@ -56,11 +55,11 @@ export default function OtpPage() {
       return undefined;
     }
 
-    const timerId = window.setInterval(() => {
+    const timerId = globalThis.setInterval(() => {
       setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
 
-    return () => window.clearInterval(timerId);
+    return () => globalThis.clearInterval(timerId);
   }, [secondsLeft]);
 
   // Si todavía no hay state (primer render), mostramos algo simple
@@ -139,11 +138,7 @@ export default function OtpPage() {
         data.message ||
           "Se envió un nuevo código de verificación a tu correo institucional.",
       );
-      setSecondsLeft(
-        Number(data.resendCooldownSeconds) > 0
-          ? Number(data.resendCooldownSeconds)
-          : DEFAULT_RESEND_COOLDOWN_SECONDS,
-      );
+      setSecondsLeft(getCooldownSeconds(data.resendCooldownSeconds));
       setCode("");
     } catch (err) {
       console.error("Error reenviando OTP", err);
@@ -245,13 +240,15 @@ export default function OtpPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label htmlFor="otp-code" className="block text-xs font-semibold text-slate-600 mb-1">
                   Código de verificación
                 </label>
                 <input
+                  id="otp-code"
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
+                  data-cy="otp-code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="
@@ -272,6 +269,7 @@ export default function OtpPage() {
               <button
                 type="submit"
                 disabled={submitting}
+                data-cy="otp-submit"
                 className="
                   w-full inline-flex items-center justify-center
                   rounded-full px-4 py-2.5 text-sm font-semibold
@@ -290,6 +288,7 @@ export default function OtpPage() {
                 type="button"
                 onClick={handleResendCode}
                 disabled={resending || submitting || secondsLeft > 0}
+                data-cy="otp-resend"
                 className="
                   w-full inline-flex items-center justify-center
                   rounded-full px-4 py-2.5 text-sm font-semibold
@@ -299,11 +298,7 @@ export default function OtpPage() {
                   transition
                 "
               >
-                {resending
-                  ? "Reenviando..."
-                  : secondsLeft > 0
-                    ? `Reenviar código en ${secondsLeft}s`
-                    : "Reenviar código"}
+                {getResendButtonLabel({ resending, secondsLeft })}
               </button>
               <p className="mt-2 text-[11px] text-slate-500 text-center">
                 Solo puedes solicitar un nuevo código cada 60 segundos.
@@ -333,4 +328,16 @@ export default function OtpPage() {
       </main>
     </div>
   );
+}
+
+function getResendButtonLabel({ resending, secondsLeft }) {
+  if (resending) {
+    return "Reenviando...";
+  }
+
+  if (secondsLeft > 0) {
+    return `Reenviar código en ${secondsLeft}s`;
+  }
+
+  return "Reenviar código";
 }

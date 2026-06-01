@@ -75,8 +75,8 @@
 }
 
 .action-button.secondary {
-  background: rgba(18, 50, 32, 0.12);
-  color: #123220;
+  background: rgba(18, 50, 32, 0.18);
+  color: #0b2416;
 }
 
 .placeholder-card {
@@ -95,7 +95,7 @@
 
 .placeholder-card p {
   margin: 0.9rem 0 0;
-  color: #496355;
+  color: #2f4739;
   line-height: 1.7;
 }
 

@@ -1,5 +1,6 @@
 // src/components/LoginPreloader.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import Logo from "./Logo";
 
 const FIRST_LINES = ["Aprender,", "Acompañar y", "Conectar."];
@@ -52,7 +53,7 @@ export default function LoginPreloader({ onDone }) {
                   <p
                     key={line}
                     className="text-3xl sm:text-2xl font-semibold animate-fade-in-up"
-                    style={{ animationDelay: `${i * 0.30}s` }}
+                    style={{ animationDelay: `${i * 0.3}s` }}
                   >
                     {line}
                   </p>
@@ -82,3 +83,7 @@ export default function LoginPreloader({ onDone }) {
     </div>
   );
 }
+
+LoginPreloader.propTypes = {
+  onDone: PropTypes.func,
+};

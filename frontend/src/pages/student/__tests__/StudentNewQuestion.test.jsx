@@ -34,7 +34,7 @@ describe("StudentNewQuestion", () => {
   });
 
   it("bloquea el envío cuando faltan campos obligatorios", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -53,7 +53,7 @@ describe("StudentNewQuestion", () => {
   });
 
   it("envía la pregunta con payload válido", async () => {
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     apiClient.post.mockResolvedValueOnce({
       data: { id: 77 },
     });

@@ -1,5 +1,6 @@
 // src/pages/admin/AdminProfilePage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import ChangePasswordModal from "../../components/ChangePasswordModal";
 
@@ -73,20 +74,7 @@ export default function AdminProfilePage() {
             )}
           </div>
 
-          {loading ? (
-            <p className="text-sm text-slate-500">Cargando información…</p>
-          ) : !me ? (
-            <p className="text-sm text-slate-500">
-              No se pudo cargar tu información. Intenta recargar la página.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
-              <InfoRow label="Nombre completo" value={fullName} />
-              <InfoRow label="Correo institucional" value={me.email} />
-              <InfoRow label="Rol" value={me.role || "ADMIN"} />
-              <InfoRow label="Estado de cuenta" value={me.status || "—"} />
-            </div>
-          )}
+          {renderProfileContent({ loading, me, fullName })}
         </section>
 
         <section className="text-xs text-slate-500">
@@ -114,6 +102,11 @@ function InfoRow({ label, value }) {
   );
 }
 
+InfoRow.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.node,
+};
+
 function RoleBadge({ role }) {
   const text = role || "ADMIN";
 
@@ -129,6 +122,10 @@ function RoleBadge({ role }) {
     </span>
   );
 }
+
+RoleBadge.propTypes = {
+  role: PropTypes.string,
+};
 
 function StatusBadge({ status }) {
   if (!status) {
@@ -161,5 +158,32 @@ function StatusBadge({ status }) {
     >
       Estado: {normalized}
     </span>
+  );
+}
+
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
+
+function renderProfileContent({ loading, me, fullName }) {
+  if (loading) {
+    return <p className="text-sm text-slate-500">Cargando información…</p>;
+  }
+
+  if (!me) {
+    return (
+      <p className="text-sm text-slate-500">
+        No se pudo cargar tu información. Intenta recargar la página.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
+      <InfoRow label="Nombre completo" value={fullName} />
+      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Rol" value={me.role || "ADMIN"} />
+      <InfoRow label="Estado de cuenta" value={me.status || "—"} />
+    </div>
   );
 }

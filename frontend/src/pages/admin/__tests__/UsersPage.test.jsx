@@ -156,7 +156,7 @@ describe("UsersPage", () => {
 
     await screen.findByText(/cambiar estado de usuario/i);
     const selects = screen.getAllByRole("combobox");
-    await user.selectOptions(selects[selects.length - 1], "DISABLED");
+    await user.selectOptions(selects.at(-1), "DISABLED");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
     await waitFor(() => {

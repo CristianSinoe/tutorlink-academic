@@ -1,6 +1,7 @@
 // src/components/admin/CreateAdminModal.jsx
 
 import { useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 
 export default function CreateAdminModal({ onClose, onCreated }) {
@@ -48,8 +49,8 @@ export default function CreateAdminModal({ onClose, onCreated }) {
     } catch (err) {
       console.error("Error creando administrador", err);
       const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
+        err?.response?.data?.message ??
+        err?.response?.data?.error ??
         "Error al crear administrador.";
       setError(msg);
     } finally {
@@ -58,14 +59,14 @@ export default function CreateAdminModal({ onClose, onCreated }) {
   };
 
   return (
-    <div
+    <dialog
+      open
       className="
         fixed inset-0 z-50 flex items-center justify-center 
         bg-black/40 backdrop-blur-sm 
         px-4 sm:px-0
         animate-fadeIn
       "
-      role="dialog"
       aria-modal="true"
     >
       {/* Modal container */}
@@ -241,6 +242,11 @@ export default function CreateAdminModal({ onClose, onCreated }) {
           </div>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }
+
+CreateAdminModal.propTypes = {
+  onClose: PropTypes.func,
+  onCreated: PropTypes.func,
+};

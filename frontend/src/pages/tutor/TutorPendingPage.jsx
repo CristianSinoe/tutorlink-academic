@@ -1,5 +1,6 @@
 // src/pages/tutor/TutorPendingPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useSearchParams } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
@@ -17,6 +18,21 @@ const ANSWER_ACTIONS = [
   { value: "PUBLISH", label: "Publicar respuesta (aprobar)" },
   { value: "REJECT", label: "Rechazar pregunta (fuera de alcance)" },
 ];
+
+function getScopeParam(scope) {
+  return scope && scope !== "ALL" ? scope : undefined;
+}
+
+function getFeedbackSummary(count) {
+  if (count === 0) {
+    return "Aún no has publicado retroalimentación para esta pregunta";
+  }
+  return `${count} ${count > 1 ? "versiones" : "versión"} registradas`;
+}
+
+function getHistoryButtonLabel(isOpen) {
+  return isOpen ? "Ocultar historial" : "Ver historial";
+}
 
 export default function TutorPendingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,10 +71,7 @@ export default function TutorPendingPage() {
       const { data } = await apiClient.get("/api/tutor/questions/pending/my", {
         params: {
           q: filters.text?.trim() || undefined,
-          scope:
-            filters.scope && filters.scope !== "ALL"
-              ? filters.scope
-              : undefined,
+          scope: getScopeParam(filters.scope),
         },
       });
 
@@ -277,10 +290,14 @@ export default function TutorPendingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor="tutor-pending-search"
+              className="text-xs font-semibold text-slate-500 mb-1"
+            >
               Buscar por pregunta
             </label>
             <input
+              id="tutor-pending-search"
               type="text"
               name="text"
               value={filters.text}
@@ -291,10 +308,14 @@ export default function TutorPendingPage() {
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-semibold text-slate-500 mb-1">
+            <label
+              htmlFor="tutor-pending-scope"
+              className="text-xs font-semibold text-slate-500 mb-1"
+            >
               Alcance
             </label>
             <select
+              id="tutor-pending-scope"
               name="scope"
               value={filters.scope}
               onChange={handleFilterChange}
@@ -347,6 +368,7 @@ export default function TutorPendingPage() {
                 {questions.map((q) => (
                   <tr
                     key={q.id}
+                    data-cy="tutor-pending-row"
                     className="border-t border-slate-100 hover:bg-slate-50"
                   >
                     <td
@@ -365,6 +387,7 @@ export default function TutorPendingPage() {
                     <td className="px-3 py-2.5">
                       <button
                         className="px-3 py-1 rounded-full border border-uvBlue text-uvBlue text-xs font-medium hover:bg-uvBlue hover:text-white transition"
+                        data-cy="tutor-open-detail"
                         onClick={() => openDetail(q.id)}
                       >
                         Ver detalle / Responder
@@ -453,11 +476,7 @@ export default function TutorPendingPage() {
                       Retroalimentación e historial
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {tutorFeedbackMessages.length
-                        ? `${tutorFeedbackMessages.length} version${
-                            tutorFeedbackMessages.length > 1 ? "es" : ""
-                          } registradas`
-                        : "Aún no has publicado retroalimentación para esta pregunta"}
+                      {getFeedbackSummary(tutorFeedbackMessages.length)}
                     </p>
                   </div>
                   <span className="text-slate-500 text-lg">
@@ -521,10 +540,14 @@ export default function TutorPendingPage() {
               {selectedQuestion.canReply && selectedQuestion.status !== "RECHAZADA" && (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                    <label
+                      htmlFor="tutor-pending-new-scope"
+                      className="block text-xs font-semibold text-slate-500 mb-1"
+                    >
                       Reclasificar alcance (opcional)
                     </label>
                     <select
+                      id="tutor-pending-new-scope"
                       name="newScope"
                       value={answerForm.newScope}
                       onChange={handleAnswerChange}
@@ -543,11 +566,16 @@ export default function TutorPendingPage() {
 
                   {answerForm.action !== "REJECT" && (
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      <label
+                        htmlFor="tutor-pending-answer"
+                        className="block text-xs font-semibold text-slate-500 mb-1"
+                      >
                         Respuesta del tutor
                       </label>
                       <textarea
+                        id="tutor-pending-answer"
                         name="answerBody"
+                        data-cy="tutor-answer-body"
                         value={answerForm.answerBody}
                         onChange={handleAnswerChange}
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 h-32 resize-vertical focus:ring-2 focus:ring-uvBlue outline-none"
@@ -588,10 +616,14 @@ export default function TutorPendingPage() {
 
                   {answerForm.action === "REJECT" && (
                     <div>
-                      <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      <label
+                        htmlFor="tutor-pending-reject"
+                        className="block text-xs font-semibold text-slate-500 mb-1"
+                      >
                         Motivo de rechazo
                       </label>
                       <textarea
+                        id="tutor-pending-reject"
                         name="rejectReason"
                         value={answerForm.rejectReason}
                         onChange={handleAnswerChange}
@@ -616,6 +648,7 @@ export default function TutorPendingPage() {
                   <button
                     type="submit"
                     disabled={savingAnswer}
+                    data-cy="tutor-apply-action"
                     className="px-6 py-2 rounded-full bg-uvGreen text-white font-medium hover:bg-green-600 disabled:opacity-60 transition"
                   >
                     {savingAnswer ? "Guardando..." : "Aplicar acción"}
@@ -635,10 +668,14 @@ export default function TutorPendingPage() {
 
           <form onSubmit={handleSubmitCorrection} className="space-y-4 text-sm">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1">
+              <label
+                htmlFor="tutor-pending-correction"
+                className="block text-xs font-semibold text-slate-500 mb-1"
+              >
                 Texto corregido
               </label>
               <textarea
+                id="tutor-pending-correction"
                 value={editingText}
                 onChange={(e) => setEditingText(e.target.value)}
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 h-32 resize-vertical focus:ring-2 focus:ring-uvBlue outline-none"
@@ -682,6 +719,11 @@ export default function TutorPendingPage() {
   );
 }
 
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
+
 function Modal({ children, onClose }) {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/35">
@@ -697,6 +739,11 @@ function Modal({ children, onClose }) {
     </div>
   );
 }
+
+InfoBox.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node,
+};
 
 function InfoBox({ label, value }) {
   return (
@@ -791,9 +838,7 @@ function ConversationThread({ messages, onCorrectMessage = null }) {
                         : "border border-slate-300 text-slate-700 hover:bg-slate-100"
                     }`}
                   >
-                    {openHistories[messageKey]
-                      ? "Ocultar historial"
-                      : "Ver historial"}
+                    {getHistoryButtonLabel(openHistories[messageKey])}
                   </button>
                 )}
                 {message.canCorrect && onCorrectMessage && (
@@ -826,6 +871,11 @@ function ConversationThread({ messages, onCorrectMessage = null }) {
     </ul>
   );
 }
+
+ConversationThread.propTypes = {
+  messages: PropTypes.arrayOf(PropTypes.object).isRequired,
+  onCorrectMessage: PropTypes.func,
+};
 
 function MessageVersionList({ versions, inverted = false }) {
   return (
@@ -881,11 +931,20 @@ function MessageVersionList({ versions, inverted = false }) {
   );
 }
 
+MessageVersionList.propTypes = {
+  inverted: PropTypes.bool,
+  versions: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
+
 function getTutorFeedbackMessages(question) {
   return (question?.messages || []).filter(
     (message) => message.authorRole === "TUTOR",
   );
 }
+
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
 
 function StatusBadge({ status }) {
   const map = {

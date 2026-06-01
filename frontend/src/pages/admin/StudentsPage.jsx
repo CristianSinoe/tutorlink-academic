@@ -1,10 +1,17 @@
 // src/pages/admin/StudentsPage.jsx
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 
 /* ============================
    HELPERS DE VALIDACIÓN
 ============================= */
+
+const LETTERS_AND_SPACES_PATTERN = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/;
+
+function isEmpty(value) {
+  return !value || !String(value).trim();
+}
 
 function calcularEdad(dateStr) {
   const birth = new Date(dateStr);
@@ -19,115 +26,187 @@ function calcularEdad(dateStr) {
   return age;
 }
 
-function validateStudent(values, { isEdit = false } = {}) {
-  const errors = {};
-  const isEmpty = (v) => !v || !String(v).trim();
-
-  // Nombre
-  if (isEmpty(values.name)) {
-    errors.name = "El nombre es obligatorio.";
-  } else if (values.name.trim().length < 2) {
-    errors.name = "El nombre debe tener al menos 2 caracteres.";
-  } else if (!/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.name.trim())) {
-    errors.name = "El nombre solo puede contener letras y espacios.";
+function validateLettersField(errors, values, field, messages, optional = false) {
+  const value = values[field];
+  if (optional && isEmpty(value)) {
+    return;
   }
 
-  // Apellido paterno
-  if (isEmpty(values.lastNamePaterno)) {
-    errors.lastNamePaterno = "El apellido paterno es obligatorio.";
-  } else if (values.lastNamePaterno.trim().length < 2) {
-    errors.lastNamePaterno =
-      "El apellido paterno debe tener al menos 2 caracteres.";
-  } else if (
-    !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.lastNamePaterno.trim())
-  ) {
-    errors.lastNamePaterno =
-      "El apellido paterno solo puede contener letras y espacios.";
+  if (isEmpty(value)) {
+    errors[field] = messages.required;
+    return;
   }
 
-  // Apellido materno (opcional, pero si se captura, validar)
-  if (!isEmpty(values.lastNameMaterno)) {
-    if (values.lastNameMaterno.trim().length < 2) {
-      errors.lastNameMaterno =
-        "El apellido materno debe tener al menos 2 caracteres.";
-    } else if (
-      !/^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$/.test(values.lastNameMaterno.trim())
-    ) {
-      errors.lastNameMaterno =
-        "El apellido materno solo puede contener letras y espacios.";
-    }
+  const trimmedValue = value.trim();
+  if (trimmedValue.length < 2) {
+    errors[field] = messages.min;
+    return;
   }
 
-  // Email
+  if (!LETTERS_AND_SPACES_PATTERN.test(trimmedValue)) {
+    errors[field] = messages.pattern;
+  }
+}
+
+function validateSimpleTextField(errors, values, field, messages) {
+  if (isEmpty(values[field])) {
+    errors[field] = messages.required;
+    return;
+  }
+
+  if (values[field].trim().length < 2) {
+    errors[field] = messages.min;
+  }
+}
+
+function validateStudentEmail(errors, values) {
   if (isEmpty(values.email)) {
     errors.email = "El correo institucional es obligatorio.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
     errors.email = "Ingresa un correo electrónico válido.";
   }
+}
 
-  // Contraseña solo en crear (no en editar)
-  if (!isEdit) {
-    if (isEmpty(values.password)) {
-      errors.password = "La contraseña inicial es obligatoria.";
-    } else if (values.password.length < 8) {
-      errors.password = "La contraseña debe tener al menos 8 caracteres.";
-    }
+function validateStudentPassword(errors, values, isEdit) {
+  if (isEdit) {
+    return;
   }
 
-  // Matrícula
+  if (isEmpty(values.password)) {
+    errors.password = "La contraseña inicial es obligatoria.";
+    return;
+  }
+
+  if (values.password.length < 8) {
+    errors.password = "La contraseña debe tener al menos 8 caracteres.";
+  }
+}
+
+function validateMatricula(errors, values) {
   if (isEmpty(values.matricula)) {
     errors.matricula = "La matrícula es obligatoria.";
-  } else if (values.matricula.trim().length < 4) {
+    return;
+  }
+
+  const matricula = values.matricula.trim();
+  if (matricula.length < 4) {
     errors.matricula = "La matrícula debe tener al menos 4 caracteres.";
-  } else if (!/^S/i.test(values.matricula.trim())) {
+    return;
+  }
+
+  if (!/^S/i.test(matricula)) {
     errors.matricula = "La matrícula debe iniciar con la letra S.";
   }
+}
 
-  // Carrera
-  if (isEmpty(values.career)) {
-    errors.career = "La carrera es obligatoria.";
-  } else if (values.career.trim().length < 2) {
-    errors.career = "La carrera debe tener al menos 2 caracteres.";
-  }
-
-  // Plan
-  if (isEmpty(values.plan)) {
-    errors.plan = "El plan es obligatorio.";
-  } else if (values.plan.trim().length < 2) {
-    errors.plan = "El plan debe tener al menos 2 caracteres.";
-  }
-
-  // Semestre
+function validateSemester(errors, values) {
   if (isEmpty(values.semester)) {
     errors.semester = "El semestre es obligatorio.";
-  } else {
-    const num = Number(values.semester);
-    if (Number.isNaN(num)) {
-      errors.semester = "El semestre debe ser un número.";
-    } else if (num < 1 || num > 15) {
-      errors.semester = "El semestre debe estar entre 1 y 15.";
-    }
+    return;
   }
 
-  // Teléfono (opcional, pero si existe, validar)
-  if (!isEmpty(values.phone)) {
-    const onlyDigits = values.phone.replace(/\D/g, "");
-    if (onlyDigits.length !== 10) {
-      errors.phone = "El teléfono debe tener 10 dígitos.";
-    }
+  const num = Number(values.semester);
+  if (Number.isNaN(num)) {
+    errors.semester = "El semestre debe ser un número.";
+    return;
   }
 
-  // Fecha de nacimiento
+  if (num < 1 || num > 15) {
+    errors.semester = "El semestre debe estar entre 1 y 15.";
+  }
+}
+
+function validatePhone(errors, values) {
+  if (isEmpty(values.phone)) {
+    return;
+  }
+
+  const onlyDigits = values.phone.replaceAll(/\D/g, "");
+  if (onlyDigits.length !== 10) {
+    errors.phone = "El teléfono debe tener 10 dígitos.";
+  }
+}
+
+function validateBirthDate(errors, values) {
   if (isEmpty(values.birthDate)) {
     errors.birthDate = "La fecha de nacimiento es obligatoria.";
-  } else {
-    const age = calcularEdad(values.birthDate);
-    if (age === null) {
-      errors.birthDate = "La fecha de nacimiento no es válida.";
-    } else if (age < 15 || age > 120) {
-      errors.birthDate = "La edad debe estar entre 15 y 120 años.";
-    }
+    return;
   }
+
+  const age = calcularEdad(values.birthDate);
+  if (age === null) {
+    errors.birthDate = "La fecha de nacimiento no es válida.";
+    return;
+  }
+
+  if (age < 15 || age > 120) {
+    errors.birthDate = "La edad debe estar entre 15 y 120 años.";
+  }
+}
+
+const STUDENT_STATUS = {
+  ACTIVE: {
+    classes: "bg-emerald-50 text-emerald-700 border border-emerald-100",
+    label: "ACTIVO",
+  },
+  CREATED_BY_ADMIN: {
+    classes: "bg-amber-50 text-amber-700 border border-amber-100",
+    label: "CREADO POR ADMIN",
+  },
+  DISABLED: {
+    classes: "bg-slate-100 text-slate-600 border border-slate-200",
+    label: "DESHABILITADO",
+  },
+  BLOCKED: {
+    classes: "bg-red-50 text-red-700 border border-red-100",
+    label: "BLOQUEADO",
+  },
+};
+
+function getInputType(type, showPassword) {
+  if (type !== "password") {
+    return type;
+  }
+  return showPassword ? "text" : "password";
+}
+
+function getDetailValue(value) {
+  return value === undefined || value === null || value === "" ? "—" : value;
+}
+
+function validateStudent(values, { isEdit = false } = {}) {
+  const errors = {};
+  validateLettersField(errors, values, "name", {
+    required: "El nombre es obligatorio.",
+    min: "El nombre debe tener al menos 2 caracteres.",
+    pattern: "El nombre solo puede contener letras y espacios.",
+  });
+  validateLettersField(errors, values, "lastNamePaterno", {
+    required: "El apellido paterno es obligatorio.",
+    min: "El apellido paterno debe tener al menos 2 caracteres.",
+    pattern: "El apellido paterno solo puede contener letras y espacios.",
+  });
+  validateLettersField(errors, values, "lastNameMaterno", {
+    min: "El apellido materno debe tener al menos 2 caracteres.",
+    pattern: "El apellido materno solo puede contener letras y espacios.",
+  }, true);
+  validateStudentEmail(errors, values);
+  validateStudentPassword(errors, values, isEdit);
+  validateMatricula(errors, values);
+  validateSimpleTextField(errors, values, "career", {
+    required: "La carrera es obligatoria.",
+    min: "La carrera debe tener al menos 2 caracteres.",
+  });
+  validateSimpleTextField(errors, values, "plan", {
+    required: "El plan es obligatorio.",
+    min: "El plan debe tener al menos 2 caracteres.",
+  });
+  validateSemester(errors, values);
+  validatePhone(errors, values);
+  validateBirthDate(errors, values);
 
   return errors;
 }
@@ -265,7 +344,7 @@ export default function StudentsPage() {
 
       const payload = {
         ...form,
-        semester: form.semester ? parseInt(form.semester, 10) : null,
+        semester: form.semester ? Number.parseInt(form.semester, 10) : null,
       };
 
       const { data } = await apiClient.post(
@@ -391,10 +470,11 @@ export default function StudentsPage() {
       setFeedback(null);
 
       // 1) Actualizar datos generales (PUT)
-      const { status: _status, semester, ...rest } = editForm;
+      const { semester, ...rest } = editForm;
+      delete rest.status;
       const body = {
         ...rest,
-        semester: semester ? parseInt(semester, 10) : null,
+        semester: semester ? Number.parseInt(semester, 10) : null,
       };
 
       await apiClient.put(
@@ -523,24 +603,29 @@ export default function StudentsPage() {
 
       {/* FEEDBACK GLOBAL */}
       {feedback && (
-        <div
+        <output
           className={`px-4 py-3 rounded-xl text-sm border ${feedback.type === "error"
               ? "bg-red-50 border-red-200 text-red-800"
               : "bg-emerald-50 border-emerald-200 text-emerald-800"
             }`}
           role={feedback.type === "error" ? "alert" : "status"}
+          aria-live={feedback.type === "error" ? undefined : "polite"}
         >
           {feedback.message}
-        </div>
+        </output>
       )}
 
       {/* FILTROS */}
       <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex-1">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="students-search"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Buscar
           </label>
           <input
+            id="students-search"
             type="text"
             placeholder="Nombre, correo o matrícula"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
@@ -553,10 +638,14 @@ export default function StudentsPage() {
         </div>
 
         <div className="w-full md:w-64">
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
+          <label
+            htmlFor="students-status-filter"
+            className="block text-xs font-semibold text-slate-700 mb-1"
+          >
             Estado
           </label>
           <select
+            id="students-status-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -1086,10 +1175,14 @@ export default function StudentsPage() {
             />
 
             <div className="col-span-full">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label
+                htmlFor="student-edit-status"
+                className="block text-sm font-medium text-slate-700 mb-1"
+              >
                 Estado
               </label>
               <select
+                id="student-edit-status"
                 name="status"
                 value={editForm.status}
                 onChange={handleEditChange}
@@ -1145,10 +1238,8 @@ export default function StudentsPage() {
    COMPONENTES AUXILIARES
 ============================= */
 
-import { useState as useStateLocal } from "react";
-
 function Input({ label, name, value, onChange, type = "text", error }) {
-  const [showPassword, setShowPassword] = useStateLocal(false);
+  const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
 
   const commonClasses = `
@@ -1163,10 +1254,13 @@ function Input({ label, name, value, onChange, type = "text", error }) {
 
   return (
     <div className="flex flex-col">
-      <label className="text-slate-700 mb-1 text-sm">{label}</label>
+      <label htmlFor={`student-${name}`} className="text-slate-700 mb-1 text-sm">
+        {label}
+      </label>
       <div className="relative">
         <input
-          type={isPassword ? (showPassword ? "text" : "password") : type}
+          id={`student-${name}`}
+          type={getInputType(type, showPassword)}
           name={name}
           value={value}
           onChange={onChange}
@@ -1194,6 +1288,15 @@ function Input({ label, name, value, onChange, type = "text", error }) {
     </div>
   );
 }
+
+Input.propTypes = {
+  error: PropTypes.string,
+  label: PropTypes.string.isRequired,
+  name: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  type: PropTypes.string,
+  value: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+};
 
 function Modal({ children, onClose }) {
   return (
@@ -1233,6 +1336,11 @@ function Modal({ children, onClose }) {
   );
 }
 
+Modal.propTypes = {
+  children: PropTypes.node.isRequired,
+  onClose: PropTypes.func.isRequired,
+};
+
 function StatusBadge({ status }) {
   if (!status) {
     return (
@@ -1242,35 +1350,10 @@ function StatusBadge({ status }) {
     );
   }
 
-  let classes =
-    "bg-slate-100 text-slate-700 border border-slate-200";
-  let label = status;
-
-  switch (status) {
-    case "ACTIVE":
-      classes =
-        "bg-emerald-50 text-emerald-700 border border-emerald-100";
-      label = "ACTIVO";
-      break;
-    case "CREATED_BY_ADMIN":
-      classes =
-        "bg-amber-50 text-amber-700 border border-amber-100";
-      label = "CREADO POR ADMIN";
-      break;
-    case "DISABLED":
-      classes =
-        "bg-slate-100 text-slate-600 border border-slate-200";
-      label = "DESHABILITADO";
-      break;
-    case "BLOCKED":
-      classes = "bg-red-50 text-red-700 border border-red-100";
-      label = "BLOQUEADO";
-      break;
-    default:
-      classes =
-        "bg-slate-100 text-slate-700 border border-slate-200";
-      label = status;
-  }
+  const { classes, label } = STUDENT_STATUS[status] ?? {
+    classes: "bg-slate-100 text-slate-700 border border-slate-200",
+    label: status,
+  };
 
   return (
     <span
@@ -1281,15 +1364,22 @@ function StatusBadge({ status }) {
   );
 }
 
+StatusBadge.propTypes = {
+  status: PropTypes.string,
+};
+
 function Detail({ label, value }) {
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500">{label}</p>
       <p className="text-sm text-slate-800 mt-0.5">
-        {value === undefined || value === null || value === ""
-          ? "—"
-          : value}
+        {getDetailValue(value)}
       </p>
     </div>
   );
 }
+
+Detail.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.node,
+};

@@ -3,7 +3,7 @@ import { afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
+  Object.defineProperty(globalThis.window, "matchMedia", {
     writable: true,
     value: vi.fn().mockImplementation((query) => ({
       matches: false,
@@ -17,7 +17,7 @@ beforeAll(() => {
     })),
   });
 
-  Object.defineProperty(window, "scrollTo", {
+  Object.defineProperty(globalThis.window, "scrollTo", {
     writable: true,
     value: vi.fn(),
   });
@@ -27,5 +27,5 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.restoreAllMocks();
-  window.localStorage.clear();
+  globalThis.window.localStorage.clear();
 });

@@ -5,7 +5,7 @@ function getRecaptchaStubScript() {
       const src = currentScript && currentScript.src ? new URL(currentScript.src) : null;
       const onloadName = src ? src.searchParams.get("onload") : null;
 
-      window.grecaptcha = {
+      globalThis.grecaptcha = {
         ready(callback) {
           if (typeof callback === "function") callback();
         },
@@ -35,8 +35,8 @@ function getRecaptchaStubScript() {
         },
       };
 
-      if (onloadName && typeof window[onloadName] === "function") {
-        window[onloadName]();
+      if (onloadName && typeof globalThis[onloadName] === "function") {
+        globalThis[onloadName]();
       }
     })();
   `;
@@ -53,7 +53,7 @@ Cypress.Commands.add("mockRecaptcha", () => {
 Cypress.Commands.add("seedAuth", (role, overrides = {}) => {
   cy.fixture("users").then((users) => {
     const user = { ...users[role], ...overrides };
-    window.localStorage.setItem(
+    globalThis.window.localStorage.setItem(
       "auth",
       JSON.stringify({
         token: user.token,
@@ -153,12 +153,13 @@ Cypress.Commands.add("mockAdminApis", () => {
 Cypress.Commands.add("loginViaUiAs", (role) => {
   cy.fixture("users").then((users) => {
     const user = users[role];
+    const roleName = String(role);
 
-    if (role === "student") {
+    if (roleName === "student") {
       cy.mockStudentApis();
-    } else if (role === "tutor") {
+    } else if (roleName === "tutor") {
       cy.mockTutorApis();
-    } else if (role === "admin") {
+    } else if (roleName === "admin") {
       cy.mockAdminApis();
     }
 
@@ -166,7 +167,7 @@ Cypress.Commands.add("loginViaUiAs", (role) => {
       statusCode: 200,
       body: {
         requiresOtp: true,
-        otpToken: `${role}-otp-token`,
+        otpToken: `${roleName}-otp-token`,
         message: "Se envió un código de verificación a tu correo institucional.",
         resendCooldownSeconds: 0,
       },
