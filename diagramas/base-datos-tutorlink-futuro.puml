@@ -1,0 +1,558 @@
+@startuml
+title TutorLink - Modelo relacional propuesto con nuevas implementaciones
+
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam entityFontSize 11
+
+' Identidad, instituciones y licenciamiento
+entity "tl_institutions\n(Institution)" as institutions {
+  * id : BIGINT <<PK>>
+  --
+  name : VARCHAR(180)
+  code : VARCHAR(50) <<UNIQUE>>
+  status : InstitutionStatus
+  created_at : TIMESTAMP
+}
+
+entity "tl_institution_settings\n(InstitutionSetting)" as institution_settings {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK, UNIQUE>>
+  logo_storage_key : VARCHAR(500)?
+  primary_color : CHAR(7)?
+  secondary_color : CHAR(7)?
+  timezone : VARCHAR(60)
+  guardian_whatsapp_enabled : BOOLEAN
+  updated_at : TIMESTAMP
+}
+
+entity "tl_license_plans\n(LicensePlan)" as license_plans {
+  * id : BIGINT <<PK>>
+  --
+  code : VARCHAR(50) <<UNIQUE>>
+  name : VARCHAR(100)
+  included_user_limit : INTEGER
+  status : LicensePlanStatus
+}
+
+entity "tl_licenses\n(License)" as licenses {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  license_plan_id : BIGINT <<FK>>
+  user_limit_override : INTEGER?
+  starts_at : DATE
+  expires_at : DATE
+  status : LicenseStatus
+}
+
+entity "tl_users\n(User)" as users {
+  * id : BIGINT <<PK>>
+  --
+  name : VARCHAR(120)
+  last_name_paterno : VARCHAR(120)
+  last_name_materno : VARCHAR(120)?
+  email : VARCHAR(190) <<UNIQUE>>
+  password_hash : VARCHAR(255)
+  status : UserStatus
+  activation_token : VARCHAR(255)?
+  first_login_token : VARCHAR(255)?
+  created_at : TIMESTAMP
+  last_login_at : TIMESTAMP?
+}
+
+entity "tl_institution_memberships\n(InstitutionMembership)" as memberships {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  user_id : BIGINT <<FK>>
+  role : InstitutionRole
+  status : MembershipStatus
+  joined_at : TIMESTAMP
+  <<UNIQUE(institution_id, user_id, role)>>
+}
+
+' Perfiles institucionales
+entity "tl_students\n(Student)" as students {
+  * id : BIGINT <<PK>>
+  --
+  membership_id : BIGINT <<FK, UNIQUE>>
+  study_plan_id : BIGINT <<FK>>
+  matricula : VARCHAR(50)
+  semester : INTEGER?
+  birth_date : DATE?
+  phone : VARCHAR?
+  <<UNIQUE(matricula)>>
+}
+
+entity "tl_tutors\n(Tutor)" as tutors {
+  * id : BIGINT <<PK>>
+  --
+  membership_id : BIGINT <<FK, UNIQUE>>
+  tutor_code : VARCHAR(50)
+  specialty_id : BIGINT <<FK>>
+  phone : VARCHAR?
+  bio : TEXT?
+  notify_new_questions : BOOLEAN
+}
+
+entity "tl_teachers\n(Teacher)" as teachers {
+  * id : BIGINT <<PK>>
+  --
+  membership_id : BIGINT <<FK, UNIQUE>>
+  employee_code : VARCHAR(50)?
+  specialty_id : BIGINT <<FK>>
+  phone : VARCHAR?
+}
+
+entity "tl_guardians\n(Guardian)" as guardians {
+  * id : BIGINT <<PK>>
+  --
+  membership_id : BIGINT <<FK, UNIQUE>>
+  phone : VARCHAR(30)
+  whatsapp_phone : VARCHAR(30)?
+  notification_consent_at : TIMESTAMP?
+}
+
+entity "tl_guardian_students\n(GuardianStudent)" as guardian_students {
+  * id : BIGINT <<PK>>
+  --
+  guardian_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK>>
+  relationship_type : GuardianRelationship
+  whatsapp_opt_in : BOOLEAN
+  status : LinkStatus
+  <<UNIQUE(guardian_id, student_id)>>
+}
+
+entity "tl_guardian_student_permissions\n(GuardianStudentPermission)" as guardian_permissions {
+  * guardian_student_id : BIGINT <<PK, FK>>
+  * permission : GuardianPermission <<PK>>
+}
+
+entity "tl_tutor_students\n(TutorStudent)" as tutor_students {
+  * id : BIGINT <<PK>>
+  --
+  tutor_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK>>
+  assigned_by_membership_id : BIGINT <<FK>>
+  created_at : TIMESTAMP
+  <<UNIQUE(student_id)>>
+}
+
+' Estructura academica, clases y tareas
+entity "tl_academic_periods\n(AcademicPeriod)" as periods {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  name : VARCHAR(100)
+  starts_at : DATE
+  ends_at : DATE
+  status : PeriodStatus
+}
+
+entity "tl_departments\n(Department)" as departments {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  code : VARCHAR(50)
+  name : VARCHAR(150)
+  <<UNIQUE(institution_id, code)>>
+}
+
+entity "tl_specialties\n(Specialty)" as specialties {
+  * id : BIGINT <<PK>>
+  --
+  department_id : BIGINT <<FK>>
+  code : VARCHAR(50)
+  name : VARCHAR(150)
+  <<UNIQUE(department_id, code)>>
+}
+
+entity "tl_academic_programs\n(AcademicProgram)" as programs {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  code : VARCHAR(50)
+  name : VARCHAR(180)
+  <<UNIQUE(institution_id, code)>>
+}
+
+entity "tl_study_plans\n(StudyPlan)" as study_plans {
+  * id : BIGINT <<PK>>
+  --
+  academic_program_id : BIGINT <<FK>>
+  code : VARCHAR(50)
+  name : VARCHAR(180)
+  <<UNIQUE(academic_program_id, code)>>
+}
+
+entity "tl_subjects\n(Subject)" as subjects {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  code : VARCHAR(50)
+  name : VARCHAR(180)
+  description : TEXT?
+  <<UNIQUE(institution_id, code)>>
+}
+
+entity "tl_classes\n(Class)" as classes {
+  * id : BIGINT <<PK>>
+  --
+  subject_id : BIGINT <<FK>>
+  period_id : BIGINT <<FK>>
+  code : VARCHAR(60)
+  name : VARCHAR(180)
+  status : ClassStatus
+  <<UNIQUE(code, period_id)>>
+}
+
+entity "tl_class_teachers\n(ClassTeacher)" as class_teachers {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT <<FK>>
+  teacher_id : BIGINT <<FK>>
+  role : ClassTeacherRole
+  <<UNIQUE(class_id, teacher_id)>>
+}
+
+entity "tl_class_enrollments\n(ClassEnrollment)" as enrollments {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK>>
+  status : EnrollmentStatus
+  enrolled_at : TIMESTAMP
+  <<UNIQUE(class_id, student_id)>>
+}
+
+entity "tl_class_materials\n(ClassMaterial)" as materials {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT <<FK>>
+  created_by_teacher_id : BIGINT <<FK>>
+  title : VARCHAR(200)
+  body : TEXT?
+  published_at : TIMESTAMP?
+}
+
+entity "tl_class_material_resources\n(ClassMaterialResource)" as material_resources {
+  * id : BIGINT <<PK>>
+  --
+  class_material_id : BIGINT <<FK>>
+  resource_type : MaterialResourceType
+  file_name : VARCHAR(255)?
+  storage_key : VARCHAR(500)?
+  external_url : VARCHAR(500)?
+  <<CHECK(storage_key IS NOT NULL OR external_url IS NOT NULL)>>
+}
+
+entity "tl_assignments\n(Assignment)" as assignments {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT <<FK>>
+  created_by_teacher_id : BIGINT <<FK>>
+  title : VARCHAR(200)
+  instructions : TEXT
+  due_at : TIMESTAMP
+  max_score : DECIMAL(6,2)?
+  status : AssignmentStatus
+}
+
+entity "tl_assignment_attachments\n(AssignmentAttachment)" as assignment_attachments {
+  * id : BIGINT <<PK>>
+  --
+  assignment_id : BIGINT <<FK>>
+  file_name : VARCHAR(255)
+  storage_key : VARCHAR(500)
+  uploaded_at : TIMESTAMP
+}
+
+entity "tl_submissions\n(Submission)" as submissions {
+  * id : BIGINT <<PK>>
+  --
+  assignment_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK>>
+  body : TEXT?
+  status : SubmissionStatus
+  submitted_at : TIMESTAMP?
+  score : DECIMAL(6,2)?
+  feedback : TEXT?
+  reviewed_by_teacher_id : BIGINT? <<FK>>
+  reviewed_at : TIMESTAMP?
+  <<UNIQUE(assignment_id, student_id)>>
+}
+
+entity "tl_submission_attachments\n(SubmissionAttachment)" as submission_attachments {
+  * id : BIGINT <<PK>>
+  --
+  submission_id : BIGINT <<FK>>
+  file_name : VARCHAR(255)
+  storage_key : VARCHAR(500)
+  uploaded_at : TIMESTAMP
+}
+
+' Asistencia y seguimiento
+entity "tl_class_sessions\n(ClassSession)" as sessions {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT <<FK>>
+  created_by_teacher_id : BIGINT <<FK>>
+  starts_at : TIMESTAMP
+  ends_at : TIMESTAMP?
+  topic : VARCHAR(200)?
+}
+
+entity "tl_attendance_records\n(AttendanceRecord)" as attendance {
+  * id : BIGINT <<PK>>
+  --
+  session_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK>>
+  status : AttendanceStatus
+  recorded_by_teacher_id : BIGINT <<FK>>
+  observed_at : TIMESTAMP
+  <<UNIQUE(session_id, student_id)>>
+}
+
+' Comunicacion: modelo unico para tutoria y consultas de materia
+entity "tl_conversations\n(Conversation)" as conversations {
+  * id : BIGINT <<PK>>
+  --
+  class_id : BIGINT? <<FK>>
+  type : ConversationType
+  subject : VARCHAR(200)?
+  created_by_membership_id : BIGINT <<FK>>
+  status : ConversationStatus
+  closed_at : TIMESTAMP?
+  created_at : TIMESTAMP
+}
+
+entity "tl_conversation_participants\n(ConversationParticipant)" as conversation_participants {
+  * id : BIGINT <<PK>>
+  --
+  conversation_id : BIGINT <<FK>>
+  membership_id : BIGINT <<FK>>
+  role : ConversationParticipantRole
+  last_read_at : TIMESTAMP?
+  <<UNIQUE(conversation_id, membership_id)>>
+}
+
+entity "tl_conversation_messages\n(ConversationMessage)" as conversation_messages {
+  * id : BIGINT <<PK>>
+  --
+  conversation_id : BIGINT <<FK>>
+  sender_membership_id : BIGINT <<FK>>
+  body : TEXT
+  created_at : TIMESTAMP
+  edited_at : TIMESTAMP?
+}
+
+entity "tl_message_attachments\n(MessageAttachment)" as message_attachments {
+  * id : BIGINT <<PK>>
+  --
+  conversation_message_id : BIGINT <<FK>>
+  file_name : VARCHAR(255)
+  storage_key : VARCHAR(500)
+  uploaded_at : TIMESTAMP
+}
+
+' Alertas, notificaciones y canales externos
+entity "tl_alert_rules\n(AlertRule)" as alert_rules {
+  * id : BIGINT <<PK>>
+  --
+  institution_id : BIGINT <<FK>>
+  name : VARCHAR(150)
+  trigger_type : AlertTriggerType
+  threshold : DECIMAL(8,2)?
+  enabled : BOOLEAN
+  notify_guardian_whatsapp : BOOLEAN
+}
+
+entity "tl_academic_alerts\n(AcademicAlert)" as academic_alerts {
+  * id : BIGINT <<PK>>
+  --
+  student_id : BIGINT <<FK>>
+  rule_id : BIGINT <<FK>>
+  status : AlertStatus
+  detected_at : TIMESTAMP
+  resolved_at : TIMESTAMP?
+}
+
+entity "tl_alert_assignment_sources\n(AlertAssignmentSource)" as alert_assignment_sources {
+  * alert_id : BIGINT <<PK, FK>>
+  * assignment_id : BIGINT <<PK, FK>>
+}
+
+entity "tl_alert_attendance_sources\n(AlertAttendanceSource)" as alert_attendance_sources {
+  * alert_id : BIGINT <<PK, FK>>
+  * attendance_record_id : BIGINT <<PK, FK>>
+}
+
+entity "tl_notifications\n(Notification)" as notifications {
+  * id : BIGINT <<PK>>
+  --
+  recipient_membership_id : BIGINT <<FK>>
+  alert_id : BIGINT? <<FK>>
+  type : NotificationType
+  title : VARCHAR(200)
+  body : TEXT
+  read_at : TIMESTAMP?
+  created_at : TIMESTAMP
+}
+
+entity "tl_notification_assignment_sources\n(NotificationAssignmentSource)" as notification_assignment_sources {
+  * notification_id : BIGINT <<PK, FK>>
+  --
+  assignment_id : BIGINT <<FK>>
+}
+
+entity "tl_notification_conversation_sources\n(NotificationConversationSource)" as notification_conversation_sources {
+  * notification_id : BIGINT <<PK, FK>>
+  --
+  conversation_message_id : BIGINT <<FK>>
+}
+
+entity "tl_notification_deliveries\n(NotificationDelivery)" as deliveries {
+  * id : BIGINT <<PK>>
+  --
+  notification_id : BIGINT <<FK>>
+  channel : NotificationChannel
+  destination : VARCHAR(190)
+  provider_message_id : VARCHAR(190)?
+  status : DeliveryStatus
+  sent_at : TIMESTAMP?
+  delivered_at : TIMESTAMP?
+  error_message : TEXT?
+}
+
+' Seguridad y auditoria existentes
+entity "otp_codes\n(OtpCode)" as otp_codes {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT <<FK>>
+  code : CHAR(6)
+  purpose : VARCHAR(30)
+  public_id : VARCHAR(100) <<UNIQUE>>
+  attempts : INTEGER
+  consumed : BOOLEAN
+  expires_at : TIMESTAMP
+}
+
+entity "tl_audit_log\n(AuditLog)" as audit_log {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT <<FK>>
+  institution_id : BIGINT <<FK>>
+  action : VARCHAR(120)
+  success : BOOLEAN
+  path : VARCHAR?
+  created_at : TIMESTAMP
+}
+
+institutions ||--|| institution_settings
+institutions ||--o{ licenses
+license_plans ||--o{ licenses
+institutions ||--o{ memberships
+users ||--o{ memberships
+
+memberships ||--o| students
+memberships ||--o| tutors
+memberships ||--o| teachers
+memberships ||--o| guardians
+study_plans ||--o{ students
+specialties ||--o{ tutors
+specialties ||--o{ teachers
+guardians ||--o{ guardian_students
+students ||--o{ guardian_students
+guardian_students ||--o{ guardian_permissions
+tutors ||--o{ tutor_students
+students ||--o| tutor_students
+memberships ||--o{ tutor_students : assigned_by
+
+institutions ||--o{ periods
+institutions ||--o{ departments
+departments ||--o{ specialties
+institutions ||--o{ programs
+programs ||--o{ study_plans
+institutions ||--o{ subjects
+subjects ||--o{ classes
+periods ||--o{ classes
+classes ||--o{ class_teachers
+teachers ||--o{ class_teachers
+classes ||--o{ enrollments
+students ||--o{ enrollments
+classes ||--o{ materials
+teachers ||--o{ materials
+materials ||--o{ material_resources
+classes ||--o{ assignments
+teachers ||--o{ assignments
+assignments ||--o{ assignment_attachments
+assignments ||--o{ submissions
+students ||--o{ submissions
+teachers ||--o{ submissions : reviewed_by
+submissions ||--o{ submission_attachments
+
+classes ||--o{ sessions
+teachers ||--o{ sessions
+sessions ||--o{ attendance
+students ||--o{ attendance
+teachers ||--o{ attendance : recorded_by
+
+classes ||--o{ conversations
+memberships ||--o{ conversations : created_by
+conversations ||--o{ conversation_participants
+memberships ||--o{ conversation_participants
+conversations ||--o{ conversation_messages
+memberships ||--o{ conversation_messages : sender
+conversation_messages ||--o{ message_attachments
+
+institutions ||--o{ alert_rules
+students ||--o{ academic_alerts
+alert_rules ||--o{ academic_alerts
+academic_alerts ||--o{ alert_assignment_sources
+assignments ||--o{ alert_assignment_sources
+academic_alerts ||--o{ alert_attendance_sources
+attendance ||--o{ alert_attendance_sources
+memberships ||--o{ notifications : recipient
+academic_alerts ||--o{ notifications
+notifications ||--o| notification_assignment_sources
+assignments ||--o{ notification_assignment_sources
+notifications ||--o| notification_conversation_sources
+conversation_messages ||--o{ notification_conversation_sources
+notifications ||--o{ deliveries
+
+users ||..o{ otp_codes : user_id
+users ||..o{ audit_log : user_id
+institutions ||..o{ audit_log : institution_id
+
+note top of memberships
+La pertenencia a una institucion permite que
+una misma identidad tenga roles institucionales.
+Incluye ADMIN_INSTITUCION, ESTUDIANTE, TUTOR,
+DOCENTE y PADRE_MADRE_TUTOR_LEGAL.
+end note
+
+note bottom of conversations
+ConversationType distingue TUTORIA y CONSULTA_MATERIA.
+Los participantes determinan si la conversacion es
+estudiante-tutor o estudiante-docente.
+Sustituye el modelo legado de pregunta, respuesta e hilo.
+end note
+
+note bottom of deliveries
+Channel admite IN_APP, EMAIL y WHATSAPP.
+WhatsApp es un proveedor externo: solo se almacena
+la entrega y su identificador de proveedor.
+destination conserva el destino usado en el envio.
+end note
+
+note bottom of academic_alerts
+Las fuentes de alerta se separan por tabla para mantener
+integridad referencial. Una alerta puede originarse por
+una tarea no entregada o un registro de asistencia.
+end note
+
+@enduml

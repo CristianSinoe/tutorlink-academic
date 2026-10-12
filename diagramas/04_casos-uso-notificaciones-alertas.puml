@@ -1,0 +1,99 @@
+@startuml
+title TutorLink - Casos de uso de seguimiento, asistencia y alertas
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor Docente
+actor "Tutor academico" as tutor
+actor Estudiante
+actor "Padre, madre o\ntutor legal" as guardian
+actor "Administrador de\ninstitucion" as admininst
+actor "Proceso automatico\ndel sistema" as scheduler
+actor "Servicio externo de\nmensajeria WhatsApp" as whatsapp
+
+rectangle "TutorLink - Seguimiento preventivo" {
+  usecase "Registrar asistencia" as UC_RegisterAttendance
+  usecase "Consultar asistencia" as UC_ViewAttendance
+  usecase "Consultar porcentaje\nde asistencia" as UC_AttendanceRate
+  usecase "Consultar progreso\npersonal" as UC_StudentProgress
+  usecase "Consultar progreso\nde estudiantes asignados" as UC_AssignedProgress
+  usecase "Consultar seguimiento\ngeneral institucional" as UC_InstitutionProgress
+  usecase "Consultar tareas\npendientes y entregadas" as UC_ViewTaskStatus
+  usecase "Notificar nueva tarea" as UC_NewTaskNotification
+  usecase "Notificar recordatorio\nprevio al cierre" as UC_ReminderNotification
+  usecase "Cerrar tarea y\nactualizar estado" as UC_CloseTask
+  usecase "Evaluar reglas de\nalerta academica" as UC_EvaluateAlerts
+  usecase "Generar alerta\npreventiva" as UC_GenerateAlert
+  usecase "Notificar a usuarios\ninvolucrados" as UC_NotifyStakeholders
+  usecase "Enviar notificacion al\nfamiliar por WhatsApp" as UC_SendWhatsApp
+  usecase "Notificar alerta a\nactores autorizados" as UC_SendAlert
+  usecase "Consultar alertas\nacademicas" as UC_ViewAlerts
+  usecase "Consultar seguimiento\npermitido del estudiante" as UC_GuardianTracking
+  usecase "Configurar umbrales\nde alertas" as UC_AlertSettings
+}
+
+docente --> UC_RegisterAttendance
+docente --> UC_ViewAttendance
+docente --> UC_AssignedProgress
+docente --> UC_ViewAlerts
+docente --> UC_NotifyStakeholders
+
+tutor --> UC_AssignedProgress
+tutor --> UC_ViewAlerts
+tutor --> UC_NotifyStakeholders
+
+estudiante --> UC_ViewAttendance
+estudiante --> UC_AttendanceRate
+estudiante --> UC_StudentProgress
+estudiante --> UC_NotifyStakeholders
+
+guardian --> UC_ViewAlerts
+guardian --> UC_GuardianTracking
+guardian --> UC_NotifyStakeholders
+
+admininst --> UC_InstitutionProgress
+admininst --> UC_AlertSettings
+admininst --> UC_ViewAlerts
+
+scheduler --> UC_NewTaskNotification
+scheduler --> UC_ReminderNotification
+scheduler --> UC_CloseTask
+scheduler --> UC_EvaluateAlerts
+
+UC_ViewAttendance .> UC_AttendanceRate : <<include>>
+UC_StudentProgress .> UC_ViewTaskStatus : <<include>>
+UC_AssignedProgress .> UC_StudentProgress : <<include>>
+UC_InstitutionProgress .> UC_AssignedProgress : <<include>>
+UC_EvaluateAlerts .> UC_GenerateAlert : <<include>>
+UC_GenerateAlert .> UC_SendAlert : <<include>>
+UC_SendAlert .> UC_NotifyStakeholders : <<include>>
+UC_SendWhatsApp .> UC_SendAlert : <<extend>>
+UC_NewTaskNotification .> UC_SendAlert : <<extend>>
+UC_ReminderNotification .> UC_SendAlert : <<extend>>
+UC_CloseTask .> UC_SendAlert : <<extend>>
+
+UC_SendWhatsApp --> whatsapp
+
+note bottom of UC_EvaluateAlerts
+Ejemplos de criterio configurable:
+umbral de tareas no entregadas
+o umbral de inasistencias.
+end note
+
+note bottom of UC_GuardianTracking
+El familiar no recibe acceso total:
+solo seguimiento y datos permitidos
+por politicas institucionales.
+end note
+
+note bottom of UC_SendWhatsApp
+Se usa cuando existe un vinculo familiar autorizado
+y la regla de alerta habilita WhatsApp como canal.
+Docentes, tutores y estudiantes reciben las
+notificaciones correspondientes dentro de TutorLink.
+end note
+
+@enduml

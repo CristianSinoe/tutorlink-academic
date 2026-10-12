@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
+import ExcelImportHelp from "../../components/admin/ExcelImportHelp";
+import AdminFilterSelect from "../../components/admin/AdminFilterSelect";
+import { filterOptions, matchesAssignment, matchesOption } from "./adminFilterUtils";
 
 /* ============================
    HELPERS DE VALIDACIÓN
@@ -219,6 +222,9 @@ export default function StudentsPage() {
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [careerFilter, setCareerFilter] = useState("ALL");
+  const [semesterFilter, setSemesterFilter] = useState("ALL");
+  const [assignmentFilter, setAssignmentFilter] = useState("ALL");
 
   // Modales
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -255,7 +261,7 @@ export default function StudentsPage() {
     birthDate: "",
   });
 
-  const [csvFile, setCsvFile] = useState(null);
+  const [excelFile, setExcelFile] = useState(null);
   const [loadingList, setLoadingList] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -281,7 +287,6 @@ export default function StudentsPage() {
   const loadStudents = async () => {
     try {
       setLoadingList(true);
-      setFeedback(null);
       const { data } = await apiClient.get("/api/admin/users/students");
       setStudents(data || []);
     } catch (err) {
@@ -374,13 +379,13 @@ export default function StudentsPage() {
   };
 
   // ============================
-  // IMPORTAR CSV
+  // IMPORTAR EXCEL
   // ============================
-  const handleImportCSV = async () => {
-    if (!csvFile) {
+  const handleImportExcel = async () => {
+    if (!excelFile) {
       setFeedback({
         type: "error",
-        message: "Selecciona un archivo CSV primero.",
+        message: "Selecciona un archivo Excel .xlsx primero.",
       });
       return;
     }
@@ -388,11 +393,12 @@ export default function StudentsPage() {
       setImporting(true);
       setFeedback(null);
 
-      const text = await csvFile.text();
-
+      const formData = new FormData();
+      formData.append("file", excelFile);
       const { data } = await apiClient.post(
-        "/api/admin/users/students/import-csv",
-        { csv: text }
+        "/api/admin/users/students/import-excel",
+        formData,
+        { headers: { "Content-Type": undefined } }
       );
 
       const msg =
@@ -401,15 +407,15 @@ export default function StudentsPage() {
           : "Importación completa.";
 
       setFeedback({ type: "success", message: msg });
-      setCsvFile(null);
+      setExcelFile(null);
       setIsImportOpen(false);
       loadStudents();
     } catch (err) {
-      console.error("Error importando CSV", err);
+      console.error("Error importando Excel", err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        "Error importando CSV.";
+        "Error importando Excel.";
       setFeedback({ type: "error", message: msg });
     } finally {
       setImporting(false);
@@ -510,6 +516,8 @@ export default function StudentsPage() {
   // ============================
   // FILTROS
   // ============================
+  const careerOptions = filterOptions(students, "career");
+  const semesterOptions = filterOptions(students, "semester");
   const filteredStudents = students.filter((s) => {
     const term = search.toLowerCase().trim();
     const matchesSearch =
@@ -523,18 +531,24 @@ export default function StudentsPage() {
     const matchesStatus =
       statusFilter === "ALL" || s.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus
+      && matchesOption(s.career, careerFilter)
+      && matchesOption(s.semester, semesterFilter)
+      && matchesAssignment(s.assigned, assignmentFilter);
   });
 
   const clearFilters = () => {
     setSearch("");
     setStatusFilter("ALL");
+    setCareerFilter("ALL");
+    setSemesterFilter("ALL");
+    setAssignmentFilter("ALL");
   };
 
   // Reset página al cambiar filtros o lista
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, students]);
+  }, [search, statusFilter, careerFilter, semesterFilter, assignmentFilter, students]);
 
   // ============================
   // Paginación
@@ -575,12 +589,12 @@ export default function StudentsPage() {
             onClick={() => setIsImportOpen(true)}
             className="
               px-4 py-2 rounded-full 
-              bg-uvBlue hover:bg-blue-700 
+              bg-uvGreen hover:bg-green-600
               text-white text-sm font-semibold 
               shadow-sm transition
             "
           >
-            Importar CSV
+            <span className="flex items-center gap-2"><img src="/microsoft-excel-svgrepo-com.svg" alt="" className="h-5 w-5" />Importar Excel</span>
           </button>
           <button
             onClick={() => {
@@ -591,13 +605,14 @@ export default function StudentsPage() {
             }}
             className="
               px-4 py-2 rounded-full 
-              bg-uvGreen hover:bg-green-600 
+              bg-uvBlue hover:bg-blue-700
               text-white text-sm font-semibold 
               shadow-sm transition
             "
           >
             Crear estudiante
           </button>
+          <ExcelImportHelp section="estudiantes" />
         </div>
       </div>
 
@@ -616,8 +631,8 @@ export default function StudentsPage() {
       )}
 
       {/* FILTROS */}
-      <section className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="flex-1">
+      <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
+        <div className="sm:col-span-2">
           <label
             htmlFor="students-search"
             className="block text-xs font-semibold text-slate-700 mb-1"
@@ -632,12 +647,12 @@ export default function StudentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[0.6875rem] text-slate-500 mt-1">
             Aplica sobre nombre completo, correo institucional o matrícula.
           </p>
         </div>
 
-        <div className="w-full md:w-64">
+        <div className="w-full">
           <label
             htmlFor="students-status-filter"
             className="block text-xs font-semibold text-slate-700 mb-1"
@@ -658,14 +673,20 @@ export default function StudentsPage() {
           </select>
         </div>
 
-        <div className="flex gap-2">
+        <AdminFilterSelect id="students-career-filter" label="Carrera" value={careerFilter} onChange={setCareerFilter} options={careerOptions} allLabel="Todas" />
+        <AdminFilterSelect id="students-semester-filter" label="Semestre" value={semesterFilter} onChange={setSemesterFilter} options={semesterOptions} />
+        <AdminFilterSelect
+          id="students-assignment-filter"
+          label="Asignación"
+          value={assignmentFilter}
+          onChange={setAssignmentFilter}
+          options={[{ value: "YES", label: "Asignados" }, { value: "NO", label: "No asignados" }]}
+        />
+
+        <div className="flex items-end gap-2">
           <button
             onClick={clearFilters}
-            className="
-    bg-white border border-slate-200 rounded-2xl shadow-sm p-4 
-    flex flex-col gap-4 
-    md:flex-row md:items-start md:justify-between
-  "
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
           >
             Limpiar
           </button>
@@ -702,6 +723,9 @@ export default function StudentsPage() {
                       Semestre
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Asignación
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Estado
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -730,6 +754,9 @@ export default function StudentsPage() {
                       </td>
                       <td className="px-4 py-2 text-slate-700">
                         {s.semester ?? "—"}
+                      </td>
+                      <td className="px-4 py-2 text-slate-700">
+                        {s.assigned ? "Asignado" : "Sin asignar"}
                       </td>
                       <td className="px-4 py-2">
                         <StatusBadge status={s.status} />
@@ -767,7 +794,7 @@ export default function StudentsPage() {
                     <tr>
                       <td
                         className="px-4 py-6 text-center text-sm text-slate-500"
-                        colSpan={7}
+                        colSpan={8}
                       >
                         No hay estudiantes que coincidan con los filtros.
                       </td>
@@ -807,7 +834,7 @@ export default function StudentsPage() {
                   >
                     ← Anterior
                   </button>
-                  <span className="text-slate-500 text-[11px]">
+                  <span className="text-slate-500 text-[0.6875rem]">
                     Página{" "}
                     <span className="font-semibold text-slate-700">
                       {page}
@@ -966,7 +993,7 @@ export default function StudentsPage() {
                 disabled={saving}
                 className="
                   px-6 py-2 rounded-full 
-                  bg-uvGreen hover:bg-green-600 
+                  bg-uvGreen hover:bg-green-600
                   disabled:opacity-60 
                   text-white text-sm font-semibold 
                   transition
@@ -979,26 +1006,27 @@ export default function StudentsPage() {
         </Modal>
       )}
 
-      {/* MODAL IMPORTAR CSV */}
+      {/* MODAL IMPORTAR EXCEL */}
       {isImportOpen && (
         <Modal onClose={() => !importing && setIsImportOpen(false)}>
           <h2 className="text-xl font-semibold text-uvBlue mb-4">
-            Importar estudiantes por CSV
+            Importar estudiantes por Excel
           </h2>
 
           <p className="text-sm text-slate-600 mb-3">
-            Selecciona un archivo CSV con el siguiente formato:
+            Selecciona un archivo .xlsx. En la primera hoja, coloca cada campo en su propia columna, en este orden (| separa celdas en el ejemplo):
           </p>
           <pre className="bg-slate-50 rounded-lg p-3 text-xs mb-3 overflow-x-auto border border-slate-200">
-            matricula;email;name;lastNamePaterno;lastNameMaterno;career;plan;semester;phone
+            matricula | email | name | lastNamePaterno | lastNameMaterno | career | plan | semester | phone
             {"\n"}
-            S230010;mariana.rosas@uv.mx;Mariana;Rosas;Torres;ISC;2023;2;2295550011
+            S230010 | mariana.rosas@uv.mx | Mariana | Rosas | Torres | ISC | 2023 | 2 | 2295550011
           </pre>
 
           <input
             type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+            aria-label="Archivo Excel de estudiantes"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
             className="mb-4 text-sm"
           />
 
@@ -1009,7 +1037,7 @@ export default function StudentsPage() {
               onClick={() => {
                 if (!importing) {
                   setIsImportOpen(false);
-                  setCsvFile(null);
+                  setExcelFile(null);
                 }
               }}
               className="
@@ -1023,16 +1051,16 @@ export default function StudentsPage() {
             <button
               type="button"
               disabled={importing}
-              onClick={handleImportCSV}
+              onClick={handleImportExcel}
               className="
                 px-6 py-2 rounded-full 
-                bg-uvBlue hover:bg-blue-700 
+                bg-uvGreen hover:bg-green-600
                 disabled:opacity-60 
                 text-white text-sm font-semibold 
                 transition
               "
             >
-              {importing ? "Importando..." : "Importar CSV"}
+              {importing ? "Importando..." : "Importar Excel"}
             </button>
           </div>
         </Modal>
@@ -1219,7 +1247,7 @@ export default function StudentsPage() {
               onClick={handleUpdateStudent}
               className="
                 px-6 py-2 rounded-full 
-                bg-uvGreen hover:bg-green-600 
+                bg-uvGreen hover:bg-green-600
                 disabled:opacity-60 
                 text-white text-sm font-semibold 
                 transition
@@ -1272,7 +1300,7 @@ function Input({ label, name, value, onChange, type = "text", error }) {
             onClick={() => setShowPassword((prev) => !prev)}
             className="
               absolute inset-y-0 right-2 flex items-center 
-              text-[11px] text-slate-500 hover:text-slate-800
+              text-[0.6875rem] text-slate-500 hover:text-slate-800
             "
             aria-label={
               showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
@@ -1344,7 +1372,7 @@ Modal.propTypes = {
 function StatusBadge({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 border border-slate-200">
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] bg-slate-100 text-slate-600 border border-slate-200">
         —
       </span>
     );
@@ -1357,7 +1385,7 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${classes}`}
+      className={`inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold ${classes}`}
     >
       {label}
     </span>

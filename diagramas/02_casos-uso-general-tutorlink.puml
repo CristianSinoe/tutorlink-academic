@@ -1,0 +1,83 @@
+@startuml
+title TutorLink - Diagrama general de casos de uso
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Administrador general\nTutorLink" as superadmin
+actor "Administrador de\ninstitucion" as admininst
+actor "Docente de la\nmateria" as teacher
+actor "Tutor academico" as tutor
+actor Estudiante
+actor "Padre, madre o\ntutor legal" as guardian
+actor "Servicio externo de\ncorreo y WhatsApp" as messaging
+
+rectangle "TutorLink" {
+  usecase "Autenticar usuario\ncon OTP" as UC_Login
+  usecase "Gestionar licencias e\ninstituciones" as UC_Licenses
+  usecase "Configurar identidad y\nparametros institucionales" as UC_Settings
+  usecase "Gestionar usuarios,\nroles y vinculaciones" as UC_Users
+  usecase "Asignar estudiante a\ntutor academico" as UC_AssignTutor
+  usecase "Gestionar clases,\nmateriales y tareas" as UC_Classes
+  usecase "Entregar y consultar\nactividades" as UC_Submissions
+  usecase "Registrar y consultar\nasistencia" as UC_Attendance
+  usecase "Realizar tutoria\nacademica" as UC_Tutoring
+  usecase "Realizar consulta con\ndocente de la materia" as UC_TeacherConsultation
+  usecase "Consultar progreso y\nseguimiento academico" as UC_Progress
+  usecase "Configurar y atender\nalertas academicas" as UC_Alerts
+  usecase "Consultar seguimiento\nautorizado del estudiante" as UC_GuardianTracking
+  usecase "Enviar notificaciones\npor canal configurado" as UC_Notify
+  usecase "Consultar indicadores\ninstitucionales o globales" as UC_Reports
+}
+
+superadmin --> UC_Login
+superadmin --> UC_Licenses
+superadmin --> UC_Reports
+
+admininst --> UC_Login
+admininst --> UC_Settings
+admininst --> UC_Users
+admininst --> UC_AssignTutor
+admininst --> UC_Alerts
+admininst --> UC_Reports
+
+teacher --> UC_Login
+teacher --> UC_Classes
+teacher --> UC_Attendance
+teacher --> UC_TeacherConsultation
+teacher --> UC_Progress
+teacher --> UC_Alerts
+
+tutor --> UC_Login
+tutor --> UC_Tutoring
+tutor --> UC_Progress
+tutor --> UC_Alerts
+
+Estudiante --> UC_Login
+Estudiante --> UC_Submissions
+Estudiante --> UC_Attendance
+Estudiante --> UC_Tutoring
+Estudiante --> UC_TeacherConsultation
+Estudiante --> UC_Progress
+
+guardian --> UC_Login
+guardian --> UC_GuardianTracking
+guardian --> UC_Progress
+
+UC_Classes .> UC_Notify : <<extend>>
+UC_Submissions .> UC_Notify : <<extend>>
+UC_Attendance .> UC_Alerts : <<extend>>
+UC_Progress .> UC_Alerts : <<extend>>
+UC_Alerts .> UC_Notify : <<include>>
+UC_GuardianTracking .> UC_Progress : <<include>>
+UC_Notify --> messaging
+
+note bottom of UC_GuardianTracking
+El familiar solo consulta informacion autorizada
+y puede recibir alertas por WhatsApp si existe
+consentimiento y configuracion institucional.
+end note
+
+@enduml

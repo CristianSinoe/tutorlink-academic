@@ -130,7 +130,7 @@ RoleBadge.propTypes = {
 function StatusBadge({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 border border-slate-200">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.6875rem] bg-slate-100 text-slate-600 border border-slate-200">
         Estado: —
       </span>
     );
@@ -154,7 +154,7 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium ${colorClasses}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.6875rem] font-medium ${colorClasses}`}
     >
       Estado: {normalized}
     </span>

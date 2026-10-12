@@ -31,7 +31,7 @@ export default function AdminLayout() {
           <Logo variant="monoWhite" className="w-20 h-auto" />
           <div>
             <p className="text-lg font-semibold tracking-tight">TutorLink</p>
-            <p className="text-[11px] text-uvWhite/80">Panel administrativo</p>
+            <p className="text-[0.6875rem] text-uvWhite/80">Panel administrativo</p>
           </div>
         </div>
 
@@ -53,7 +53,7 @@ export default function AdminLayout() {
             <p className="text-sm font-semibold">
               {me ? `${me.name} ${me.lastNamePaterno}` : "Cargando..."}
             </p>
-            <p className="text-[11px] text-uvWhite/80 mt-0.5">Rol: Admin</p>
+            <p className="text-[0.6875rem] text-uvWhite/80 mt-0.5">Rol: Admin</p>
           </div>
 
           <button
@@ -97,7 +97,7 @@ export default function AdminLayout() {
                   <p className="text-base font-semibold tracking-tight">
                     TutorLink
                   </p>
-                  <p className="text-[11px] text-uvWhite/80">
+                  <p className="text-[0.6875rem] text-uvWhite/80">
                     Panel administrativo
                   </p>
                 </div>
@@ -160,7 +160,7 @@ export default function AdminLayout() {
                 <p className="text-sm font-semibold">
                   {me ? `${me.name} ${me.lastNamePaterno}` : "Cargando..."}
                 </p>
-                <p className="text-[11px] text-uvWhite/80 mt-0.5">Rol: Admin</p>
+                <p className="text-[0.6875rem] text-uvWhite/80 mt-0.5">Rol: Admin</p>
               </div>
 
               <button
@@ -223,9 +223,9 @@ export default function AdminLayout() {
               <p className="text-sm font-medium text-slate-800">
                 {me ? `${me.name} ${me.lastNamePaterno}` : "Cargando..."}
               </p>
-              <p className="text-[11px] text-slate-500">Administrador</p>
+              <p className="text-[0.6875rem] text-slate-500">Administrador</p>
             </div>
-            <div className="px-2 py-1 rounded-full bg-uvBlue/5 border border-uvBlue/20 text-[11px] text-uvBlue font-medium">
+            <div className="px-2 py-1 rounded-full bg-uvBlue/5 border border-uvBlue/20 text-[0.6875rem] text-uvBlue font-medium">
               Admin
             </div>
           </div>
@@ -241,10 +241,10 @@ export default function AdminLayout() {
         {/* FOOTER */}
         <footer className="border-t border-slate-200 bg-white">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[0.6875rem] text-slate-500">
               © {new Date().getFullYear()} TutorLink. Universidad Veracruzana.
             </p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[0.6875rem] text-slate-400">
               Módulo administrativo · Diseñado para seguimiento académico.
             </p>
           </div>

@@ -1,0 +1,60 @@
+@startuml
+title TutorLink - Arquitectura de contexto propuesta
+
+left to right direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+actor "Administrador\ninstitucional" as admin
+actor "Docente" as teacher
+actor "Tutor\nacademico" as tutor
+actor Estudiante
+actor "Padre, madre o\ntutor legal" as guardian
+
+cloud "Institucion A\nespacio aislado" as institution_a
+cloud "Institucion B\nespacio aislado" as institution_b
+
+rectangle "TutorLink - Plataforma SaaS educativa" #E8F1FB {
+  component "Frontend web\nReact + Vite" as frontend
+  component "API REST y logica de negocio\nSpring Boot" as backend
+  database "PostgreSQL\ndatos multiinstitucion" as database
+  component "Seguridad\nJWT, OTP y control de roles" as security
+  component "Modulos academicos\nclases, tareas, asistencia y tutoria" as academic
+  component "Seguimiento y alertas\nnotificaciones y trazabilidad" as alerts
+}
+
+cloud "Servicio de correo\nSMTP / proveedor transaccional" as email
+cloud "Servicio externo\nWhatsApp Business API" as whatsapp
+cloud "Google reCAPTCHA API" as recaptcha
+
+admin --> frontend
+teacher --> frontend
+tutor --> frontend
+Estudiante --> frontend
+guardian --> frontend
+
+institution_a --> frontend : identidad y usuarios propios
+institution_b --> frontend : identidad y usuarios propios
+
+frontend --> backend : HTTPS / JSON
+backend --> security
+backend --> academic
+backend --> alerts
+backend --> database
+security --> recaptcha
+alerts --> email
+alerts --> whatsapp : alertas familiares autorizadas
+
+note bottom of database
+La separacion logica se aplica por institucion
+en usuarios, configuracion y datos academicos.
+end note
+
+note bottom of whatsapp
+WhatsApp se representa como servicio externo;
+su proveedor especifico se definira durante
+la implementacion.
+end note
+
+@enduml

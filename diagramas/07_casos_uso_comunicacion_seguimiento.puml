@@ -1,0 +1,63 @@
+@startuml
+title TutorLink - Casos de uso de comunicacion y seguimiento familiar
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor Docente
+actor "Tutor academico" as tutor
+actor Estudiante
+actor "Padre, madre o\ntutor legal" as guardian
+
+rectangle "TutorLink - Comunicacion academica" {
+  usecase "Iniciar consulta con\ntutor academico" as UC_AskTutor
+  usecase "Responder consulta de\ntutoria" as UC_ReplyTutor
+  usecase "Iniciar consulta con\ndocente de la materia" as UC_AskTeacher
+  usecase "Responder consulta de\nla materia" as UC_ReplyTeacher
+  usecase "Consultar historial de\nconversaciones" as UC_ConversationHistory
+  usecase "Adjuntar archivos a\nla consulta" as UC_AttachConsultation
+  usecase "Recibir notificacion de\nnueva consulta o respuesta" as UC_ReceiveMessageNotice
+  usecase "Consultar seguimiento\nautorizado del estudiante" as UC_GuardianTracking
+}
+
+estudiante --> UC_AskTutor
+estudiante --> UC_AskTeacher
+estudiante --> UC_ConversationHistory
+estudiante --> UC_ReceiveMessageNotice
+
+tutor --> UC_ReplyTutor
+tutor --> UC_ConversationHistory
+tutor --> UC_ReceiveMessageNotice
+
+docente --> UC_ReplyTeacher
+docente --> UC_ConversationHistory
+docente --> UC_ReceiveMessageNotice
+
+guardian --> UC_GuardianTracking
+
+UC_AskTutor .> UC_AttachConsultation : <<extend>>
+UC_AskTeacher .> UC_AttachConsultation : <<extend>>
+UC_ReplyTutor .> UC_ConversationHistory : <<include>>
+UC_ReplyTeacher .> UC_ConversationHistory : <<include>>
+UC_AskTutor .> UC_ReceiveMessageNotice : <<include>>
+UC_AskTeacher .> UC_ReceiveMessageNotice : <<include>>
+UC_ReplyTutor .> UC_ReceiveMessageNotice : <<include>>
+UC_ReplyTeacher .> UC_ReceiveMessageNotice : <<include>>
+
+note bottom of UC_AskTutor
+Canal de acompanamiento y tutoria academica.
+end note
+
+note bottom of UC_AskTeacher
+Canal diferenciado para dudas de una materia o clase.
+end note
+
+note bottom of UC_GuardianTracking
+El vinculo familiar se autoriza por la institucion.
+El familiar consulta seguimiento, sin administrar
+clases, tareas ni conversaciones del estudiante.
+end note
+
+@enduml

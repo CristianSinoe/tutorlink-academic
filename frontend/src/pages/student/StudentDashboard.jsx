@@ -225,12 +225,12 @@ export default function StudentDashboard() {
 function SummaryCard({ label, value, helper }) {
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-sm px-5 py-4 flex flex-col justify-between">
-      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-[0.16em]">
+      <p className="text-[0.6875rem] font-semibold text-slate-500 uppercase tracking-[0.16em]">
         {label}
       </p>
       <p className="mt-2 text-3xl font-semibold text-slate-900">{value}</p>
       {helper && (
-        <p className="mt-2 text-[11px] text-slate-500 leading-snug">
+        <p className="mt-2 text-[0.6875rem] text-slate-500 leading-snug">
           {helper}
         </p>
       )}

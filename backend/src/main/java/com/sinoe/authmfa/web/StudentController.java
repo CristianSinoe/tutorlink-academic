@@ -11,7 +11,6 @@ import com.sinoe.authmfa.dto.QaDtos;
 import com.sinoe.authmfa.dto.PagedResponse;
 import com.sinoe.authmfa.dto.qa.AnswerHistoryDto;
 import com.sinoe.authmfa.dto.qa.StudentQuestionDetailDto;
-import com.sinoe.authmfa.mapper.QaMapper;
 import com.sinoe.authmfa.service.AuditService;
 import com.sinoe.authmfa.service.QaService;
 import com.sinoe.authmfa.service.RecaptchaService;
@@ -81,7 +80,8 @@ public class StudentController {
                     student.getId(),
                     dto.getScope(),
                     dto.getTitle(),
-                    dto.getBody());
+                    dto.getBody(),
+                    resolveFrontendBaseUrl(req));
 
             audit.log(req, user.getId(), CREATE_QUESTION, true, null, "creada");
 
@@ -147,10 +147,7 @@ public class StudentController {
             throw new EntityNotFoundException("No encontrada");
         }
 
-        List<AnswerHistoryDto> list = answers.findByQuestion_IdOrderByVersionAsc(id)
-                .stream()
-                .map(QaMapper::toHistory)
-                .toList();
+        List<AnswerHistoryDto> list = qa.getAnswerHistoryForQuestion(userId, id);
 
         return ResponseEntity.ok(list);
     }
@@ -192,5 +189,38 @@ public class StudentController {
             return (comma > 0 ? xf.substring(0, comma) : xf).trim();
         }
         return req.getRemoteAddr();
+    }
+
+    private static String resolveFrontendBaseUrl(HttpServletRequest request) {
+        String origin = trimToNull(request.getHeader("Origin"));
+        if (origin != null) {
+            return stripTrailingSlash(origin);
+        }
+
+        String referer = trimToNull(request.getHeader("Referer"));
+        if (referer != null) {
+            try {
+                java.net.URI uri = java.net.URI.create(referer);
+                if (uri.getScheme() != null && uri.getAuthority() != null) {
+                    return stripTrailingSlash(uri.getScheme() + "://" + uri.getAuthority());
+                }
+            } catch (IllegalArgumentException ignored) {
+                // fallback by host
+            }
+        }
+
+        return request.getScheme() + "://" + request.getServerName() + ":5173";
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String stripTrailingSlash(String value) {
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 }

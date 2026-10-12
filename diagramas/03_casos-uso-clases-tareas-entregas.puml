@@ -1,0 +1,99 @@
+@startuml
+title TutorLink - Casos de uso de operacion academica
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor Docente
+actor "Tutor academico" as tutor
+actor Estudiante
+actor "Administrador de\ninstitucion" as admininst
+
+rectangle "TutorLink - Operacion academica" {
+  usecase "Consultar dashboard\npor rol" as UC_Dashboard
+  usecase "Consultar tutor\nasignado" as UC_MyTutor
+  usecase "Crear pregunta\nacademica" as UC_CreateQuestion
+  usecase "Consultar preguntas\ne historial" as UC_ViewQuestions
+  usecase "Crear consulta al\ndocente de la materia" as UC_CreateTeacherConsultation
+  usecase "Atender consulta del\nestudiante" as UC_HandleTeacherConsultation
+  usecase "Consultar historial de\nconsultas con el docente" as UC_ViewTeacherConsultations
+  usecase "Atender pregunta\nacademica" as UC_HandleQuestion
+  usecase "Corregir respuesta" as UC_CorrectAnswer
+  usecase "Rechazar pregunta" as UC_RejectQuestion
+  usecase "Reclasificar pregunta" as UC_ReclassifyQuestion
+  usecase "Actualizar perfil del\ntutor academico" as UC_TutorProfile
+  usecase "Crear clase o\npublicacion academica" as UC_CreateClass
+  usecase "Modificar clase" as UC_EditClass
+  usecase "Consultar clases\npublicadas" as UC_ViewOwnClasses
+  usecase "Consultar clases\nasignadas" as UC_ViewClasses
+  usecase "Visualizar materiales\nde clase" as UC_ViewClassMaterials
+  usecase "Crear tarea asociada\na una clase" as UC_CreateTask
+  usecase "Modificar tarea" as UC_EditTask
+  usecase "Consultar tareas\nasignadas" as UC_ViewTasks
+  usecase "Consultar tareas\npendientes y entregadas" as UC_ViewTaskStatus
+  usecase "Subir entrega de tarea" as UC_SubmitTask
+  usecase "Adjuntar archivos\na la entrega" as UC_AttachSubmission
+  usecase "Consultar estado\nde entrega" as UC_SubmissionStatus
+  usecase "Revisar entregas\ndel grupo" as UC_ReviewSubmissions
+  usecase "Consultar quien entrego\ny quien no entrego" as UC_DeliveryTracking
+  usecase "Consultar progreso\ngeneral del grupo" as UC_GroupProgress
+}
+
+docente --> UC_Dashboard
+docente --> UC_CreateClass
+docente --> UC_EditClass
+docente --> UC_ViewOwnClasses
+docente --> UC_CreateTask
+docente --> UC_EditTask
+docente --> UC_ReviewSubmissions
+docente --> UC_DeliveryTracking
+docente --> UC_GroupProgress
+docente --> UC_HandleTeacherConsultation
+docente --> UC_ViewTeacherConsultations
+
+tutor --> UC_Dashboard
+tutor --> UC_HandleQuestion
+tutor --> UC_CorrectAnswer
+tutor --> UC_RejectQuestion
+tutor --> UC_ReclassifyQuestion
+tutor --> UC_TutorProfile
+tutor --> UC_GroupProgress
+
+estudiante --> UC_Dashboard
+estudiante --> UC_MyTutor
+estudiante --> UC_CreateQuestion
+estudiante --> UC_ViewQuestions
+estudiante --> UC_CreateTeacherConsultation
+estudiante --> UC_ViewTeacherConsultations
+estudiante --> UC_ViewClasses
+estudiante --> UC_ViewClassMaterials
+estudiante --> UC_ViewTasks
+estudiante --> UC_ViewTaskStatus
+estudiante --> UC_SubmitTask
+estudiante --> UC_SubmissionStatus
+
+admininst --> UC_Dashboard
+admininst --> UC_GroupProgress
+
+UC_HandleQuestion .> UC_ViewQuestions : <<include>>
+UC_CorrectAnswer .> UC_ViewQuestions : <<include>>
+UC_RejectQuestion .> UC_ViewQuestions : <<include>>
+UC_ReclassifyQuestion .> UC_ViewQuestions : <<include>>
+UC_HandleTeacherConsultation .> UC_ViewTeacherConsultations : <<include>>
+UC_CreateTask .> UC_CreateClass : <<extend>>
+UC_EditTask .> UC_CreateTask : <<extend>>
+UC_ViewClasses .> UC_ViewClassMaterials : <<include>>
+UC_ViewTasks .> UC_ViewTaskStatus : <<include>>
+UC_SubmitTask .> UC_AttachSubmission : <<include>>
+UC_SubmitTask .> UC_SubmissionStatus : <<include>>
+UC_ReviewSubmissions .> UC_DeliveryTracking : <<include>>
+UC_ReviewSubmissions .> UC_GroupProgress : <<include>>
+
+note bottom of UC_CreateClass
+Modulo nuevo propuesto para publicaciones,
+instrucciones, contenido y adjuntos.
+end note
+
+@enduml

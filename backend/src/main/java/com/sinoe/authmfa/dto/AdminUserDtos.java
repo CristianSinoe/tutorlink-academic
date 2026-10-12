@@ -216,6 +216,7 @@ public class AdminUserDtos {
         private String career;
         private String plan;
         private Integer semester;
+        private boolean assigned;
 
         private String phone;
         private LocalDate birthDate;
@@ -283,6 +284,7 @@ public class AdminUserDtos {
         private String tutorCode;
         private String department;
         private String specialty;
+        private boolean hasAssignments;
         private String phone;
         private String status; // ACTIVE / DISABLED / BLOCKED / CREATED_BY_ADMIN
     }

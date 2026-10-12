@@ -95,6 +95,22 @@ class AdminUsersIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].tutorCode", equalTo("T400")))
                 .andExpect(jsonPath("$[0].studentMatricula", equalTo("A400")));
+
+        mockMvc.perform(get("/api/admin/users/students")
+                        .header("Authorization", bearerToken(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].assigned", equalTo(true)));
+
+        mockMvc.perform(get("/api/admin/users/tutors")
+                        .header("Authorization", bearerToken(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].hasAssignments", equalTo(true)));
+
+        mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", bearerToken(admin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.email == 'student.assignments@test.com')].assigned", equalTo(java.util.List.of(true))))
+                .andExpect(jsonPath("$[?(@.email == 'tutor.assignments@test.com')].hasAssignments", equalTo(java.util.List.of(true))));
     }
 
     @Test

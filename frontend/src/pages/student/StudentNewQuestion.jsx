@@ -41,13 +41,13 @@ export default function StudentNewQuestion() {
         scope: form.scope,
         title: form.title.trim(),
         body: form.body.trim(),
-        recaptchaToken: "prueba-login", // TODO: reemplazar por reCAPTCHA real
+        recaptchaToken: "prueba-login",
       };
 
-      await apiClient.post("/api/student/questions", payload);
+      const { data } = await apiClient.post("/api/student/questions", payload);
 
       alert("Pregunta enviada correctamente.");
-      navigate("/student/questions");
+      navigate(`/student/questions?questionId=${data.id}`);
     } catch (err) {
       console.error("Error al enviar la pregunta", err);
       const msg =
@@ -80,10 +80,11 @@ export default function StudentNewQuestion() {
           <form onSubmit={handleSubmit} className="space-y-5 text-sm">
             {/* Título */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="question-title" className="block text-sm font-medium text-slate-700 mb-1">
                 Título o asunto de la pregunta
               </label>
               <input
+                id="question-title"
                 type="text"
                 name="title"
                 value={form.title}
@@ -96,10 +97,11 @@ export default function StudentNewQuestion() {
             {/* Alcance */}
             <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
+                <label htmlFor="question-scope" className="block text-sm font-medium text-slate-700 mb-1">
                   Alcance
                 </label>
                 <select
+                  id="question-scope"
                   name="scope"
                   value={form.scope}
                   onChange={handleChange}
@@ -132,10 +134,11 @@ export default function StudentNewQuestion() {
 
             {/* Descripción */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="question-body" className="block text-sm font-medium text-slate-700 mb-1">
                 Describe tu pregunta con más detalle
               </label>
               <textarea
+                id="question-body"
                 name="body"
                 value={form.body}
                 onChange={handleChange}
@@ -153,6 +156,7 @@ export default function StudentNewQuestion() {
               <button
                 type="submit"
                 disabled={saving}
+                data-cy="student-ask-submit"
                 className="px-6 py-2 rounded-full bg-uvGreen text-white font-medium text-sm hover:bg-green-600 disabled:opacity-60 transition"
               >
                 {saving ? "Enviando..." : "Enviar pregunta"}

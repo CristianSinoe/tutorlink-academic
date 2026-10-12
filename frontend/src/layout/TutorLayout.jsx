@@ -96,7 +96,7 @@ export default function TutorLayout() {
                   <h1 className="text-sm sm:text-base font-semibold text-slate-800">
                     Panel de tutor
                   </h1>
-                  <p className="text-[11px] text-slate-500 hidden sm:block">
+                  <p className="text-[0.6875rem] text-slate-500 hidden sm:block">
                     Gestiona y responde las preguntas de tus estudiantes.
                   </p>
                 </div>
@@ -123,7 +123,7 @@ export default function TutorLayout() {
               {/* Logout + info en desktop */}
               <div className="hidden md:flex items-center gap-3">
                 <div className="hidden sm:flex flex-col items-end">
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[0.6875rem] text-slate-500">
                     Tutor académico
                   </p>
                   <p className="text-xs text-slate-400">
@@ -176,10 +176,10 @@ export default function TutorLayout() {
         {/* FOOTER */}
         <footer className="border-t border-slate-200 bg-white">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[0.6875rem] text-slate-500">
               © {new Date().getFullYear()} TutorLink · Módulo Tutor.
             </p>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[0.6875rem] text-slate-400">
               Facilita la comunicación y seguimiento con tus estudiantes.
             </p>
           </div>

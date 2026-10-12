@@ -153,7 +153,7 @@ export default function FirstLoginPage() {
                 onClick={() => setShowPassword((v) => !v)}
                 className="
                   absolute inset-y-0 right-2 flex items-center 
-                  text-[11px] text-slate-500 hover:text-slate-700 
+                  text-[0.6875rem] text-slate-500 hover:text-slate-700
                   px-2 rounded-md focus:outline-none focus:ring-1 focus:ring-uvBlue
                 "
               >
@@ -161,7 +161,7 @@ export default function FirstLoginPage() {
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[0.6875rem] text-slate-500 mt-1">
               Usa al menos 8 caracteres con letras, números y símbolos.
             </p>
           </div>
@@ -192,7 +192,7 @@ export default function FirstLoginPage() {
                 onClick={() => setShowPassword2((v) => !v)}
                 className="
                   absolute inset-y-0 right-2 flex items-center 
-                  text-[11px] text-slate-500 hover:text-slate-700 
+                  text-[0.6875rem] text-slate-500 hover:text-slate-700
                   px-2 rounded-md focus:outline-none focus:ring-1 focus:ring-uvBlue
                 "
               >
@@ -216,7 +216,7 @@ export default function FirstLoginPage() {
             {loading ? "Guardando..." : "Definir contraseña"}
           </button>
 
-          <p className="text-[11px] text-slate-500 text-center mt-3 drop-shadow-sm">
+          <p className="text-[0.6875rem] text-slate-500 text-center mt-3 drop-shadow-sm">
             Este enlace es de un solo uso. Si tienes problemas, solicita un nuevo correo de activación.
           </p>
         </form>

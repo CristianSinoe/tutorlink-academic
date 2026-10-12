@@ -190,7 +190,7 @@ export default function LoginPage() {
               </ul>
             </div>
 
-            <p className="pt-4 text-[11px] text-white/70">
+            <p className="pt-4 text-[0.6875rem] text-white/70">
               Universidad Veracruzana · Facultad de Negocios y Tecnologías
             </p>
           </div>
@@ -272,7 +272,7 @@ export default function LoginPage() {
                     onClick={() => setShowPassword((v) => !v)}
                     className="
                       absolute inset-y-0 right-2 flex items-center
-                      text-[11px] text-slate-500 hover:text-slate-700
+                      text-[0.6875rem] text-slate-500 hover:text-slate-700
                       px-2 rounded-md
                       focus:outline-none focus:ring-1 focus:ring-uvBlue
                     "
@@ -324,7 +324,7 @@ export default function LoginPage() {
                 {loading ? "Ingresando..." : "Ingresar"}
               </button>
 
-              <p className="text-[11px] text-slate-400 text-center mt-3">
+              <p className="text-[0.6875rem] text-slate-400 text-center mt-3">
                 Al iniciar sesión aceptas el uso responsable de TutorLink y el
                 tratamiento de tus datos académicos.
               </p>

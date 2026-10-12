@@ -160,7 +160,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
       inline-flex items-center gap-1 
       px-3 py-1 rounded-full 
       bg-uvGreen/10 text-uvGreen 
-      text-[10px] font-medium
+      text-[0.625rem] font-medium
     "
           >
             <span className="inline-block w-2 h-2 rounded-full bg-uvGreen" />
@@ -218,7 +218,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
                     onClick={() => setShowCurrent((v) => !v)}
                     className="
                       absolute inset-y-0 right-2 flex items-center 
-                      text-[11px] text-slate-500 hover:text-slate-700 
+                      text-[0.6875rem] text-slate-500 hover:text-slate-700
                       px-2 rounded-md
                       focus:outline-none focus:ring-1 focus:ring-uvBlue
                     "
@@ -260,7 +260,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
                     onClick={() => setShowNew((v) => !v)}
                     className="
                       absolute inset-y-0 right-2 flex items-center 
-                      text-[11px] text-slate-500 hover:text-slate-700 
+                      text-[0.6875rem] text-slate-500 hover:text-slate-700
                       px-2 rounded-md
                       focus:outline-none focus:ring-1 focus:ring-uvBlue
                     "
@@ -273,7 +273,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
                     {showNew ? "Ocultar" : "Mostrar"}
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[0.6875rem] text-slate-500 mt-1">
                   Mínimo 8 caracteres. Te recomendamos combinar letras, números
                   y símbolos.
                 </p>
@@ -306,7 +306,7 @@ export default function ChangePasswordModal({ isOpen, onClose, userEmail }) {
                     onClick={() => setShowConfirmNew((v) => !v)}
                     className="
                       absolute inset-y-0 right-2 flex items-center 
-                      text-[11px] text-slate-500 hover:text-slate-700 
+                      text-[0.6875rem] text-slate-500 hover:text-slate-700
                       px-2 rounded-md
                       focus:outline-none focus:ring-1 focus:ring-uvBlue
                     "

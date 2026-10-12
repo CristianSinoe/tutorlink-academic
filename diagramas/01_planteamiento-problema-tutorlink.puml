@@ -1,0 +1,72 @@
+@startuml
+title TutorLink - Planteamiento del problema y propuesta de centralizacion
+
+left to right direction
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+actor Docente
+actor Estudiante
+actor "Tutor academico" as tutor
+actor "Padre, madre o\ntutor legal" as guardian
+
+package "Situacion actual: informacion dispersa" #FFF4E5 {
+  cloud "Correo\nelectronico" as email
+  cloud "Mensajeria\ninstantanea" as messaging
+  database "Hojas de calculo\ny registros aislados" as spreadsheets
+  folder "Plataformas y\nmedios separados" as platforms
+}
+
+rectangle "Consecuencias" #FDE2E2 {
+  component "Dificultad para conocer\ntareas y entregas" as problem_tasks
+  component "Seguimiento tardio de\ninasistencias y pendientes" as problem_tracking
+  component "Comunicacion fragmentada\nentre participantes" as problem_communication
+  component "Duplicidad o perdida\nde informacion" as problem_data
+}
+
+rectangle "TutorLink: entorno centralizado y personalizable" #E6F4EA {
+  component "Usuarios y roles\npor institucion" as solution_users
+  component "Tutorias y consultas\ncon docentes" as solution_communication
+  component "Clases, materiales,\ntareas y entregas" as solution_academic
+  component "Asistencia, progreso\ny alertas preventivas" as solution_tracking
+  component "Notificaciones para\nusuarios y familias" as solution_notifications
+}
+
+Docente --> email
+Docente --> spreadsheets
+Estudiante --> messaging
+Estudiante --> platforms
+tutor --> email
+tutor --> spreadsheets
+guardian --> messaging
+
+email --> problem_communication
+messaging --> problem_communication
+spreadsheets --> problem_tasks
+spreadsheets --> problem_tracking
+platforms --> problem_data
+
+problem_tasks --> solution_academic : centraliza
+problem_tracking --> solution_tracking : permite detectar
+problem_communication --> solution_communication : integra
+problem_data --> solution_users : controla acceso
+
+Docente --> solution_academic
+Docente --> solution_tracking
+Estudiante --> solution_academic
+Estudiante --> solution_communication
+tutor --> solution_communication
+tutor --> solution_tracking
+guardian --> solution_notifications
+guardian --> solution_tracking
+
+solution_academic --> solution_notifications
+solution_tracking --> solution_notifications
+
+note bottom of solution_users
+Cada institucion mantiene usuarios, datos y
+configuracion separados logicamente.
+end note
+
+@enduml

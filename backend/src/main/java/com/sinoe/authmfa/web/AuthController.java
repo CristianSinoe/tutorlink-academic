@@ -35,6 +35,7 @@ public class AuthController {
     private static final String FIRST_LOGIN_COMPLETE = "FIRST_LOGIN_COMPLETE";
     private static final String LOGIN = "LOGIN";
     private static final String LOGIN_OTP = "LOGIN_OTP";
+    private static final String LOGIN_OTP_RESEND = "LOGIN_OTP_RESEND";
     private static final String PASS_CHANGE_CONFIRM = "PASS_CHANGE_CONFIRM";
     private static final String EXCEPTION = "EXCEPTION";
     private static final String USER_NOT_FOUND = "USER_NOT_FOUND";
@@ -264,7 +265,6 @@ public class AuthController {
             }
 
             var otp = otpService.generateLoginOtpForUser(u.getId());
-
             emailService.sendLoginOtpEmail(u.getEmail(), otp.getCode());
 
             audit.log(http, uid, "LOGIN_OTP_REQUEST", true, null,
@@ -274,10 +274,74 @@ public class AuthController {
                     new AuthDtos.OtpChallengeResponse(
                             true,
                             otp.getPublicId(),
-                            "Se envió un código de verificación a tu correo institucional."));
+                            "Se envió un código de verificación a tu correo institucional.",
+                            otpService.getResendCooldownSeconds()));
 
         } catch (Exception ex) {
             audit.log(http, uid, LOGIN, false, EXCEPTION, ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @PostMapping("/login/resend-otp")
+    public ResponseEntity<ApiPayload> resendLoginOtp(
+            @Valid @RequestBody AuthDtos.ResendOtpRequest req,
+            HttpServletRequest http) {
+
+        Long uid = null;
+        try {
+            OtpCode currentOtp = otpService.findLoginOtpByPublicId(req.getOtpToken()).orElse(null);
+            if (currentOtp == null) {
+                audit.log(http, null, LOGIN_OTP_RESEND, false, "OTP_NOT_FOUND", "Solicitud de reenvío inválida");
+                return ResponseEntity
+                        .badRequest()
+                        .body(new AuthDtos.ApiMessage("No se pudo reenviar el código. Inicia sesión de nuevo."));
+            }
+
+            User u = users.findById(currentOtp.getUserId()).orElse(null);
+            if (u == null) {
+                audit.log(http, null, LOGIN_OTP_RESEND, false, USER_NOT_FOUND, "Usuario no encontrado para OTP");
+                return ResponseEntity
+                        .status(404)
+                        .body(new AuthDtos.ApiMessage(USER_NOT_FOUND_MESSAGE));
+            }
+
+            uid = u.getId();
+
+            if (u.getStatus() != UserStatus.ACTIVE) {
+                String msg;
+                switch (u.getStatus()) {
+                    case CREATED_BY_ADMIN -> msg = ACCOUNT_NOT_ACTIVATED_MESSAGE;
+                    case DISABLED -> msg = ACCOUNT_DISABLED_MESSAGE;
+                    case BLOCKED -> msg = ACCOUNT_LOCKED_MESSAGE;
+                    default -> msg = INVALID_ACCOUNT_STATUS_MESSAGE;
+                }
+
+                audit.log(http, uid, LOGIN_OTP_RESEND, false, "ACCOUNT_STATUS", msg);
+                return ResponseEntity.status(403).body(new AuthDtos.ApiMessage(msg));
+            }
+
+            long remainingSeconds = otpService.getRemainingResendCooldownSeconds(u.getId(), LOGIN);
+            if (remainingSeconds > 0) {
+                String msg = "Debes esperar " + remainingSeconds + " segundos para solicitar un nuevo código.";
+                audit.log(http, uid, LOGIN_OTP_RESEND, false, "COOLDOWN", msg);
+                return ResponseEntity.status(429).body(new AuthDtos.ApiMessage(msg));
+            }
+
+            OtpCode newOtp = otpService.generateLoginOtpForUser(u.getId());
+            emailService.sendLoginOtpEmail(u.getEmail(), newOtp.getCode());
+
+            audit.log(http, uid, LOGIN_OTP_RESEND, true, null, "Nuevo OTP enviado al correo");
+
+            return ResponseEntity.ok(
+                    new AuthDtos.OtpChallengeResponse(
+                            true,
+                            newOtp.getPublicId(),
+                            "Se envió un nuevo código de verificación a tu correo institucional.",
+                            otpService.getResendCooldownSeconds()));
+
+        } catch (Exception ex) {
+            audit.log(http, uid, LOGIN_OTP_RESEND, false, EXCEPTION, ex.getMessage());
             throw ex;
         }
     }

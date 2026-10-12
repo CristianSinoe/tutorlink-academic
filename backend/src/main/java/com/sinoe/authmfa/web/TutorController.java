@@ -19,7 +19,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.sinoe.authmfa.domain.user.User;
 import com.sinoe.authmfa.dto.qa.TutorPendingQuestionDto;
-import com.sinoe.authmfa.mapper.QaMapper;
 import com.sinoe.authmfa.domain.user.Tutor;
 import com.sinoe.authmfa.dto.qa.TutorProfileDto;
 
@@ -57,7 +56,7 @@ public class TutorController {
             HttpServletRequest req) {
 
         Long userId = qa.requireUserByEmail(auth.getName()).getId();
-        var ans = qa.publishOrCorrect(userId, id, dto.getBody(), false);
+        var ans = qa.publishOrCorrect(userId, id, dto.getBody(), false, resolveFrontendBaseUrl(req));
 
         audit.log(req, userId, "ANSWER", true, null, "publicada");
 
@@ -74,7 +73,7 @@ public class TutorController {
             HttpServletRequest req) {
 
         Long userId = qa.requireUserByEmail(auth.getName()).getId();
-        var ans = qa.publishOrCorrect(userId, id, dto.getBody(), true);
+        var ans = qa.publishOrCorrect(userId, id, dto.getBody(), true, resolveFrontendBaseUrl(req));
 
         audit.log(req, userId, "CORRECT", true, null, "corregida");
 
@@ -158,9 +157,7 @@ public class TutorController {
             return ResponseEntity.ok(List.of());
         }
 
-        List<AnswerHistoryDto> list = allAnswers.stream()
-                .map(QaMapper::toHistory)
-                .toList();
+        List<AnswerHistoryDto> list = qa.getAnswerHistoryForQuestion(userId, questionId);
 
         return ResponseEntity.ok(list);
     }
@@ -214,6 +211,39 @@ public class TutorController {
         audit.log(req, userId, "UPDATE_TUTOR_PROFILE", true, null, null);
 
         return ResponseEntity.ok(new AuthDtos.ApiMessage("Perfil actualizado"));
+    }
+
+    private static String resolveFrontendBaseUrl(HttpServletRequest request) {
+        String origin = trimToNull(request.getHeader("Origin"));
+        if (origin != null) {
+            return stripTrailingSlash(origin);
+        }
+
+        String referer = trimToNull(request.getHeader("Referer"));
+        if (referer != null) {
+            try {
+                java.net.URI uri = java.net.URI.create(referer);
+                if (uri.getScheme() != null && uri.getAuthority() != null) {
+                    return stripTrailingSlash(uri.getScheme() + "://" + uri.getAuthority());
+                }
+            } catch (IllegalArgumentException ignored) {
+                // fallback by host
+            }
+        }
+
+        return request.getScheme() + "://" + request.getServerName() + ":5173";
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String stripTrailingSlash(String value) {
+        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
 }

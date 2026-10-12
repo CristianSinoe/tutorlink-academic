@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
+import ExcelImportHelp from "../../components/admin/ExcelImportHelp";
+import ExportActions from "../../components/admin/ExportActions";
+
+const ASSIGNMENT_EXPORT_COLUMNS = [
+  { label: "Código tutor", value: (row) => row.tutorCode },
+  { label: "Tutor", value: (row) => row.tutorName },
+  { label: "Correo tutor", value: (row) => row.tutorEmail },
+  { label: "Departamento", value: (row) => row.tutorDepartment },
+  { label: "Especialidad", value: (row) => row.tutorSpecialty },
+  { label: "Matrícula estudiante", value: (row) => row.matricula },
+  { label: "Estudiante", value: (row) => row.studentName },
+  { label: "Correo estudiante", value: (row) => row.studentEmail },
+];
 
 export default function AssignmentsPage() {
   const [groups, setGroups] = useState([]); // agrupado por tutor
@@ -19,9 +32,9 @@ export default function AssignmentsPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimeoutRef = useRef(null);
 
-  // CSV
+  // Excel
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [csvFile, setCsvFile] = useState(null);
+  const [excelFile, setExcelFile] = useState(null);
   const [importing, setImporting] = useState(false);
 
   const [savingAssign, setSavingAssign] = useState(false);
@@ -40,7 +53,6 @@ export default function AssignmentsPage() {
   const loadAssignments = async () => {
     try {
       setLoadingList(true);
-      setFeedback(null);
 
       const { data } = await apiClient.get("/api/admin/users/tutor-students");
 
@@ -116,6 +128,11 @@ export default function AssignmentsPage() {
       (g.tutorEmail || "").toLowerCase().includes(term)
     );
   });
+
+  const filteredAssignments = filteredGroups.flatMap((group) => group.students.map((student) => ({
+    ...group,
+    ...student,
+  })));
 
   // Reset a página 1 cuando cambian los datos o el filtro
   useEffect(() => {
@@ -299,13 +316,13 @@ export default function AssignmentsPage() {
   };
 
   // ============================
-  // IMPORTAR CSV
+  // IMPORTAR EXCEL
   // ============================
-  const handleImportCSV = async () => {
-    if (!csvFile) {
+  const handleImportExcel = async () => {
+    if (!excelFile) {
       setFeedback({
         type: "error",
-        message: "Selecciona un archivo CSV primero.",
+        message: "Selecciona un archivo Excel .xlsx primero.",
       });
       return;
     }
@@ -313,28 +330,29 @@ export default function AssignmentsPage() {
       setImporting(true);
       setFeedback(null);
 
-      const text = await csvFile.text();
-
+      const formData = new FormData();
+      formData.append("file", excelFile);
       const { data } = await apiClient.post(
-        "/api/admin/users/tutor-students/import-csv",
-        { csv: text }
+        "/api/admin/users/tutor-students/import-excel",
+        formData,
+        { headers: { "Content-Type": undefined } }
       );
 
       const msg =
         data && typeof data === "object"
-          ? `Importación completa. total=${data.total}, creados=${data.created}, ya existentes=${data.skippedExisting}`
+          ? `Importación completa. Total: ${data.total}; asignadas: ${data.assigned}; errores: ${data.errors}.`
           : "Importación completa.";
 
       setFeedback({ type: "success", message: msg });
-      setCsvFile(null);
+      setExcelFile(null);
       setIsImportOpen(false);
       loadAssignments();
     } catch (err) {
-      console.error("Error importando CSV de asignaciones", err);
+      console.error("Error importando Excel de asignaciones", err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        "Error importando CSV de asignaciones.";
+        "Error importando Excel de asignaciones.";
       setFeedback({ type: "error", message: msg });
     } finally {
       setImporting(false);
@@ -355,18 +373,22 @@ export default function AssignmentsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsImportOpen(true)}
-          data-cy="admin-assignments-import-open"
-          className="
-            px-4 py-2 rounded-full 
-            bg-uvBlue hover:bg-blue-700 
-            text-white text-sm font-semibold 
-            shadow-sm transition
-          "
-        >
-          Importar CSV
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportActions
+            title="Asignaciones tutor-estudiante"
+            fileBaseName="asignaciones-tutor-estudiante"
+            columns={ASSIGNMENT_EXPORT_COLUMNS}
+            rows={filteredAssignments}
+          />
+          <button
+            onClick={() => setIsImportOpen(true)}
+            data-cy="admin-assignments-import-open"
+            className="px-4 py-2 rounded-full bg-uvGreen hover:bg-green-600 text-white text-sm font-semibold shadow-sm transition"
+          >
+            <span className="flex items-center gap-2"><img src="/microsoft-excel-svgrepo-com.svg" alt="" className="h-5 w-5" />Importar Excel</span>
+          </button>
+          <ExcelImportHelp section="asignaciones" />
+        </div>
       </div>
 
       {/* NOTIFICACIONES */}
@@ -405,7 +427,7 @@ export default function AssignmentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[0.6875rem] text-slate-500 mt-1">
             Filtra la lista de tutores por datos básicos. La paginación se
             ajusta al filtro aplicado.
           </p>
@@ -547,7 +569,7 @@ export default function AssignmentsPage() {
                   >
                     ← Anterior
                   </button>
-                  <span className="text-slate-500 text-[11px]">
+                  <span className="text-slate-500 text-[0.6875rem]">
                     Página{" "}
                     <span className="font-semibold text-slate-700">
                       {page}
@@ -578,30 +600,31 @@ export default function AssignmentsPage() {
         )}
       </section>
 
-      {/* MODAL IMPORTAR CSV */}
+      {/* MODAL IMPORTAR EXCEL */}
       {isImportOpen && (
         <Modal onClose={() => !importing && setIsImportOpen(false)}>
           <h2 className="text-xl font-semibold text-uvBlue mb-4">
-            Importar asignaciones por CSV
+            Importar asignaciones por Excel
           </h2>
 
           <p className="text-sm text-slate-600 mb-3">
-            Selecciona un archivo CSV con el siguiente formato:
+            Selecciona un archivo .xlsx. En la primera hoja, coloca cada campo en su propia columna, en este orden (| separa celdas en el ejemplo):
           </p>
           <pre className="bg-slate-50 rounded-lg p-3 text-xs mb-3 overflow-x-auto border border-slate-200">
-            tutorCode;matricula
+            tutorCode | matricula
             {"\n"}
-            TUT001;S230010
+            TUT001 | S230010
             {"\n"}
-            TUT001;S230011
+            TUT001 | S230011
             {"\n"}
-            TUT002;S230012
+            TUT002 | S230012
           </pre>
 
           <input
             type="file"
-            accept=".csv,text/csv"
-            onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+            aria-label="Archivo Excel de asignaciones"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
             className="mb-4 text-sm"
           />
 
@@ -612,7 +635,7 @@ export default function AssignmentsPage() {
               onClick={() => {
                 if (!importing) {
                   setIsImportOpen(false);
-                  setCsvFile(null);
+                  setExcelFile(null);
                 }
               }}
               className="
@@ -626,17 +649,17 @@ export default function AssignmentsPage() {
             <button
               type="button"
               disabled={importing}
-              onClick={handleImportCSV}
+              onClick={handleImportExcel}
               data-cy="admin-assignments-import-submit"
               className="
                 px-6 py-2 rounded-full 
-                bg-uvBlue hover:bg-blue-700 
+                bg-uvGreen hover:bg-green-600
                 disabled:opacity-60 
                 text-white text-sm font-semibold 
                 transition
               "
             >
-              {importing ? "Importando..." : "Importar CSV"}
+              {importing ? "Importando..." : "Importar Excel"}
             </button>
           </div>
         </Modal>
@@ -753,7 +776,7 @@ export default function AssignmentsPage() {
                   disabled={savingAssign}
                   className="
                     px-4 py-2 rounded-full 
-                    bg-uvGreen hover:bg-green-600 
+                    bg-uvGreen hover:bg-green-600
                     disabled:opacity-60 
                     text-white text-sm font-semibold 
                     transition

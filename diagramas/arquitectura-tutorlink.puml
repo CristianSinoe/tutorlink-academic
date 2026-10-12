@@ -1,0 +1,170 @@
+@startuml
+title TutorLink - Arquitectura General Actual
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+skinparam wrapWidth 220
+skinparam maxMessageSize 180
+
+left to right direction
+
+actor "Estudiante" as estudiante
+actor "Tutor" as tutor
+actor "Administrador" as admin
+
+rectangle "Frontend Web\nReact + Vite SPA" as frontend {
+  component "Pantallas de autenticación\nLoginPage / OtpPage / FirstLogin" as fe_auth
+  component "Panel estudiante" as fe_student
+  component "Panel tutor" as fe_tutor
+  component "Panel administrador" as fe_admin
+  component "Cliente HTTP\naxiosClient" as fe_http
+}
+
+node "Backend\nSpring Boot API REST" as backend {
+
+  package "Seguridad" {
+    component "SecurityConfig" as sec_config
+    component "JwtAuthFilter" as jwt_filter
+    component "JwtService" as jwt_service
+  }
+
+  package "Controladores REST" {
+    component "AuthController" as c_auth
+    component "AdminUserController" as c_admin
+    component "StudentController" as c_student
+    component "TutorController" as c_tutor
+    component "QuestionConversationController" as c_conversation
+    component "UserController" as c_user
+  }
+
+  package "Servicios de negocio" {
+    component "AdminUserService" as s_admin
+    component "QaService" as s_qa
+    component "UserService" as s_user
+    component "TutorStudentAssignmentService" as s_assignment
+    component "OtpService" as s_otp
+    component "EmailService" as s_email
+    component "RecaptchaService" as s_recaptcha
+    component "AuditService" as s_audit
+  }
+
+  package "Persistencia\nSpring Data JPA" {
+    component "UserRepository" as r_user
+    component "StudentRepository" as r_student
+    component "TutorRepository" as r_tutor
+    component "TutorStudentRepository" as r_tutor_student
+    component "QuestionRepository" as r_question
+    component "AnswerRepository" as r_answer
+    component "QuestionMessageRepository" as r_message
+    component "QuestionMessageRevisionRepository" as r_message_revision
+    component "OtpRepository" as r_otp
+    component "AuditLogRepository" as r_audit
+  }
+}
+
+database "PostgreSQL\nTutorLink DB" as db
+cloud "Proveedor de correo\nSMTP / JavaMailSender" as smtp
+cloud "Google reCAPTCHA API" as recaptcha_api
+
+estudiante --> frontend
+tutor --> frontend
+admin --> frontend
+
+fe_auth --> fe_http
+fe_student --> fe_http
+fe_tutor --> fe_http
+fe_admin --> fe_http
+fe_http --> backend : HTTP / JSON REST
+
+sec_config --> jwt_filter
+jwt_filter --> jwt_service
+
+fe_http --> c_auth
+fe_http --> c_admin
+fe_http --> c_student
+fe_http --> c_tutor
+fe_http --> c_conversation
+fe_http --> c_user
+
+c_auth --> s_user
+c_auth --> s_otp
+c_auth --> s_email
+c_auth --> s_recaptcha
+c_auth --> s_audit
+c_auth --> jwt_service
+
+c_admin --> s_admin
+c_student --> s_qa
+c_student --> s_audit
+c_student --> s_recaptcha
+c_tutor --> s_qa
+c_tutor --> s_audit
+c_conversation --> s_qa
+c_conversation --> s_audit
+c_user --> r_user
+c_user --> r_student
+c_user --> r_tutor
+
+s_admin --> s_user
+s_admin --> s_assignment
+s_admin --> s_email
+s_admin --> r_user
+s_admin --> r_student
+s_admin --> r_tutor
+s_admin --> r_tutor_student
+
+s_qa --> s_email
+s_qa --> r_user
+s_qa --> r_student
+s_qa --> r_tutor
+s_qa --> r_tutor_student
+s_qa --> r_question
+s_qa --> r_answer
+s_qa --> r_message
+s_qa --> r_message_revision
+
+s_otp --> r_otp
+s_audit --> r_audit
+s_email --> smtp
+s_recaptcha --> recaptcha_api
+
+r_user --> db
+r_student --> db
+r_tutor --> db
+r_tutor_student --> db
+r_question --> db
+r_answer --> db
+r_message --> db
+r_message_revision --> db
+r_otp --> db
+r_audit --> db
+
+note right of jwt_filter
+Valida el header Authorization Bearer,
+extrae claims del JWT y establece el
+AuthenticationContext para los endpoints protegidos.
+end note
+
+note right of s_qa
+Centraliza el flujo de preguntas, respuestas,
+hilo conversacional, correcciones, historial,
+permisos estudiante/tutor y notificaciones.
+end note
+
+note bottom of s_admin
+Gestiona altas administrativas, importación CSV,
+asignación tutor-estudiante y cambio de estado de usuarios.
+end note
+
+note bottom of backend
+Flujo general:
+1. El frontend invoca endpoints REST.
+2. Spring Security valida acceso y rol.
+3. Los controladores delegan en servicios.
+4. Los servicios usan repositorios JPA.
+5. Se persiste en PostgreSQL y se registran auditorías.
+6. Los correos salen por EmailService.
+end note
+
+@enduml

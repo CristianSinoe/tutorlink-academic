@@ -1,0 +1,52 @@
+@startuml
+title TutorLink - Flujo metodologico de desarrollo incremental
+
+start
+
+:Analizar la plataforma TutorLink existente;
+note right
+Autenticacion, usuarios, tutorias,
+preguntas, respuestas y trazabilidad.
+end note
+
+:Levantar y priorizar nuevos requisitos;
+note right
+Multiinstitucion, clases, tareas, asistencia,
+familias, alertas y notificaciones.
+end note
+
+repeat
+  :Modelar requisitos y diseno UML;
+  note right
+  Casos de uso, arquitectura, modelo de datos,
+  reglas de alerta y permisos.
+  end note
+
+  if (Diseno aprobado?) then (si)
+    fork
+      :Implementar frontend\nReact + Vite;
+    fork again
+      :Implementar API y reglas\nde negocio en Spring Boot;
+    fork again
+      :Preparar migraciones y\npersistencia PostgreSQL;
+    fork again
+      :Integrar servicios externos\ncorreo y WhatsApp;
+    end fork
+
+    :Ejecutar pruebas funcionales,\nde integracion y seguridad;
+
+    if (Cumple criterios de aceptacion?) then (si)
+      :Preparar incremento para\nprueba piloto;
+    else (no)
+      :Corregir incidencias y\najustar requisitos o diseno;
+    endif
+  else (no)
+    :Ajustar alcance, reglas y\nprioridades con los interesados;
+  endif
+repeat while (Requiere ajustes?) is (si)
+
+:Realizar prueba piloto y\nevaluar metricas definidas;
+:Documentar resultados y\npreparar siguiente incremento;
+
+stop
+@enduml

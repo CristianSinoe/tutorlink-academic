@@ -2,6 +2,20 @@ spring:
   config:
     activate:
       on-profile: demo
+  flyway:
+    enabled: false
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate.hbm2ddl.halt_on_error: true
+
+tutorlink:
+  demo:
+    tutors: ${DEMO_TUTORS:20}
+    students: ${DEMO_STUDENTS:300}
+    password: ${DEMO_PASSWORD:TutorLinkDemo2026!}
 
 logging:
   level:

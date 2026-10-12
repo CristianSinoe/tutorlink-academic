@@ -1,0 +1,185 @@
+@startuml
+title TutorLink - Modelo de Base de Datos Actual
+
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+
+entity "tl_users\n(User)" as tl_users {
+  * id : BIGINT <<PK>>
+  --
+  name : VARCHAR(120)
+  last_name_paterno : VARCHAR(120)
+  last_name_materno : VARCHAR(120)?
+  email : VARCHAR(190) <<UNIQUE>>
+  password_hash : VARCHAR(255)
+  role : UserRole
+  status : UserStatus
+  activation_token : VARCHAR(255)?
+  activation_expires_at : TIMESTAMP?
+  first_login_token : VARCHAR(255)?
+  first_login_expires_at : TIMESTAMP?
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+  last_login_at : TIMESTAMP?
+}
+
+entity "tl_students\n(Student)" as tl_students {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT <<FK, UNIQUE>>
+  matricula : VARCHAR(50) <<UNIQUE>>
+  career : VARCHAR?
+  plan : VARCHAR?
+  semester : INTEGER?
+  birth_date : DATE?
+  phone : VARCHAR?
+}
+
+entity "tl_tutors\n(Tutor)" as tl_tutors {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT <<FK, UNIQUE>>
+  tutor_code : VARCHAR(50) <<UNIQUE>>
+  department : VARCHAR?
+  specialty : VARCHAR?
+  phone : VARCHAR?
+  bio : TEXT?
+  academic_link : VARCHAR?
+  professional_link : VARCHAR?
+  notify_new_questions : BOOLEAN
+  weekly_summary : BOOLEAN
+}
+
+entity "tl_tutor_students\n(TutorStudent)" as tl_tutor_students {
+  * id : BIGINT <<PK>>
+  --
+  tutor_id : BIGINT <<FK>>
+  student_id : BIGINT <<FK, UNIQUE>>
+  created_by : BIGINT <<FK>>
+  created_at : TIMESTAMP
+}
+
+entity "tl_questions\n(Question)" as tl_questions {
+  * id : BIGINT <<PK>>
+  --
+  student_id : BIGINT <<FK>>
+  tutor_id : BIGINT <<FK>>
+  current_answer_id : BIGINT <<FK>>
+  scope : Scope
+  title : VARCHAR(200)
+  body : TEXT
+  status : Status
+  reject_reason : TEXT?
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "tl_answers\n(Answer)" as tl_answers {
+  * id : BIGINT <<PK>>
+  --
+  question_id : BIGINT <<FK>>
+  tutor_id : BIGINT <<FK>>
+  thread_message_id : BIGINT <<FK, UNIQUE?>>
+  body : TEXT
+  version : INTEGER
+  created_at : TIMESTAMP
+}
+
+entity "tl_question_messages\n(QuestionMessage)" as tl_question_messages {
+  * id : BIGINT <<PK>>
+  --
+  question_id : BIGINT <<FK>>
+  sender_user_id : BIGINT <<FK>>
+  sender_role : UserRole
+  message_type : QuestionMessageType
+  body : TEXT
+  visible : BOOLEAN
+  created_at : TIMESTAMP
+}
+
+entity "tl_question_message_revisions\n(QuestionMessageRevision)" as tl_question_message_revisions {
+  * id : BIGINT <<PK>>
+  --
+  question_message_id : BIGINT <<FK>>
+  created_by_user_id : BIGINT <<FK>>
+  body : TEXT
+  created_at : TIMESTAMP
+}
+
+entity "tl_audit_log\n(AuditLog)" as tl_audit_log {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT
+  action : VARCHAR(120)
+  success : BOOLEAN
+  error_code : VARCHAR(80)?
+  message : TEXT?
+  ip : VARCHAR?
+  user_agent : VARCHAR?
+  path : VARCHAR?
+  method : VARCHAR?
+  created_at : TIMESTAMP
+}
+
+entity "otp_codes\n(OtpCode)" as otp_codes {
+  * id : BIGINT <<PK>>
+  --
+  user_id : BIGINT
+  code : CHAR(6)
+  purpose : VARCHAR(30)
+  public_id : VARCHAR(100) <<UNIQUE>>
+  attempts : INTEGER
+  consumed : BOOLEAN
+  created_at : TIMESTAMP
+  last_sent_at : TIMESTAMP?
+  expires_at : TIMESTAMP
+}
+
+tl_users ||--|| tl_students : "1:1 perfil estudiante"
+tl_users ||--|| tl_tutors : "1:1 perfil tutor"
+tl_users ||--o{ tl_tutor_students : "created_by"
+
+tl_tutors ||--o{ tl_tutor_students : "asigna"
+tl_students ||--o| tl_tutor_students : "asignación única"
+
+tl_students ||--o{ tl_questions : "crea"
+tl_tutors ||--o{ tl_questions : "atiende"
+tl_questions ||--o{ tl_answers : "historial de respuestas"
+tl_answers ||--o{ tl_questions : "current_answer_id"
+
+tl_questions ||--o{ tl_question_messages : "hilo conversacional"
+tl_users ||--o{ tl_question_messages : "sender_user_id"
+tl_question_messages ||--o{ tl_question_message_revisions : "revisiones"
+tl_users ||--o{ tl_question_message_revisions : "created_by_user_id"
+
+tl_tutors ||--o{ tl_answers : "publica/corrige"
+tl_question_messages ||--o| tl_answers : "thread_message_id"
+
+tl_users ||..o{ otp_codes : "user_id (relación lógica,\nsin FK JPA)"
+tl_users ||..o{ tl_audit_log : "user_id (relación lógica,\nsin FK JPA)"
+
+note right of tl_users
+No existe una tabla tl_roles.
+Los campos role y status se manejan como enums:
+UserRole y UserStatus.
+end note
+
+note bottom of tl_questions
+Question es el contenedor principal del hilo.
+El cuerpo inicial de la pregunta convive con:
+- respuestas legacy (tl_answers)
+- mensajes conversacionales (tl_question_messages)
+end note
+
+note bottom of tl_question_messages
+Implementado en el MVP conversacional.
+Permite mensajes bidireccionales entre estudiante y tutor.
+end note
+
+note bottom of tl_question_message_revisions
+Registra correcciones inmutables por mensaje.
+Cada revisión conserva el historial cronológico.
+end note
+
+@enduml

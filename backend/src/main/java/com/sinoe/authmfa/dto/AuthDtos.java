@@ -114,6 +114,7 @@ public class AuthDtos {
         private boolean requiresOtp;
         private String otpToken; // publicId del OTP
         private String message;
+        private long resendCooldownSeconds;
     }
 
     @Data
@@ -126,6 +127,15 @@ public class AuthDtos {
 
         @NotBlank
         private String code;      // código de 6 dígitos que escribió el usuario
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ResendOtpRequest {
+
+        @NotBlank
+        private String otpToken;
     }
 
     // NUEVO: Inicio del cambio de contraseña (vacío)

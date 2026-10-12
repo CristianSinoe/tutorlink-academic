@@ -194,7 +194,7 @@ export default function OtpPage() {
             </div>
 
             {/* Footer */}
-            <p className="pt-4 text-[11px] text-white/70">
+            <p className="pt-4 text-[0.6875rem] text-white/70">
               Universidad Veracruzana · Facultad de Negocios y Tecnologías
               
             </p>
@@ -226,7 +226,7 @@ export default function OtpPage() {
             </div>
 
             {infoMessage && (
-              <p className="text-[11px] text-slate-500 text-center mb-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+              <p className="text-[0.6875rem] text-slate-500 text-center mb-4 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
                 {infoMessage}
               </p>
             )}
@@ -260,7 +260,7 @@ export default function OtpPage() {
                   placeholder="••••••"
                   aria-label="Código de verificación de 6 dígitos"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[0.6875rem] text-slate-500 mt-1">
                   Ingresa el código de 6 dígitos que recibiste por correo. El
                   código es temporal y caduca después de unos minutos.
                 </p>
@@ -300,7 +300,7 @@ export default function OtpPage() {
               >
                 {getResendButtonLabel({ resending, secondsLeft })}
               </button>
-              <p className="mt-2 text-[11px] text-slate-500 text-center">
+              <p className="mt-2 text-[0.6875rem] text-slate-500 text-center">
                 Solo puedes solicitar un nuevo código cada 60 segundos.
               </p>
             </div>
@@ -318,7 +318,7 @@ export default function OtpPage() {
             </button>
 
             <div className="mt-4 border-t border-slate-100 pt-3">
-              <p className="text-[11px] text-slate-500 text-center">
+              <p className="text-[0.6875rem] text-slate-500 text-center">
                 ¿No recibiste el código? Revisa tu carpeta de correo no deseado
                 o intenta iniciar sesión de nuevo para generar un nuevo código.
               </p>

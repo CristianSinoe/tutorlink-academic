@@ -3,18 +3,39 @@ import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import CreateAdminModal from "../../components/admin/CreateAdminModal";
+import ExportActions from "../../components/admin/ExportActions";
+
+const ADMIN_EXPORT_COLUMNS = [
+  { label: "ID", value: (admin) => admin.id },
+  { label: "Nombre", value: (admin) => [admin.name, admin.lastNamePaterno, admin.lastNameMaterno].filter(Boolean).join(" ") },
+  { label: "Correo", value: (admin) => admin.email },
+  { label: "Estado", value: (admin) => admin.status },
+];
 
 export default function AdminAdminsPage() {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openModal, setOpenModal] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Paginación
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
-  const totalAdmins = admins.length;
+  const filteredAdmins = admins.filter((admin) => {
+    const term = search.trim().toLowerCase();
+    const fullName = [admin.name, admin.lastNamePaterno, admin.lastNameMaterno]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    const matchesSearch = !term || fullName.includes(term) || (admin.email || "").toLowerCase().includes(term);
+    const matchesStatus = statusFilter === "ALL" || admin.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+  const totalAdmins = filteredAdmins.length;
   const totalPages = Math.max(1, Math.ceil(totalAdmins / pageSize));
 
   const loadAdmins = async () => {
@@ -39,10 +60,10 @@ export default function AdminAdminsPage() {
     loadAdmins();
   }, []);
 
-  // Reiniciar a la primera página cuando cambie la lista
+  // Reiniciar a la primera página cuando cambie la lista o los filtros.
   useEffect(() => {
     setPage(1);
-  }, [totalAdmins]);
+  }, [search, statusFilter, admins]);
 
   const handlePrevPage = () => {
     setPage((prev) => Math.max(1, prev - 1));
@@ -54,7 +75,7 @@ export default function AdminAdminsPage() {
 
   const startIndex = (page - 1) * pageSize;
   const endIndex = startIndex + pageSize;
-  const currentAdmins = admins.slice(startIndex, endIndex);
+  const currentAdmins = filteredAdmins.slice(startIndex, endIndex);
 
   const showingFrom = totalAdmins === 0 ? 0 : startIndex + 1;
   const showingTo = Math.min(endIndex, totalAdmins);
@@ -74,14 +95,55 @@ export default function AdminAdminsPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setOpenModal(true)}
-          className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-uvBlue text-white text-sm font-medium shadow hover:bg-blue-700 transition"
-        >
-          + Crear administrador
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <ExportActions
+            title="Lista de administradores"
+            fileBaseName="administradores"
+            columns={ADMIN_EXPORT_COLUMNS}
+            rows={filteredAdmins}
+          />
+          <button
+            type="button"
+            onClick={() => setOpenModal(true)}
+            className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-uvBlue text-white text-sm font-medium shadow hover:bg-blue-700 transition"
+          >
+            + Crear administrador
+          </button>
+        </div>
       </div>
+
+      <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+        <div>
+          <label htmlFor="admins-search" className="mb-1 block text-xs font-semibold text-slate-700">
+            Buscar
+          </label>
+          <input
+            id="admins-search"
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Nombre o correo"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-uvBlue"
+          />
+        </div>
+        <div>
+          <label htmlFor="admins-status-filter" className="mb-1 block text-xs font-semibold text-slate-700">
+            Estado
+          </label>
+          <select
+            id="admins-status-filter"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-uvBlue"
+          >
+            <option value="ALL">Todos</option>
+            <option value="CREATED_BY_ADMIN">Creado por admin</option>
+            <option value="ACTIVE">Activo</option>
+            <option value="DISABLED">Deshabilitado</option>
+            <option value="BLOCKED">Bloqueado</option>
+          </select>
+        </div>
+      </section>
 
       {/* Tabla */}
       <section
@@ -93,8 +155,8 @@ export default function AdminAdminsPage() {
             <h2 className="text-sm font-semibold text-slate-700">
               Lista de administradores
             </h2>
-            <p className="text-[11px] text-slate-500">
-              Total:{" "}
+            <p className="text-[0.6875rem] text-slate-500">
+              Filtrados:{" "}
               <span className="font-semibold text-slate-700">
                 {totalAdmins}
               </span>
@@ -200,7 +262,7 @@ export default function AdminAdminsPage() {
               >
                 ← Anterior
               </button>
-              <span className="text-slate-500 text-[11px]">
+              <span className="text-slate-500 text-[0.6875rem]">
                 Página{" "}
                 <span className="font-semibold text-slate-700">{page}</span> de{" "}
                 <span className="font-semibold text-slate-700">
@@ -243,7 +305,7 @@ export default function AdminAdminsPage() {
 function StatusBadge({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[0.6875rem] bg-slate-100 text-slate-600">
         —
       </span>
     );
@@ -267,7 +329,7 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${colorClasses}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[0.6875rem] font-medium ${colorClasses}`}
     >
       {normalized}
     </span>

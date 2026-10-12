@@ -27,8 +27,8 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    @Value("${tutorlink.security.cors.allowed-origins:http://localhost:5173,http://192.168.100.12:5173,http://192.168.237.15:5173}")
-    private List<String> allowedOrigins;
+    @Value("${tutorlink.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*,http://192.168.*.*:*,http://10.*.*.*:*}")
+    private List<String> allowedOriginPatterns;
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,6 +46,7 @@ public class SecurityConfig {
                                 "/api/recaptcha/verify",
                                 "/api/auth/login",
                                 "/api/auth/login/verify-otp",
+                                "/api/auth/login/resend-otp",
                                 "/api/auth/first-login",
                                 "/api/auth/first-login/verify-otp",
                                 "/api/internal/bootstrap/admin",
@@ -55,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/dev/email-preview/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/docs/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/questions/**").hasAnyRole("ESTUDIANTE", "TUTOR", "ADMIN")
                         .requestMatchers("/api/tutor/**").hasRole("TUTOR")
                         .requestMatchers("/api/student/**").hasRole("ESTUDIANTE")
                         .anyRequest().authenticated()
@@ -67,7 +69,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowedOrigins);
+        config.setAllowedOriginPatterns(allowedOriginPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

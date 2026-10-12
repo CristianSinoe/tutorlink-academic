@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
+import AdminFilterSelect from "../../components/admin/AdminFilterSelect";
+import ExportActions from "../../components/admin/ExportActions";
+import { filterOptions, matchesAssignment, matchesOption } from "./adminFilterUtils";
 
 const VISIBLE_STATUS_OPTIONS = new Set(["ACTIVE", "DISABLED"]);
 
@@ -39,6 +42,14 @@ const USER_ROLES = {
   },
 };
 
+const USER_EXPORT_COLUMNS = [
+  { label: "ID", value: (user) => user.id },
+  { label: "Nombre", value: (user) => [user.name, user.lastNamePaterno, user.lastNameMaterno].filter(Boolean).join(" ") },
+  { label: "Correo", value: (user) => user.email },
+  { label: "Rol", value: (user) => USER_ROLES[user.role]?.label || user.role },
+  { label: "Estado", value: (user) => USER_STATUS[user.status]?.label || user.status },
+];
+
 function getStatusAction(user, currentUserEmail) {
   if (isCurrentAdminUser(user, currentUserEmail)) {
     return {
@@ -62,6 +73,11 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [careerFilter, setCareerFilter] = useState("ALL");
+  const [semesterFilter, setSemesterFilter] = useState("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [specialtyFilter, setSpecialtyFilter] = useState("ALL");
+  const [assignmentFilter, setAssignmentFilter] = useState("ALL");
 
   // Modal cambiar estado
   const [selectedUser, setSelectedUser] = useState(null);
@@ -113,6 +129,17 @@ export default function UsersPage() {
   // ============================
   // FILTROS
   // ============================
+  const studentUsers = users.filter((user) => user.role === "ESTUDIANTE");
+  const tutorUsers = users.filter((user) => user.role === "TUTOR");
+  const changeRoleFilter = (role) => {
+    setRoleFilter(role);
+    setCareerFilter("ALL");
+    setSemesterFilter("ALL");
+    setDepartmentFilter("ALL");
+    setSpecialtyFilter("ALL");
+    setAssignmentFilter("ALL");
+  };
+
   const filteredUsers = users.filter((u) => {
     const term = search.toLowerCase().trim();
 
@@ -131,19 +158,34 @@ export default function UsersPage() {
     const matchesStatus =
       statusFilter === "ALL" || (u.status || "") === statusFilter;
 
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesProfile = roleFilter === "ESTUDIANTE"
+      ? matchesOption(u.career, careerFilter)
+        && matchesOption(u.semester, semesterFilter)
+        && matchesAssignment(u.assigned, assignmentFilter)
+      : roleFilter === "TUTOR"
+        ? matchesOption(u.department, departmentFilter)
+          && matchesOption(u.specialty, specialtyFilter)
+          && matchesAssignment(u.hasAssignments, assignmentFilter)
+        : true;
+
+    return matchesSearch && matchesRole && matchesStatus && matchesProfile;
   });
 
   const clearFilters = () => {
     setSearch("");
     setRoleFilter("ALL");
     setStatusFilter("ALL");
+    setCareerFilter("ALL");
+    setSemesterFilter("ALL");
+    setDepartmentFilter("ALL");
+    setSpecialtyFilter("ALL");
+    setAssignmentFilter("ALL");
   };
 
   // Reset página cuando cambian filtros o lista
   useEffect(() => {
     setPage(1);
-  }, [search, roleFilter, statusFilter, users]);
+  }, [search, roleFilter, statusFilter, careerFilter, semesterFilter, departmentFilter, specialtyFilter, assignmentFilter, users]);
 
   // ============================
   // Paginación
@@ -244,19 +286,27 @@ export default function UsersPage() {
           </p>
         </div>
 
-        {!loadingList && (
-          <div className="text-xs sm:text-sm text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-sm">
-            Filtrados:{" "}
-            <span className="font-semibold text-slate-700">
-              {totalFiltered}
-            </span>{" "}
-            de{" "}
-            <span className="font-semibold text-slate-700">
-              {totalUsers}
-            </span>{" "}
-            usuarios totales
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportActions
+            title="Lista de usuarios"
+            fileBaseName="usuarios"
+            columns={USER_EXPORT_COLUMNS}
+            rows={filteredUsers}
+          />
+          {!loadingList && (
+            <div className="text-xs sm:text-sm text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1 shadow-sm">
+              Filtrados:{" "}
+              <span className="font-semibold text-slate-700">
+                {totalFiltered}
+              </span>{" "}
+              de{" "}
+              <span className="font-semibold text-slate-700">
+                {totalUsers}
+              </span>{" "}
+              usuarios totales
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FEEDBACK */}
@@ -274,12 +324,8 @@ export default function UsersPage() {
       )}
 
       {/* FILTROS */}
-      <section className="
-    bg-white border border-slate-200 rounded-2xl shadow-sm p-4 
-    flex flex-col gap-4 
-    md:flex-row md:items-start md:justify-between
-  ">
-        <div className="flex-1">
+      <section className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-4">
+        <div className="sm:col-span-2">
           <label
             htmlFor="users-search"
             className="block text-xs font-semibold text-slate-700 mb-1"
@@ -295,13 +341,13 @@ export default function UsersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[0.6875rem] text-slate-500 mt-1">
             Puedes buscar por nombre completo, correo institucional o por el
             rol (ADMIN, ESTUDIANTE, TUTOR).
           </p>
         </div>
 
-        <div className="w-full md:w-48">
+        <div className="w-full">
           <label
             htmlFor="users-role-filter"
             className="block text-xs font-semibold text-slate-700 mb-1"
@@ -313,7 +359,7 @@ export default function UsersPage() {
             data-cy="admin-users-role-filter"
             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none text-sm"
             value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            onChange={(e) => changeRoleFilter(e.target.value)}
           >
             <option value="ALL">Todos</option>
             <option value="ADMIN">Admin</option>
@@ -322,7 +368,7 @@ export default function UsersPage() {
           </select>
         </div>
 
-        <div className="w-full md:w-52">
+        <div className="w-full">
           <label
             htmlFor="users-status-filter"
             className="block text-xs font-semibold text-slate-700 mb-1"
@@ -344,14 +390,25 @@ export default function UsersPage() {
           </select>
         </div>
 
-        <div className="flex gap-2">
+        {roleFilter === "ESTUDIANTE" && (
+          <>
+            <AdminFilterSelect id="users-career-filter" label="Carrera" value={careerFilter} onChange={setCareerFilter} options={filterOptions(studentUsers, "career")} allLabel="Todas" />
+            <AdminFilterSelect id="users-semester-filter" label="Semestre" value={semesterFilter} onChange={setSemesterFilter} options={filterOptions(studentUsers, "semester")} />
+            <AdminFilterSelect id="users-assignment-filter" label="Asignación" value={assignmentFilter} onChange={setAssignmentFilter} options={[{ value: "YES", label: "Asignados" }, { value: "NO", label: "No asignados" }]} />
+          </>
+        )}
+        {roleFilter === "TUTOR" && (
+          <>
+            <AdminFilterSelect id="users-department-filter" label="Departamento" value={departmentFilter} onChange={setDepartmentFilter} options={filterOptions(tutorUsers, "department")} />
+            <AdminFilterSelect id="users-specialty-filter" label="Especialidad" value={specialtyFilter} onChange={setSpecialtyFilter} options={filterOptions(tutorUsers, "specialty")} allLabel="Todas" />
+            <AdminFilterSelect id="users-assignment-filter" label="Asignaciones" value={assignmentFilter} onChange={setAssignmentFilter} options={[{ value: "YES", label: "Con asignaciones" }, { value: "NO", label: "Sin asignaciones" }]} />
+          </>
+        )}
+
+        <div className="flex items-end gap-2">
           <button
             onClick={clearFilters}
-            className="
-    bg-white border border-slate-200 rounded-2xl shadow-sm p-4 
-    flex flex-col gap-4 
-    md:flex-row md:items-start md:justify-between
-  "
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
           >
             Limpiar
           </button>
@@ -467,7 +524,7 @@ export default function UsersPage() {
                   >
                     ← Anterior
                   </button>
-                  <span className="text-slate-500 text-[11px]">
+                  <span className="text-slate-500 text-[0.6875rem]">
                     Página{" "}
                     <span className="font-semibold text-slate-700">
                       {page}
@@ -679,7 +736,7 @@ function Modal({ children, onClose }) {
 function StatusBadge({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 border border-slate-200">
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] bg-slate-100 text-slate-600 border border-slate-200">
         —
       </span>
     );
@@ -692,7 +749,7 @@ function StatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${classes}`}
+      className={`inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold ${classes}`}
     >
       {label}
     </span>
@@ -706,7 +763,7 @@ StatusBadge.propTypes = {
 function RoleBadge({ role }) {
   if (!role) {
     return (
-      <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 border border-slate-200">
+      <span className="inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] bg-slate-100 text-slate-600 border border-slate-200">
         —
       </span>
     );
@@ -721,7 +778,7 @@ function RoleBadge({ role }) {
 
   return (
     <span
-      className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold ${classes}`}
+      className={`inline-flex px-2 py-0.5 rounded-full text-[0.6875rem] font-semibold ${classes}`}
     >
       {label}
     </span>

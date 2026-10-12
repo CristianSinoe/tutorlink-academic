@@ -367,6 +367,8 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public java.util.List<AdminUserDtos.StudentListItem> listStudentsWithProfile() {
 
+        var assignedStudentIds = new java.util.HashSet<>(tutorStudents.findAssignedStudentIds());
+
         return students.findAll()
                 .stream()
                 .map(st -> {
@@ -383,6 +385,7 @@ public class AdminUserService {
                             .career(st.getCareer())
                             .plan(st.getPlan())
                             .semester(st.getSemester())
+                            .assigned(assignedStudentIds.contains(st.getId()))
                             .phone(st.getPhone())
                             .birthDate(st.getBirthDate())
                             .status(u.getStatus() != null ? u.getStatus().name() : null)
@@ -394,6 +397,8 @@ public class AdminUserService {
     // Listar tutores
     @Transactional(readOnly = true)
     public java.util.List<AdminUserDtos.TutorListRow> listTutorsWithProfile() {
+
+        var assignedTutorIds = new java.util.HashSet<>(tutorStudents.findAssignedTutorIds());
 
         return tutors.findAll()
                 .stream()
@@ -410,6 +415,7 @@ public class AdminUserService {
                             .tutorCode(t.getTutorCode())
                             .department(t.getDepartment())
                             .specialty(t.getSpecialty())
+                            .hasAssignments(assignedTutorIds.contains(t.getId()))
                             .phone(t.getPhone())
                             .status(u.getStatus() != null ? u.getStatus().name() : null)
                             .build();

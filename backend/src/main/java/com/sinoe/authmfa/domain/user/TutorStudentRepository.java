@@ -15,6 +15,12 @@ public interface TutorStudentRepository extends JpaRepository<TutorStudent, Long
     // Para listar todos los estudiantes de un tutor
     List<TutorStudent> findByTutor_Id(Long tutorId);
 
+    @Query("SELECT DISTINCT ts.student.id FROM TutorStudent ts")
+    List<Long> findAssignedStudentIds();
+
+    @Query("SELECT DISTINCT ts.tutor.id FROM TutorStudent ts")
+    List<Long> findAssignedTutorIds();
+
     // Búsqueda con filtros opcionales (tutorCode y/o matrícula)
     @Query("""
         SELECT ts

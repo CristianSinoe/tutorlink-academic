@@ -1,0 +1,68 @@
+@startuml
+title TutorLink - Casos de uso de plataforma multiinstitucion
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam actorStyle awesome
+
+actor "Administrador general\nTutorLink" as superadmin
+actor "Administrador de\ninstitucion" as admininst
+actor "Servicio de correo /\nnotificaciones" as mail
+
+rectangle "TutorLink SaaS educativo" {
+  usecase "Autenticar usuario\ncon OTP" as UC_Login
+  usecase "Completar primer acceso" as UC_FirstLogin
+  usecase "Gestionar licencias\ninstitucionales" as UC_Licenses
+  usecase "Registrar institucion" as UC_RegisterInstitution
+  usecase "Configurar espacio\ninstitucional" as UC_Space
+  usecase "Personalizar identidad\nvisual institucional" as UC_Branding
+  usecase "Definir parametros\ninstitucionales" as UC_Settings
+  usecase "Gestionar usuarios\ninstitucionales" as UC_Users
+  usecase "Vincular padre, madre o\ntutor legal con estudiante" as UC_LinkGuardian
+  usecase "Importar usuarios y\nasignaciones por CSV" as UC_Import
+  usecase "Asignar estudiante\na tutor academico" as UC_AssignTutor
+  usecase "Consultar indicadores\ngenerales" as UC_GlobalReports
+  usecase "Consultar indicadores\nde la institucion" as UC_InstitutionReports
+  usecase "Garantizar separacion\nlogica por institucion" as UC_TenantIsolation
+  usecase "Enviar OTP y enlaces\nde acceso" as UC_SendAccessMail
+}
+
+superadmin --> UC_Login
+superadmin --> UC_FirstLogin
+superadmin --> UC_Licenses
+superadmin --> UC_RegisterInstitution
+superadmin --> UC_Space
+superadmin --> UC_GlobalReports
+
+admininst --> UC_Login
+admininst --> UC_FirstLogin
+admininst --> UC_Space
+admininst --> UC_Branding
+admininst --> UC_Settings
+admininst --> UC_Users
+admininst --> UC_LinkGuardian
+admininst --> UC_Import
+admininst --> UC_AssignTutor
+admininst --> UC_InstitutionReports
+
+UC_Licenses .> UC_RegisterInstitution : <<include>>
+UC_RegisterInstitution .> UC_Space : <<include>>
+UC_Space .> UC_Branding : <<include>>
+UC_Space .> UC_Settings : <<include>>
+UC_Users .> UC_SendAccessMail : <<include>>
+UC_LinkGuardian .> UC_Users : <<extend>>
+UC_FirstLogin .> UC_SendAccessMail : <<include>>
+UC_Login .> UC_SendAccessMail : <<include>>
+UC_Space .> UC_TenantIsolation : <<include>>
+UC_Users .> UC_TenantIsolation : <<include>>
+UC_InstitutionReports .> UC_TenantIsolation : <<include>>
+
+UC_SendAccessMail --> mail
+
+note bottom of UC_TenantIsolation
+Se modela la separacion logica de datos,
+usuarios y configuraciones entre instituciones.
+end note
+
+@enduml

@@ -4,6 +4,8 @@
 
 :root {
   font-family: "Segoe UI", "Aptos", sans-serif;
+  /* Escala global de texto y medidas rem; respeta la preferencia del navegador. */
+  font-size: 112.5%;
   color: #123220;
   background:
     linear-gradient(180deg, #eef6f1 0%, #f8fbf9 48%, #ffffff 100%);

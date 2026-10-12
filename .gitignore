@@ -26,3 +26,10 @@ DIAGNOSTICO_TUTORLINK_RESULTADO.md
 
 backend/README_DEMO.md
 backend/sonar-issues*.json
+frontend/sonar-issues-*.json
+
+# Artefactos locales de análisis, CI y renderizado
+.codex/
+graphify-out/
+logs_*/
+out/

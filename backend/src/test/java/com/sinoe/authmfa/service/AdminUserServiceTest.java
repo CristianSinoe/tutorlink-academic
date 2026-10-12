@@ -1,6 +1,8 @@
 package com.sinoe.authmfa.service;
 
 import com.sinoe.authmfa.domain.user.StudentRepository;
+import com.sinoe.authmfa.domain.user.Student;
+import com.sinoe.authmfa.domain.user.Tutor;
 import com.sinoe.authmfa.domain.user.TutorRepository;
 import com.sinoe.authmfa.domain.user.TutorStudentRepository;
 import com.sinoe.authmfa.domain.user.User;
@@ -21,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -77,6 +80,37 @@ class AdminUserServiceTest {
                 passwordEncoder,
                 selfProvider);
         lenient().when(selfProvider.getObject()).thenReturn(service);
+    }
+
+    @Test
+    void studentListIncludesAssignmentStatus() {
+        User user = User.builder().id(11L).name("Ana").build();
+        Student student = Student.builder().id(21L).user(user).matricula("S001").career("ISC").semester(2).build();
+        when(students.findAll()).thenReturn(List.of(student));
+        when(tutorStudents.findAssignedStudentIds()).thenReturn(List.of(21L));
+
+        var result = service.listStudentsWithProfile();
+
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isAssigned());
+        assertEquals("ISC", result.get(0).getCareer());
+        assertEquals(2, result.get(0).getSemester());
+    }
+
+    @Test
+    void tutorListIncludesAssignmentStatus() {
+        User user = User.builder().id(12L).name("Luis").build();
+        Tutor tutor = Tutor.builder().id(22L).user(user).tutorCode("T001")
+                .department("Sistemas").specialty("Redes").build();
+        when(tutors.findAll()).thenReturn(List.of(tutor));
+        when(tutorStudents.findAssignedTutorIds()).thenReturn(List.of(22L));
+
+        var result = service.listTutorsWithProfile();
+
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isHasAssignments());
+        assertEquals("Sistemas", result.get(0).getDepartment());
+        assertEquals("Redes", result.get(0).getSpecialty());
     }
 
     @Test

@@ -54,6 +54,7 @@ export MAIL_SMTP_AUTH=true
 export MAIL_SMTP_STARTTLS_ENABLE=true
 
 export FRONTEND_BASE_URL=http://localhost:5173
+export TUTORLINK_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,http://192.168.*.*:*,http://10.*.*.*:*
 export PORT=8080
 export LOG_LEVEL=INFO
 
@@ -63,6 +64,12 @@ export APP_OTP_RESEND_COOLDOWN_SECONDS=60
 ```
 
 Consulta [`.env.example`](./.env.example) para una referencia segura del perfil local y demo.
+
+`FRONTEND_BASE_URL` se usa para links generados por el backend. Si vas a acceder desde otros dispositivos de la LAN, ajustalo manualmente a `http://IP_DE_LA_MAQUINA:5173`.
+
+## Perfil demo temporal
+
+Con `SPRING_PROFILES_ACTIVE=demo`, el backend copia los datos de PostgreSQL a H2 en memoria y agrega perfiles y preguntas sintéticos. Todos los cambios de esa sesión se descartan al cerrar. Los correos se muestran en consola. Para usar PostgreSQL de forma persistente, usa `local` o desactiva `demo`. Consulta [la guía demo](DEMO.md).
 
 ## Ejecucion local
 
@@ -116,3 +123,4 @@ mvn test
 - Para Gmail usa una contrasena de aplicacion, no la contrasena normal de la cuenta.
 - El seed de administrador y el endpoint `/api/internal/bootstrap/admin` son solo para `dev`, `local` y `demo`; no los habilites en produccion.
 - Usa valores de ejemplo en archivos versionados y secretos reales solo en el entorno local o en secretos del proveedor de despliegue.
+- Los patrones CORS por defecto estan pensados para desarrollo local/LAN; en produccion debes restringirlos por ambiente.
