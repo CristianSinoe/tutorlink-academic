@@ -225,6 +225,14 @@ public class EmailService {
     // 3) Envío genérico HTML
     // ========================
 
+    public void sendInstitutionInvitation(String contactEmail,String institutionName,String token) {
+        String link=normalizeBaseUrl(null)+"/accept-institution-invitation?token="+token;
+        String html="<p>Invitación institucional de TutorLink. Verifica la institución antes de aceptar.</p><p>"+
+                org.springframework.web.util.HtmlUtils.htmlEscape(institutionName)+"</p><a href=\""+
+                org.springframework.web.util.HtmlUtils.htmlEscape(link)+"\">Aceptar invitación</a><p>Válida por 72 horas.</p>";
+        sendEmail(contactEmail,"TutorLink - Invitación institucional",html);
+    }
+
     public void sendEmail(String toEmail, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
