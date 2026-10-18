@@ -1,3 +1,4 @@
+import Pagination from "../../components/academic/Pagination";
 // src/pages/tutor/TutorHistoryPage.jsx
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
@@ -51,6 +52,7 @@ function getHistoryButtonLabel(isOpen) {
 }
 
 export default function TutorHistoryPage() {
+  const [listPage, setListPage] = useState(0);
   const [filters, setFilters] = useState({
     text: "",
     scope: "ALL",
@@ -332,7 +334,7 @@ export default function TutorHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
+            {items.slice(Math.min(listPage, Math.max(0, Math.ceil(items.length / 10) - 1)) * 10, (Math.min(listPage, Math.max(0, Math.ceil(items.length / 10) - 1)) + 1) * 10).map((item) => (
               <tr
                 key={item.id}
                 className="border-t border-slate-100 hover:bg-slate-50"
@@ -381,6 +383,7 @@ export default function TutorHistoryPage() {
             ))}
           </tbody>
         </table>
+        <Pagination result={{ totalElements: items.length, totalPages: Math.ceil(items.length / 10), size: 10 }} page={Math.min(listPage, Math.max(0, Math.ceil(items.length / 10) - 1))} onPage={setListPage} />
       </div>
     );
   };

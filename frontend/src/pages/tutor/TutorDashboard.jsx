@@ -4,20 +4,19 @@ import PropTypes from "prop-types";
 import { Link } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
+import Card from "../../components/ui/Card";
+import PageHeader from "../../components/ui/PageHeader";
+import { Alert, EmptyState, ErrorState, LoadingState } from "../../components/ui/States";
+import Badge from "../../components/ui/Badge";
+import Table from "../../components/ui/Table";
 
 export default function TutorDashboard() {
-  const [summary, setSummary] = useState({
-    pendingCount: 0,
-    todayAnsweredCount: 0,
-    totalAnswers: 0,
-  });
-  const [recentQuestions, setRecentQuestions] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [recentQuestions, setRecentQuestions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Cargar resumen y preguntas recientes
-  useEffect(() => {
-    const load = async () => {
+  const load = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -51,31 +50,18 @@ export default function TutorDashboard() {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
+  useEffect(() => {
     load();
   }, []);
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-uvBlue tracking-tight">
-            Dashboard del Tutor
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Resumen de tus preguntas asignadas y actividad reciente.
-          </p>
-        </div>
-      </header>
+      <PageHeader title="Dashboard del Tutor" description="Resumen de tus preguntas asignadas y actividad reciente." />
 
       {/* MENSAJE DE ERROR */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-sm rounded-xl px-4 py-3">
-          {error}
-        </div>
-      )}
+      {error && <Alert tone="error">{error}</Alert>}
 
       {/* RESUMEN RÁPIDO */}
       <section className="space-y-3">
@@ -86,17 +72,17 @@ export default function TutorDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <SummaryCard
             label="Preguntas pendientes"
-            value={summary.pendingCount ?? 0}
+            value={loading ? "…" : summary?.pendingCount ?? "—"}
             accent="bg-amber-50 text-amber-700 border-amber-200"
           />
           <SummaryCard
             label="Preguntas respondidas hoy"
-            value={summary.todayAnsweredCount ?? 0}
+            value={loading ? "…" : summary?.todayAnsweredCount ?? "—"}
             accent="bg-uvGreen/10 text-uvGreen border-uvGreen/30"
           />
           <SummaryCard
             label="Total de respuestas"
-            value={summary.totalAnswers ?? 0}
+            value={loading ? "…" : summary?.totalAnswers ?? "—"}
             accent="bg-uvBlue/5 text-uvBlue border-uvBlue/30"
           />
         </div>
@@ -138,14 +124,9 @@ export default function TutorDashboard() {
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-          {renderRecentQuestions({ loading, recentQuestions })}
-        </div>
-
-        <p className="text-xs text-slate-500 mt-1">
-          * En la versión final se mostrarán datos reales de tus preguntas y
-          respuestas registradas en TutorLink.
-        </p>
+        <Card className="overflow-hidden p-0">
+          {renderRecentQuestions({ loading, recentQuestions, error, retry: load })}
+        </Card>
       </section>
     </div>
   );
@@ -175,43 +156,31 @@ SummaryCard.propTypes = {
 function StatusBadge({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-700">
-        —
-      </span>
+      <Badge>—</Badge>
     );
   }
 
-  let classes = "";
   let label = status;
 
   switch (status) {
     case "PENDIENTE":
-      classes = "bg-amber-100 text-amber-800";
       label = "Pendiente";
       break;
     case "RESPONDIDA":
     case "PUBLICADA":
-      classes = "bg-emerald-100 text-emerald-800";
       label = "Respondida";
       break;
     case "CORREGIDA":
-      classes = "bg-blue-100 text-blue-800";
       label = "Corregida";
       break;
     case "RECHAZADA":
-      classes = "bg-red-100 text-red-700";
       label = "Rechazada";
       break;
     default:
-      classes = "bg-slate-100 text-slate-700";
   }
 
   return (
-    <span
-      className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${classes}`}
-    >
-      {label}
-    </span>
+    <Badge tone={status === "PENDIENTE" ? "warning" : ["RESPONDIDA", "PUBLICADA"].includes(status) ? "success" : status === "CORREGIDA" ? "info" : status === "RECHAZADA" ? "error" : "neutral"}>{label}</Badge>
   );
 }
 
@@ -219,22 +188,21 @@ StatusBadge.propTypes = {
   status: PropTypes.string,
 };
 
-function renderRecentQuestions({ loading, recentQuestions }) {
+function renderRecentQuestions({ loading, recentQuestions, error, retry }) {
   if (loading) {
-    return <p className="p-4 text-sm text-slate-500">Cargando...</p>;
+    return <LoadingState label="Cargando preguntas recientes…" />;
   }
 
-  if (recentQuestions.length === 0) {
-    return (
-      <p className="p-4 text-sm text-slate-500">
-        No tienes preguntas asignadas recientemente.
-      </p>
-    );
+  if (error) {
+    return <ErrorState message={error} onRetry={retry} />;
+  }
+
+  if (!recentQuestions?.length) {
+    return <EmptyState title="No tienes preguntas asignadas recientemente." />;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm text-left">
+    <Table label="Preguntas recientes asignadas">
         <thead className="bg-slate-100/70 text-slate-700">
           <tr>
             <th className="px-3 py-2.5">Pregunta</th>
@@ -261,7 +229,6 @@ function renderRecentQuestions({ loading, recentQuestions }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+    </Table>
   );
 }

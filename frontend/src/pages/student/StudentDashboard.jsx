@@ -2,8 +2,15 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/useAuth";
 import apiClient from "../../api/axiosClient";
 import { formatDateTime } from "../../utils/dateUtils";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import PageHeader from "../../components/ui/PageHeader";
+import { Alert, EmptyState, ErrorState, LoadingState } from "../../components/ui/States";
+import Badge from "../../components/ui/Badge";
+import Table from "../../components/ui/Table";
 
 const STATUS_CHIP = {
   PUBLICADA: {
@@ -25,26 +32,18 @@ const STATUS_CHIP = {
 };
 
 export default function StudentDashboard() {
+  const { auth } = useAuth();
   const navigate = useNavigate();
 
   const [me, setMe] = useState(null);
   const [loadingMe, setLoadingMe] = useState(true);
 
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState(null);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [questionsError, setQuestionsError] = useState(null);
+  const [meError, setMeError] = useState(null);
 
-  // Nombre para saludo (desde localStorage.auth)
-  let displayName = "Estudiante";
-  try {
-    const saved = localStorage.getItem("auth");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed?.name) displayName = parsed.name;
-      else if (parsed?.email) displayName = parsed.email;
-    }
-  } catch {
-    // ignore
-  }
+  const displayName = auth.name || auth.email || "Estudiante";
 
   useEffect(() => {
     loadMe();
@@ -59,6 +58,7 @@ export default function StudentDashboard() {
       setMe(data);
     } catch (err) {
       console.error("Error cargando /me", err);
+      setMeError("No pudimos cargar tus datos de perfil.");
     } finally {
       setLoadingMe(false);
     }
@@ -68,6 +68,7 @@ export default function StudentDashboard() {
   const loadQuestions = async () => {
     try {
       setLoadingQuestions(true);
+      setQuestionsError(null);
       const { data } = await apiClient.get("/api/student/questions/my", {
         params: {
           page: 0,
@@ -79,22 +80,23 @@ export default function StudentDashboard() {
       setQuestions(list);
     } catch (err) {
       console.error("Error cargando preguntas del estudiante", err);
-      setQuestions([]);
+      setQuestionsError("No pudimos cargar tus preguntas. Revisa tu conexión e inténtalo de nuevo.");
     } finally {
       setLoadingQuestions(false);
     }
   };
 
   // Métricas rápidas
-  const totalQuestions = questions.length;
-  const answeredQuestions = questions.filter((q) =>
+  const questionList = questions || [];
+  const totalQuestions = questionList.length;
+  const answeredQuestions = questionList.filter((q) =>
     ["PUBLICADA", "CORREGIDA"].includes(q.status)
   ).length;
-  const pendingQuestions = questions.filter((q) => q.status === "PENDIENTE")
+  const pendingQuestions = questionList.filter((q) => q.status === "PENDIENTE")
     .length;
 
   // Últimas respuestas (ordenamos por createdAt y tomamos las respondidas)
-  const answeredList = questions.filter((q) =>
+  const answeredList = questionList.filter((q) =>
     ["PUBLICADA", "CORREGIDA"].includes(q.status)
   );
   const latestAnswered = [...answeredList]
@@ -107,19 +109,8 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-8">
-        {/* HEADER */}
-        <section className="space-y-3">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-semibold text-uvBlue tracking-tight">
-                Dashboard del estudiante
-              </h1>
-              <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-                Aquí puedes ver un resumen de tu actividad en TutorLink y el
-                estado de tus preguntas académicas.
-              </p>
-            </div>
-            <div className="flex flex-col items-start md:items-end text-xs text-slate-500">
+        <PageHeader title="Dashboard del estudiante" description="Aquí puedes ver un resumen de tu actividad en TutorLink y el estado de tus preguntas académicas.">
+          <div className="flex flex-col items-start md:items-end text-xs text-slate-500">
               <p className="uppercase tracking-[0.16em] text-slate-500">
                 Bienvenido(a)
               </p>
@@ -128,9 +119,8 @@ export default function StudentDashboard() {
                   {displayName}
                 </span>
               </p>
-            </div>
           </div>
-        </section>
+        </PageHeader>
 
         {/* RESUMEN RÁPIDO */}
         <section className="space-y-4">
@@ -140,17 +130,17 @@ export default function StudentDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <SummaryCard
               label="Preguntas enviadas"
-              value={loadingQuestions ? "…" : totalQuestions}
+              value={loadingQuestions ? "…" : questionsError ? "—" : totalQuestions}
               helper="Total de preguntas que has registrado en el sistema."
             />
             <SummaryCard
               label="Preguntas respondidas"
-              value={loadingQuestions ? "…" : answeredQuestions}
+              value={loadingQuestions ? "…" : questionsError ? "—" : answeredQuestions}
               helper="Preguntas que ya tienen una respuesta del tutor."
             />
             <SummaryCard
               label="Preguntas pendientes"
-              value={loadingQuestions ? "…" : pendingQuestions}
+              value={loadingQuestions ? "…" : questionsError ? "—" : pendingQuestions}
               helper="Preguntas que aún están en revisión."
             />
           </div>
@@ -162,20 +152,20 @@ export default function StudentDashboard() {
             Atajos
           </h2>
           <div className="flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               onClick={() => navigate("/student/ask")}
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-full bg-uvGreen text-white text-sm font-semibold shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uvGreen transition"
+              variant="positive"
             >
               Hacer nueva pregunta
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => navigate("/student/questions")}
-              className="inline-flex items-center justify-center px-5 py-2.5 rounded-full border border-uvBlue text-uvBlue text-sm font-semibold hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uvBlue transition"
+              variant="secondary"
             >
               Ver mis preguntas
-            </button>
+            </Button>
           </div>
         </section>
 
@@ -185,9 +175,7 @@ export default function StudentDashboard() {
             Últimas respuestas
           </h2>
 
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-4 md:p-5">
-            {renderLatestAnswers({ loadingQuestions, latestAnswered })}
-          </div>
+          <Card>{renderLatestAnswers({ loadingQuestions, latestAnswered, questionsError, retry: loadQuestions })}</Card>
 
           <p className="text-xs text-slate-500">
             Si quieres revisar el detalle completo de cada pregunta y su
@@ -205,6 +193,7 @@ export default function StudentDashboard() {
         </section>
 
         {/* FOOTER INFO ESTUDIANTE */}
+        {!loadingMe && meError && <Alert tone="warning">{meError}</Alert>}
         {!loadingMe && me && (
           <section className="pt-3 border-t border-dashed border-slate-200 text-xs text-slate-500">
             Estudiante:{" "}
@@ -247,23 +236,16 @@ SummaryCard.propTypes = {
 function StatusChip({ status }) {
   if (!status) {
     return (
-      <span className="inline-flex px-2 py-1 rounded-full text-xs bg-slate-100 text-slate-700">
-        —
-      </span>
+      <Badge>—</Badge>
     );
   }
 
-  const { label, classes } = STATUS_CHIP[status] ?? {
+  const { label } = STATUS_CHIP[status] ?? {
     label: status,
-    classes: "bg-slate-100 text-slate-700",
   };
 
   return (
-    <span
-      className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${classes}`}
-    >
-      {label}
-    </span>
+    <Badge tone={status === "PUBLICADA" ? "success" : status === "CORREGIDA" ? "info" : status === "PENDIENTE" ? "warning" : status === "RECHAZADA" ? "error" : "neutral"}>{label}</Badge>
   );
 }
 
@@ -271,27 +253,21 @@ StatusChip.propTypes = {
   status: PropTypes.string,
 };
 
-function renderLatestAnswers({ loadingQuestions, latestAnswered }) {
+function renderLatestAnswers({ loadingQuestions, latestAnswered, questionsError, retry }) {
   if (loadingQuestions) {
-    return (
-      <p className="text-sm text-slate-500">
-        Cargando información de tus preguntas…
-      </p>
-    );
+    return <LoadingState label="Cargando información de tus preguntas…" />;
+  }
+
+  if (questionsError) {
+    return <ErrorState message={questionsError} onRetry={retry} />;
   }
 
   if (latestAnswered.length === 0) {
-    return (
-      <p className="text-sm text-slate-500">
-        Aún no tienes preguntas respondidas. Cuando tus tutores te respondan,
-        verás aquí un resumen de las más recientes.
-      </p>
-    );
+    return <EmptyState title="Aún no tienes preguntas respondidas." description="Cuando tus tutores te respondan, verás aquí un resumen de las más recientes." />;
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm text-left">
+    <Table label="Últimas respuestas">
         <thead>
           <tr className="border-b border-slate-100 text-slate-500">
             <th className="py-2 pr-4 font-semibold text-xs uppercase tracking-wide">
@@ -322,7 +298,6 @@ function renderLatestAnswers({ loadingQuestions, latestAnswered }) {
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+    </Table>
   );
 }

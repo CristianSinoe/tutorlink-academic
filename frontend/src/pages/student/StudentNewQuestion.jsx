@@ -1,7 +1,15 @@
 // src/pages/student/StudentNewQuestion.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 import apiClient from "../../api/axiosClient";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Field from "../../components/ui/Field";
+import PageHeader from "../../components/ui/PageHeader";
+import { Alert } from "../../components/ui/States";
+
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim() || "";
 
 const SCOPE_OPTIONS = [
   { value: "GENERAL", label: "General" },
@@ -19,6 +27,9 @@ export default function StudentNewQuestion() {
     semesterHint: "",
   });
   const [saving, setSaving] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -28,9 +39,15 @@ export default function StudentNewQuestion() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
 
     if (!form.title.trim() || !form.body.trim()) {
-      alert("El título y la descripción son obligatorios.");
+      setError("El título y la descripción son obligatorios.");
+      return;
+    }
+    if (!RECAPTCHA_SITE_KEY || !recaptchaToken) {
+      setError("Completa la verificación de seguridad antes de enviar tu pregunta.");
       return;
     }
 
@@ -41,12 +58,12 @@ export default function StudentNewQuestion() {
         scope: form.scope,
         title: form.title.trim(),
         body: form.body.trim(),
-        recaptchaToken: "prueba-login",
+        recaptchaToken,
       };
 
       const { data } = await apiClient.post("/api/student/questions", payload);
 
-      alert("Pregunta enviada correctamente.");
+      setSuccess("Pregunta enviada correctamente.");
       navigate(`/student/questions?questionId=${data.id}`);
     } catch (err) {
       console.error("Error al enviar la pregunta", err);
@@ -54,7 +71,7 @@ export default function StudentNewQuestion() {
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         "Error al enviar la pregunta";
-      alert(msg);
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -63,57 +80,48 @@ export default function StudentNewQuestion() {
   return (
     <div className="min-h-full bg-slate-50">
       <div className="max-w-6xl mx-auto px-4 py-6 lg:py-8">
-        <h1 className="text-2xl md:text-3xl font-semibold text-uvBlue tracking-tight">
-          Hacer una pregunta
-        </h1>
+        <PageHeader title="Hacer una pregunta" description="Usa este formulario para enviar una duda al sistema de tutorías."
+        />
         <p className="mt-2 text-sm text-slate-600 max-w-3xl">
-          Usa este formulario para enviar una duda al sistema de tutorías.
           Procura ser claro y respetuoso. El alcance ayudará a dirigir tu
           pregunta con el tutor adecuado.
         </p>
 
-        <div className="mt-6 bg-white border border-slate-100 rounded-2xl shadow-sm p-5 md:p-6">
+        <Card className="mt-6 p-5 md:p-6">
           <h2 className="text-base font-semibold text-slate-900 mb-4">
             Formulario de pregunta
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5 text-sm">
-            {/* Título */}
-            <div>
-              <label htmlFor="question-title" className="block text-sm font-medium text-slate-700 mb-1">
-                Título o asunto de la pregunta
-              </label>
-              <input
-                id="question-title"
+            {error && <Alert tone="error">{error}</Alert>}
+            {success && <Alert tone="success">{success}</Alert>}
+            <Field id="question-title" label="Título o asunto de la pregunta" required error={!form.title.trim() && error ? "Escribe un título para continuar." : undefined}>
+              {props => <input {...props}
                 type="text"
                 name="title"
                 value={form.title}
                 onChange={handleChange}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none"
+                className="tl-input"
                 placeholder="Ejemplo: ¿Cómo agendo una tutoría?"
-              />
-            </div>
+              />}
+            </Field>
 
             {/* Alcance */}
             <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-4">
-              <div>
-                <label htmlFor="question-scope" className="block text-sm font-medium text-slate-700 mb-1">
-                  Alcance
-                </label>
-                <select
-                  id="question-scope"
+              <Field id="question-scope" label="Alcance">
+                {props => <select {...props}
                   name="scope"
                   value={form.scope}
                   onChange={handleChange}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-uvBlue outline-none"
+                  className="tl-input"
                 >
                   {SCOPE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
                   ))}
-                </select>
-              </div>
+                </select>}
+              </Field>
 
               {/* Campo opcional de semestre (comentado por ahora)
               <div>
@@ -133,18 +141,19 @@ export default function StudentNewQuestion() {
             </div>
 
             {/* Descripción */}
-            <div>
-              <label htmlFor="question-body" className="block text-sm font-medium text-slate-700 mb-1">
-                Describe tu pregunta con más detalle
-              </label>
-              <textarea
-                id="question-body"
+            <Field id="question-body" label="Describe tu pregunta con más detalle" required error={!form.body.trim() && error ? "Describe tu duda para continuar." : undefined}>
+              {props => <textarea {...props}
                 name="body"
                 value={form.body}
                 onChange={handleChange}
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 h-40 resize-vertical focus:ring-2 focus:ring-uvBlue outline-none"
+                className="tl-input h-40 resize-y"
                 placeholder="Explica tu situación o duda. Ejemplo: Quiero saber cómo agendar una tutoría para la materia de programación avanzada..."
-              />
+              />}
+            </Field>
+
+            <div aria-live="polite">
+              {RECAPTCHA_SITE_KEY ? <ReCAPTCHA sitekey={RECAPTCHA_SITE_KEY} onChange={token => setRecaptchaToken(token || "")} />
+                : <Alert tone="warning">La verificación de seguridad no está disponible. Contacta al administrador.</Alert>}
             </div>
 
             <p className="text-xs text-slate-500">
@@ -153,24 +162,25 @@ export default function StudentNewQuestion() {
             </p>
 
             <div className="flex flex-wrap gap-3 mt-2">
-              <button
+              <Button
                 type="submit"
-                disabled={saving}
+                disabled={saving || !RECAPTCHA_SITE_KEY}
                 data-cy="student-ask-submit"
-                className="px-6 py-2 rounded-full bg-uvGreen text-white font-medium text-sm hover:bg-green-600 disabled:opacity-60 transition"
+                variant="positive"
+                busy={saving}
               >
-                {saving ? "Enviando..." : "Enviar pregunta"}
-              </button>
-              <button
+                Enviar pregunta
+              </Button>
+              <Button
                 type="button"
                 onClick={() => navigate("/student")}
-                className="px-6 py-2 rounded-full border border-slate-300 text-slate-700 text-sm hover:bg-slate-100 transition"
+                variant="secondary"
               >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   );

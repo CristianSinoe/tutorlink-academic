@@ -1,3 +1,4 @@
+import Pagination from "../../components/academic/Pagination";
 // src/pages/student/StudentQuestions.jsx
 import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
@@ -53,6 +54,7 @@ function getHistoryButtonLabel(isOpen) {
 }
 
 export default function StudentQuestions() {
+  const [listPage, setListPage] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [questions, setQuestions] = useState([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
@@ -211,7 +213,7 @@ export default function StudentQuestions() {
             </tr>
           </thead>
           <tbody>
-            {filteredQuestions.map((q) => (
+            {filteredQuestions.slice(Math.min(listPage, Math.max(0, Math.ceil(filteredQuestions.length / 10) - 1)) * 10, (Math.min(listPage, Math.max(0, Math.ceil(filteredQuestions.length / 10) - 1)) + 1) * 10).map((q) => (
               <tr
                 key={q.id}
                 data-cy="student-question-row"
@@ -249,6 +251,7 @@ export default function StudentQuestions() {
             ))}
           </tbody>
         </table>
+        <Pagination result={{ totalElements: filteredQuestions.length, totalPages: Math.ceil(filteredQuestions.length / 10), size: 10 }} page={Math.min(listPage, Math.max(0, Math.ceil(filteredQuestions.length / 10) - 1))} onPage={setListPage} />
       </div>
     );
   };

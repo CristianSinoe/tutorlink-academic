@@ -1,3 +1,4 @@
+import ProfileContextSection from '../../components/context/ProfileContextSection';
 // src/pages/tutor/TutorProfilePage.jsx
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
@@ -166,6 +167,8 @@ export default function TutorProfilePage() {
       </form>
       */}
 
+      <ProfileContextSection />
+
       <ChangePasswordModal
         isOpen={showChangePass}
         onClose={() => setShowChangePass(false)}
@@ -177,9 +180,9 @@ export default function TutorProfilePage() {
 
 function InfoRow({ label, value }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="text-sm text-slate-900 mt-0.5">{value || "—"}</p>
+      <p className="mt-0.5 break-words text-sm text-slate-900">{value || "—"}</p>
     </div>
   );
 }
@@ -208,7 +211,7 @@ function renderTutorProfileContent({ loadingMe, me }) {
         label="Nombre completo"
         value={`${me.name || ""} ${me.lastNamePaterno || ""} ${me.lastNameMaterno || ""}`}
       />
-      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Correo principal" value={me.email} />
       <InfoRow label="Código de tutor" value={me.tutorCode} />
       <InfoRow label="Departamento" value={me.department} />
       <InfoRow label="Especialidad" value={me.specialty} />

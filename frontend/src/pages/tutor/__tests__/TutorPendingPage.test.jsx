@@ -231,6 +231,9 @@ describe("TutorPendingPage", () => {
     await user.click(
       await screen.findByRole("button", { name: /ver detalle \/ responder/i }),
     );
+    // Opening the detail also synchronizes the URL and reloads its conversation.
+    // Wait for both reads before entering a response; otherwise the late read resets it.
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(3));
     await user.type(
       screen.getByPlaceholderText(/escribe aquí tu respuesta para el estudiante/i),
       "Puedes revisar tu plan de estudios con coordinación.",

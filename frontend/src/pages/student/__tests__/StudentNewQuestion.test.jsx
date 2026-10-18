@@ -15,6 +15,12 @@ vi.mock("../../../api/axiosClient", () => ({
   },
 }));
 
+vi.mock("react-google-recaptcha", () => ({
+  default: function MockRecaptcha({ onChange }) {
+    return <button type="button" onClick={() => onChange("test-recaptcha-token")}>Resolver reCAPTCHA</button>;
+  },
+}));
+
 describe("StudentNewQuestion", () => {
   it("renderiza el formulario principal", () => {
     renderWithProviders(
@@ -34,7 +40,6 @@ describe("StudentNewQuestion", () => {
   });
 
   it("bloquea el envío cuando faltan campos obligatorios", async () => {
-    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     const user = userEvent.setup();
 
     renderWithProviders(
@@ -46,14 +51,11 @@ describe("StudentNewQuestion", () => {
 
     await user.click(screen.getByRole("button", { name: /enviar pregunta/i }));
 
-    expect(alertSpy).toHaveBeenCalledWith(
-      "El título y la descripción son obligatorios.",
-    );
+    expect(screen.getByRole("alert")).toHaveTextContent("El título y la descripción son obligatorios.");
     expect(apiClient.post).not.toHaveBeenCalled();
   });
 
   it("envía la pregunta con payload válido", async () => {
-    const alertSpy = vi.spyOn(globalThis.window, "alert").mockImplementation(() => {});
     apiClient.post.mockResolvedValueOnce({
       data: { id: 77 },
     });
@@ -77,6 +79,7 @@ describe("StudentNewQuestion", () => {
       screen.getByPlaceholderText(/explica tu situación o duda/i),
       "Quiero saber cómo se asigna un tutor.",
     );
+    await user.click(screen.getByRole("button", { name: /resolver recaptcha/i }));
     await user.click(screen.getByRole("button", { name: /enviar pregunta/i }));
 
     await waitFor(() => {
@@ -84,9 +87,8 @@ describe("StudentNewQuestion", () => {
         scope: "ACADEMICO",
         title: "Necesito apoyo",
         body: "Quiero saber cómo se asigna un tutor.",
-        recaptchaToken: "prueba-login",
+        recaptchaToken: "test-recaptcha-token",
       });
     });
-    expect(alertSpy).toHaveBeenCalledWith("Pregunta enviada correctamente.");
   });
 });

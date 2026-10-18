@@ -1,3 +1,4 @@
+import ProfileContextSection from '../../components/context/ProfileContextSection';
 // src/pages/student/StudentInfoPage.jsx
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
@@ -43,7 +44,7 @@ export default function StudentInfoPage() {
         <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold text-uvBlue tracking-tight">
-              Mi información
+              Mi perfil
             </h1>
             <p className="text-sm text-slate-600 max-w-2xl">
               Consulta tus datos personales y académicos registrados en
@@ -69,6 +70,8 @@ export default function StudentInfoPage() {
           {renderStudentInfoContent({ loading, me, fullName, birthDateFormatted })}
         </section>
 
+        <ProfileContextSection />
+
         <section className="text-xs text-slate-500">
           Si detectas algún dato incorrecto, comunícate con coordinación
           académica para solicitar su actualización.
@@ -87,9 +90,9 @@ export default function StudentInfoPage() {
 
 function InfoRow({ label, value }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="text-sm text-slate-900 mt-0.5">{value || "—"}</p>
+      <p className="mt-0.5 break-words text-sm text-slate-900">{value || "—"}</p>
     </div>
   );
 }
@@ -115,7 +118,7 @@ function renderStudentInfoContent({ loading, me, fullName, birthDateFormatted })
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
       <InfoRow label="Nombre completo" value={fullName} />
-      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Correo principal" value={me.email} />
       <InfoRow label="Matrícula" value={me.matricula} />
       <InfoRow label="Carrera" value={me.career} />
       <InfoRow label="Plan de estudios" value={me.plan} />

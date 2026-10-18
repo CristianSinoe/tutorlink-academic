@@ -1,3 +1,4 @@
+import Pagination from "../../components/academic/Pagination";
 // src/pages/tutor/TutorPendingPage.jsx
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
@@ -35,6 +36,7 @@ function getHistoryButtonLabel(isOpen) {
 }
 
 export default function TutorPendingPage() {
+  const [listPage, setListPage] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState({
     text: "",
@@ -289,7 +291,7 @@ export default function TutorPendingPage() {
             </tr>
           </thead>
           <tbody>
-            {questions.map((q) => (
+            {questions.slice(Math.min(listPage, Math.max(0, Math.ceil(questions.length / 10) - 1)) * 10, (Math.min(listPage, Math.max(0, Math.ceil(questions.length / 10) - 1)) + 1) * 10).map((q) => (
               <tr
                 key={q.id}
                 data-cy="tutor-pending-row"
@@ -321,6 +323,7 @@ export default function TutorPendingPage() {
             ))}
           </tbody>
         </table>
+        <Pagination result={{ totalElements: questions.length, totalPages: Math.ceil(questions.length / 10), size: 10 }} page={Math.min(listPage, Math.max(0, Math.ceil(questions.length / 10) - 1))} onPage={setListPage} />
       </div>
     );
   };

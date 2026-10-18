@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import apiClient from "../../api/axiosClient";
 import ExcelImportHelp from "../../components/admin/ExcelImportHelp";
+import Pagination from "../../components/academic/Pagination";
+import Dialog from "../../components/ui/Dialog";
 import ExportActions from "../../components/admin/ExportActions";
 
 const ASSIGNMENT_EXPORT_COLUMNS = [
@@ -24,6 +26,7 @@ export default function AssignmentsPage() {
 
   // Modal detalle por tutor
   const [selectedTutor, setSelectedTutor] = useState(null);
+  const [studentPage, setStudentPage] = useState(0);
   const [newMatricula, setNewMatricula] = useState("");
 
   // Autocomplete de matrículas
@@ -150,16 +153,9 @@ export default function AssignmentsPage() {
   const endIndex = startIndex + pageSize;
   const currentTutors = filteredGroups.slice(startIndex, endIndex);
 
-  const showingFrom = totalTutors === 0 ? 0 : startIndex + 1;
-  const showingTo = Math.min(endIndex, totalTutors);
 
-  const handlePrevPage = () => {
-    setPage((prev) => Math.max(1, prev - 1));
-  };
 
-  const handleNextPage = () => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
+
 
   // ============================
   // AUTOCOMPLETE MATRÍCULA
@@ -221,6 +217,7 @@ export default function AssignmentsPage() {
   // DETALLE POR TUTOR
   // ============================
   const openTutorDetail = (group) => {
+    setStudentPage(0);
     setSelectedTutor(group);
     setNewMatricula("");
     setStudentSuggestions([]);
@@ -457,7 +454,7 @@ export default function AssignmentsPage() {
           <p className="text-sm text-slate-600">Cargando asignaciones...</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="tl-modal-list">
               <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-50">
                   <tr>
@@ -539,63 +536,7 @@ export default function AssignmentsPage() {
               </table>
             </div>
 
-            {/* Paginación */}
-            {totalTutors > pageSize && (
-              <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <p className="text-slate-500">
-                  Mostrando{" "}
-                  <span className="font-semibold text-slate-700">
-                    {showingFrom}–{showingTo}
-                  </span>{" "}
-                  de{" "}
-                  <span className="font-semibold text-slate-700">
-                    {totalTutors}
-                  </span>{" "}
-                  tutores
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handlePrevPage}
-                    disabled={page === 1}
-                    className="
-                      inline-flex items-center px-3 py-1.5 rounded-full 
-                      border border-slate-300 text-slate-700 
-                      hover:bg-slate-50 text-xs font-medium
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      transition
-                    "
-                  >
-                    ← Anterior
-                  </button>
-                  <span className="text-slate-500 text-[0.6875rem]">
-                    Página{" "}
-                    <span className="font-semibold text-slate-700">
-                      {page}
-                    </span>{" "}
-                    de{" "}
-                    <span className="font-semibold text-slate-700">
-                      {totalPages}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleNextPage}
-                    disabled={page === totalPages}
-                    className="
-                      inline-flex items-center px-3 py-1.5 rounded-full 
-                      border border-slate-300 text-slate-700 
-                      hover:bg-slate-50 text-xs font-medium
-                      disabled:opacity-50 disabled:cursor-not-allowed
-                      transition
-                    "
-                  >
-                    Siguiente →
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination result={{ totalElements: totalTutors, totalPages, size: pageSize }} page={page - 1} loading={loadingList} onPage={value => setPage(value + 1)} />
           </>
         )}
       </section>
@@ -794,7 +735,7 @@ export default function AssignmentsPage() {
               Estudiantes asignados
             </h3>
 
-            <div className="overflow-x-auto">
+            <div className="tl-modal-list">
               <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-50">
                   <tr>
@@ -813,7 +754,7 @@ export default function AssignmentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedTutor.students.map((s) => (
+                  {selectedTutor.students.slice(studentPage * 5, (studentPage + 1) * 5).map((s) => (
                     <tr
                       key={s.id}
                       className="border-t border-slate-200 hover:bg-slate-50/80"
@@ -860,6 +801,7 @@ export default function AssignmentsPage() {
             </div>
           </section>
 
+          <Pagination label="Páginas de estudiantes asignados" result={{ totalElements: selectedTutor.students.length, totalPages: Math.ceil(selectedTutor.students.length / 5), size: 5 }} page={studentPage} loading={removing} onPage={setStudentPage} />
           <div className="mt-5 flex justify-end">
             <button
               onClick={closeTutorDetail}
@@ -888,34 +830,5 @@ Modal.propTypes = {
 ============================= */
 
 function Modal({ children, onClose }) {
-  return (
-    <div
-      className="
-        fixed inset-0 z-40 flex items-center justify-center 
-        bg-black/40 backdrop-blur-sm
-      "
-    >
-      <div
-        className="
-          bg-white rounded-2xl shadow-xl 
-          max-w-4xl w-full mx-4 p-6 relative 
-          border border-slate-200
-        "
-      >
-        <button
-          onClick={onClose}
-          type="button"
-          aria-label="Cerrar ventana"
-          className="
-            absolute top-3 right-3 text-slate-400 hover:text-uvBlue 
-            focus:outline-none focus:ring-2 focus:ring-uvBlue 
-            rounded-full p-1 transition
-          "
-        >
-          ✕
-        </button>
-        {children}
-      </div>
-    </div>
-  );
+  return <Dialog title="Asignaciones de tutoría" wide onClose={onClose}>{children}</Dialog>;
 }
