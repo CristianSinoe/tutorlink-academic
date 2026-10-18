@@ -3,12 +3,30 @@
 @tailwind utilities;
 
 :root {
+  --tl-brand-blue: #18529D;
+  --tl-brand-green: #28AD56;
+  --tl-action-primary: #18529D;
+  --tl-action-primary-hover: #123F79;
+  --tl-action-positive: #166534;
+  --tl-surface: #FFFFFF;
+  --tl-background: #F8FAFC;
+  --tl-text: #0F172A;
+  --tl-text-muted: #475569;
+  --tl-border: #E2E8F0;
+  --tl-control-border: #64748B;
+  --tl-danger: #B91C1C;
+  --tl-danger-surface: #FEF2F2;
+  --tl-warning: #92400E;
+  --tl-warning-surface: #FEF3C7;
+  --tl-success: #166534;
+  --tl-success-surface: #DCFCE7;
+  --tl-info-surface: #EFF6FF;
+  --tl-focus: #18529D;
   font-family: "Segoe UI", "Aptos", sans-serif;
   /* Escala global de texto y medidas rem; respeta la preferencia del navegador. */
   font-size: 112.5%;
-  color: #123220;
-  background:
-    linear-gradient(180deg, #eef6f1 0%, #f8fbf9 48%, #ffffff 100%);
+  color: var(--tl-text);
+  background: var(--tl-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -41,3 +59,49 @@ textarea,
 select {
   font: inherit;
 }
+
+/* Phase 2B.1: scoped accessible controls, preserving existing page styles. */
+@layer components {
+  .tl-button-primary, .tl-button-secondary, .tl-button-positive, .tl-button-danger, .tl-button-ghost { @apply inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; }
+  .tl-button-primary { background: var(--tl-action-primary); color: #fff; }
+  .tl-button-primary:hover { background: var(--tl-action-primary-hover); }
+  .tl-button-secondary { @apply border bg-white text-slate-800 hover:bg-slate-100; border-color: var(--tl-control-border); }
+  .tl-button-positive { background: var(--tl-action-positive); color: #fff; }
+  .tl-button-positive:hover { filter: brightness(.9); }
+  .tl-button-danger { @apply bg-red-700 text-white hover:bg-red-800; }
+  .tl-button-ghost { @apply text-slate-800 hover:bg-slate-100; }
+  .tl-input { @apply min-h-[44px] w-full rounded-lg border bg-white px-3 py-2 text-slate-900; border-color: var(--tl-control-border); }
+  .tl-error { @apply rounded-lg border p-3; border-color: var(--tl-danger); background: var(--tl-danger-surface); color: var(--tl-danger); }
+  .tl-button-primary:focus-visible, .tl-button-secondary:focus-visible, .tl-button-positive:focus-visible, .tl-button-danger:focus-visible, .tl-button-ghost:focus-visible, .tl-input:focus-visible, .tl-icon-button:focus-visible { outline: 3px solid var(--tl-focus); outline-offset: 3px; }
+  .tl-skip-link { @apply sr-only focus:not-sr-only focus:block focus:p-3 focus:text-uvBlue focus:underline; }
+  .tl-card { @apply rounded-2xl border bg-white p-5 shadow-sm; border-color: var(--tl-border); }
+  .tl-page-header { @apply flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between; }
+  .tl-page-header h1 { @apply text-2xl font-semibold tracking-tight sm:text-3xl; color: var(--tl-action-primary); }
+  .tl-page-header p { @apply mt-1 max-w-3xl text-sm leading-6; color: var(--tl-text-muted); }
+  .tl-eyebrow { @apply text-xs font-semibold uppercase tracking-[0.14em]; color: var(--tl-text-muted); }
+  .tl-alert { @apply rounded-xl border px-4 py-3 text-sm; }
+  .tl-alert-error { border-color: var(--tl-danger); background: var(--tl-danger-surface); color: var(--tl-danger); }
+  .tl-alert-success { border-color: var(--tl-success); background: var(--tl-success-surface); color: var(--tl-success); }
+  .tl-alert-warning { border-color: var(--tl-warning); background: var(--tl-warning-surface); color: var(--tl-warning); }
+  .tl-alert-info { @apply border-blue-200 text-blue-900; background: var(--tl-info-surface); }
+  .tl-state { @apply flex min-h-28 items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-5 text-center text-slate-700; }
+  .tl-state-empty { @apply block border-dashed; }
+  .tl-state-error { @apply block; border-color: var(--tl-danger); background: var(--tl-danger-surface); color: var(--tl-danger); }
+  .tl-spinner { @apply h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-blue-800; }
+  .tl-dialog-backdrop { @apply fixed inset-0 z-[100] grid place-items-center bg-black/50 p-4; }
+  .tl-dialog { @apply max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 text-slate-900 shadow-xl; }
+  .tl-dialog h2 { @apply text-xl font-semibold; color: var(--tl-action-primary); }
+  .tl-icon-button { @apply inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-2xl text-slate-600 hover:bg-slate-100; }
+}
+.bg-uvGreen.text-white { background-color: var(--tl-action-positive); }
+.bg-uvGreen.text-white:hover { filter: brightness(.9); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-button-primary, .tl-button-secondary { transition: none; }
+}
+
+/* Shared reading rhythm across academic, institutional and legacy tables. */
+table th, table td { padding: 1rem 1.125rem !important; line-height: 1.6; vertical-align: middle; }
+table th { white-space: nowrap; }
+.tl-dialog-wide { max-width: min(96vw, 90rem); }
+.tl-modal-list { max-height: 45dvh; overflow: auto; overscroll-behavior: contain; }
+@media (max-width: 639px) { table th, table td { padding: .875rem !important; } }
