@@ -6,6 +6,14 @@ import { AuthContext } from "../context/auth-context.js";
 const defaultAuth = {
   token: null,
   role: null,
+  roles: [],
+  institutionId: null,
+  selectedRole: null,
+  generation: 0,
+  switching: false,
+  options: [],
+  platformOptions: [],
+  platformInstitutions: [],
   email: null,
   name: null,
   loading: false,
@@ -20,6 +28,10 @@ export function seedStoredAuth(auth) {
   globalThis.window.localStorage.setItem(
     "auth",
     JSON.stringify({
+      version: 2,
+      roles: auth.roles ?? [],
+      institutionId: auth.institutionId ?? null,
+      selectedRole: auth.selectedRole ?? null,
       token: auth.token ?? null,
       role: auth.role ?? null,
       email: auth.email ?? null,
@@ -30,11 +42,21 @@ export function seedStoredAuth(auth) {
 
 export function buildAuthValue(authOverrides = {}, overrides = {}) {
   const auth = { ...defaultAuth, ...authOverrides };
+  // Migrate explicit legacy test fixtures; production never derives permissions from role.
+  if (auth.token && authOverrides.roles === undefined) {
+    auth.roles = auth.role ? [auth.role] : [];
+    auth.institutionId = 1;
+    auth.selectedRole = auth.role;
+  }
 
   return {
     auth,
     login: vi.fn(),
     logout: vi.fn(),
+    selectRole: vi.fn(),
+    refreshOptions: vi.fn().mockResolvedValue([]),
+    switchInstitution: vi.fn(),
+    retryRestore: vi.fn().mockResolvedValue(),
     ...overrides,
   };
 }
