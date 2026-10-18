@@ -1,9 +1,10 @@
 // src/pages/auth/OtpPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { useAuth } from "../../context/useAuth.js";
 import Logo from "../../components/Logo";
+import { authorizedNext, sessionHome, validateSession, validateOptions } from "../../context/sessionStore";
 
 const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
 
@@ -15,19 +16,30 @@ function getCooldownSeconds(value) {
 export default function OtpPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const lifecycle = useRef({ mounted: true, request: 0 });
   const location = useLocation();
+  const requestScope = location.key;
+  useEffect(() => {
+    const state = lifecycle.current;
+    state.mounted = true;
+    return () => { state.mounted = false; state.request++; };
+  }, [requestScope]);
 
   // Lo que mandamos desde LoginPage:
   // navigate("/otp", { state: { otpToken, email, message } });
   const state = location.state;
 
+  let institutions;
+  try { institutions = validateOptions(location.state?.institutions || []); } catch { institutions = null; }
+  const platformAccess = Boolean(location.state?.platformAccess);
+  const [institutionId, setInstitutionId] = useState(location.state?.institutions?.length === 1 ? String(location.state.institutions[0].institutionId) : "");
   const [code, setCode] = useState("");
   const [error, setError] = useState(null);
   const [infoMessage, setInfoMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
 
-  const hasOtpState = Boolean(state?.otpToken);
+  const hasOtpState = Boolean(state?.otpToken) && institutions !== null;
   const initialCooldownSeconds = getCooldownSeconds(state?.resendCooldownSeconds);
   const [currentOtpToken, setCurrentOtpToken] = useState(state?.otpToken ?? "");
   const [secondsLeft, setSecondsLeft] = useState(initialCooldownSeconds);
@@ -75,10 +87,17 @@ export default function OtpPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const request = ++lifecycle.current.request;
     setError(null);
 
-    if (!code.trim()) {
-      setError("Ingresa el código que te llegó por correo.");
+    if (!platformAccess && institutions?.length && !institutions.some(o => String(o.institutionId) === institutionId)) {
+      setError("Selecciona una institución autorizada antes de confirmar el código.");
+      e.currentTarget.querySelector("#otp-institution")?.focus();
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setError("Ingresa el código de seis dígitos que te llegó por correo.");
+      e.currentTarget.querySelector("#otp-code")?.focus();
       return;
     }
 
@@ -88,28 +107,25 @@ export default function OtpPage() {
       const { data } = await apiClient.post("/api/auth/login/verify-otp", {
         otpToken: currentOtpToken,
         code,
+        ...(!platformAccess && institutionId ? { institutionId: Number(institutionId) } : {}),
       });
 
-      // data debe ser JwtResponse: { token, role, email, name }
-      login({
-        token: data.token,
-        role: data.role,
-        email: data.email,
-        name: data.name,
-      });
-
-      // Redirigir según rol
-      if (nextPath) navigate(nextPath);
-      else if (data.role === "ADMIN") navigate("/admin");
-      else if (data.role === "ESTUDIANTE") navigate("/student");
-      else if (data.role === "TUTOR") navigate("/tutor");
-      else navigate("/");
+      if (!lifecycle.current.mounted || request !== lifecycle.current.request) return;
+      const session = validateSession(data);
+      if (platformAccess && !session.roles.includes("PLATFORM_SUPER_ADMIN")) {
+        const error = new Error("Acceso de plataforma no autorizado."); error.code = "PLATFORM_ACCESS_DENIED"; throw error;
+      }
+      if (!platformAccess && institutionId && session.institutionId !== Number(institutionId)) throw new Error("El contexto recibido no corresponde a la institución seleccionada.");
+      login(data, institutions);
+      setCode("");
+      navigate(authorizedNext(nextPath, session) || sessionHome(session), { replace: true, state: null });
     } catch (err) {
-      console.error("Error verificando OTP", err);
+      if (!lifecycle.current.mounted || request !== lifecycle.current.request) return;
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        "Código inválido o expirado.";
+        (err.code === "PLATFORM_ACCESS_DENIED" ? "Este acceso requiere permisos de plataforma. Vuelve al inicio de sesión y utiliza el acceso institucional."
+          : !err.response ? "No pudimos confirmar tu sesión. Vuelve al inicio de sesión para generar un código nuevo." : "Código inválido o expirado.");
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -117,6 +133,7 @@ export default function OtpPage() {
   };
 
   const handleBackToLogin = () => {
+    lifecycle.current.request++;
     navigate("/login");
   };
 
@@ -133,15 +150,17 @@ export default function OtpPage() {
         otpToken: currentOtpToken,
       });
 
+      if (!lifecycle.current.mounted) return;
+      if (typeof data.otpToken !== 'string' || !data.otpToken) throw new Error('No se pudo confirmar el nuevo código.');
       setCurrentOtpToken(data.otpToken);
       setInfoMessage(
         data.message ||
-          "Se envió un nuevo código de verificación a tu correo institucional.",
+          "Se envió un nuevo código de verificación al correo principal de tu cuenta.",
       );
       setSecondsLeft(getCooldownSeconds(data.resendCooldownSeconds));
       setCode("");
     } catch (err) {
-      console.error("Error reenviando OTP", err);
+
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
@@ -155,7 +174,7 @@ export default function OtpPage() {
   return (
     <div className="min-h-screen flex bg-slate-50">
       {/* LADO IZQUIERDO – Branding (desktop) */}
-      <aside className="hidden lg:flex w-1/2 xl:w-7/12 bg-gradient-to-br from-uvBlue via-uvBlue to-uvGreen text-white relative overflow-hidden">
+      <aside className="hidden lg:flex w-1/2 xl:w-7/12 bg-uvBlue text-white relative overflow-hidden">
         {/* blobs decorativos */}
         <div className="absolute inset-0 opacity-15 pointer-events-none">
           <div className="absolute -top-24 -left-10 w-72 h-72 rounded-full bg-white/10 blur-3xl" />
@@ -170,9 +189,9 @@ export default function OtpPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Plataforma de tutorías académicas
               </p>
-              <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight">
+              <h2 className="text-3xl xl:text-4xl font-semibold tracking-tight">
                 TutorLink
-              </h1>
+              </h2>
               <p className="mt-1 text-base text-white/85 leading-relaxed">
                 Aseguramos tu acceso con verificación en dos pasos para proteger
                 tu cuenta y la información académica.
@@ -195,7 +214,7 @@ export default function OtpPage() {
 
             {/* Footer */}
             <p className="pt-4 text-[0.6875rem] text-white/70">
-              Universidad Veracruzana · Facultad de Negocios y Tecnologías
+              TutorLink · Acceso seguro
               
             </p>
           </div>
@@ -215,7 +234,7 @@ export default function OtpPage() {
               Verificación en dos pasos
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 text-center mb-4">
-              Hemos enviado un código de verificación a tu correo institucional.
+              Hemos enviado un código de verificación al correo principal de tu cuenta.
             </p>
 
             <div className="text-center mb-3">
@@ -233,12 +252,19 @@ export default function OtpPage() {
 
 
             {error && (
-              <div className="mb-4 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">
+              <div role="alert" id="otp-error" className="mb-4 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+              {platformAccess ? <p role="status" className="text-sm">Acceso global de plataforma; no seleccionarás una escuela en este paso.</p>
+                : institutions?.length > 0 ? <div><label htmlFor="otp-institution" className="block text-sm font-semibold">Institución de acceso</label>
+                  <select id="otp-institution" className="tl-input" value={institutionId} disabled={submitting || resending} onChange={e => setInstitutionId(e.target.value)} aria-describedby="otp-context-help">
+                    <option value="" disabled>Selecciona una institución</option>{institutions.map(o => <option key={o.institutionId} value={o.institutionId}>{o.name}</option>)}
+                  </select><p id="otp-context-help" className="mt-1 text-sm">Tu acceso utilizará los roles autorizados de esta institución.</p></div>
+                  : <p className="text-sm">No hay opciones institucionales en el desafío. El servidor verificará si existe un acceso global autorizado; si no, solicita revisión de tu membresía.</p>}
+
               <div>
                 <label htmlFor="otp-code" className="block text-xs font-semibold text-slate-600 mb-1">
                   Código de verificación
@@ -247,6 +273,9 @@ export default function OtpPage() {
                   id="otp-code"
                   type="text"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
+                  aria-invalid={Boolean(error)}
+                  aria-describedby={error ? "otp-error" : undefined}
                   maxLength={6}
                   data-cy="otp-code"
                   value={code}
@@ -268,14 +297,14 @@ export default function OtpPage() {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || resending}
                 data-cy="otp-submit"
                 className="
                   w-full inline-flex items-center justify-center
                   rounded-full px-4 py-2.5 text-sm font-semibold
-                  bg-uvGreen text-white shadow-sm
-                  hover:bg-green-600 disabled:opacity-60
-                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uvGreen
+                  bg-[#166534] text-white shadow-sm
+                  hover:bg-green-900 disabled:opacity-60
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-uvBlue
                   transition
                 "
               >
@@ -301,7 +330,7 @@ export default function OtpPage() {
                 {getResendButtonLabel({ resending, secondsLeft })}
               </button>
               <p className="mt-2 text-[0.6875rem] text-slate-500 text-center">
-                Solo puedes solicitar un nuevo código cada 60 segundos.
+                Podrás solicitar otro código cuando termine la cuenta regresiva. El tiempo lo determina el servidor.
               </p>
             </div>
 

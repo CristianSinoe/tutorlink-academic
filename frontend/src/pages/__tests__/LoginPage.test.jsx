@@ -1,5 +1,5 @@
 import { Route, Routes, useLocation } from "react-router-dom";
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import apiClient from "../../api/axiosClient";
@@ -37,8 +37,6 @@ function OtpLocationProbe() {
 
 describe("LoginPage", () => {
   async function renderLogin() {
-    vi.useFakeTimers();
-
     renderWithProviders(
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -46,12 +44,6 @@ describe("LoginPage", () => {
       </Routes>,
       { route: "/login" },
     );
-
-    await act(async () => {
-      vi.advanceTimersByTime(5600);
-    });
-
-    vi.useRealTimers();
 
     const user = userEvent.setup();
     return user;
@@ -61,7 +53,7 @@ describe("LoginPage", () => {
     await renderLogin();
 
     expect(
-      screen.getByLabelText(/correo institucional/i),
+      screen.getByLabelText(/correo principal/i),
     ).toBeInTheDocument();
     expect(screen.getByLabelText(/^contraseña$/i)).toBeInTheDocument();
     expect(
@@ -72,7 +64,7 @@ describe("LoginPage", () => {
   it("muestra error si no se resuelve el reCAPTCHA", async () => {
     const user = await renderLogin();
 
-    await user.type(screen.getByLabelText(/correo institucional/i), "qa@uv.mx");
+    await user.type(screen.getByLabelText(/correo principal/i), "qa@uv.mx");
     await user.type(screen.getByLabelText(/^contraseña$/i), "secret123");
     await user.click(screen.getByRole("button", { name: /ingresar/i }));
 
@@ -94,7 +86,7 @@ describe("LoginPage", () => {
 
     const user = await renderLogin();
 
-    await user.type(screen.getByLabelText(/correo institucional/i), "qa@uv.mx");
+    await user.type(screen.getByLabelText(/correo principal/i), "qa@uv.mx");
     await user.type(screen.getByLabelText(/^contraseña$/i), "secret123");
     await user.click(screen.getByRole("button", { name: /resolver recaptcha/i }));
     await user.click(screen.getByRole("button", { name: /ingresar/i }));
@@ -120,7 +112,7 @@ describe("LoginPage", () => {
 
     const user = await renderLogin();
 
-    await user.type(screen.getByLabelText(/correo institucional/i), "qa@uv.mx");
+    await user.type(screen.getByLabelText(/correo principal/i), "qa@uv.mx");
     await user.type(screen.getByLabelText(/^contraseña$/i), "bad-pass");
     await user.click(screen.getByRole("button", { name: /resolver recaptcha/i }));
     await user.click(screen.getByRole("button", { name: /ingresar/i }));

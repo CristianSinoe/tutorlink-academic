@@ -59,7 +59,6 @@ export default function FirstLoginPage() {
 
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
-      console.error("Error completando primer login", err);
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||

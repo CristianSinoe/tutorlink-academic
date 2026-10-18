@@ -1,27 +1,15 @@
 // src/pages/LoginPage.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import apiClient from "../api/axiosClient";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
 import Logo from "../components/Logo";
-import LoginPreloader from "../components/LoginPreloader";
+import { authorizedNext, sessionHome, validateSession, validateOptions } from "../context/sessionStore";
 import { useAuth } from "../context/useAuth.js";
 
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim() || "";
 
-function renderRecaptchaStatus({ isCypressE2E, isRecaptchaConfigured, onChange }) {
-  if (isCypressE2E) {
-    return (
-      <output
-        className="w-full rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-xs text-sky-800"
-        data-cy="login-recaptcha-bypassed"
-        aria-live="polite"
-      >
-        Verificación reCAPTCHA omitida solo para pruebas E2E con Cypress.
-      </output>
-    );
-  }
-
+function renderRecaptchaStatus({ isRecaptchaConfigured, onChange }) {
   if (isRecaptchaConfigured) {
     return (
       <ReCAPTCHA
@@ -36,21 +24,25 @@ function renderRecaptchaStatus({ isCypressE2E, isRecaptchaConfigured, onChange }
       className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-800"
       role="alert"
     >
-      Falta configurar <code>VITE_RECAPTCHA_SITE_KEY</code> en el frontend.
+      La verificación de seguridad no está disponible. Contacta al administrador.
     </div>
   );
 }
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const lifecycle = useRef({ mounted: true, request: 0 });
   const [searchParams] = useSearchParams();
-  const { login } = useAuth();
+  const { auth, login } = useAuth();
   const isRecaptchaConfigured = Boolean(RECAPTCHA_SITE_KEY);
-  const isCypressE2E =
-    globalThis.window !== undefined && Boolean(globalThis.window.Cypress);
   const nextPath = searchParams.get("next");
-
-  const [showPreloader, setShowPreloader] = useState(true);
+  const platformAccess = searchParams.get("access") === "platform";
+  const requestScope = searchParams.toString();
+  useEffect(() => {
+    const state = lifecycle.current;
+    state.mounted = true;
+    return () => { state.mounted = false; state.request++; };
+  }, [requestScope]);
 
   const [form, setForm] = useState({
     email: "",
@@ -61,12 +53,6 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-
-  // controlar duración del preloader
-  useEffect(() => {
-    const timer = setTimeout(() => setShowPreloader(false), 5600);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -82,18 +68,17 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const request = ++lifecycle.current.request;
     setError(null);
 
-    if (!isRecaptchaConfigured && !isCypressE2E) {
+    if (!isRecaptchaConfigured) {
       setError(
-        "reCAPTCHA no esta configurado en el frontend. Reinicia el servicio despues de definir VITE_RECAPTCHA_SITE_KEY.",
+        "No se pudo habilitar la verificación de seguridad. Contacta al administrador para habilitar la verificación de acceso.",
       );
       return;
     }
 
-    const recaptchaToken = isCypressE2E
-      ? form.recaptchaToken || "cypress-e2e-bypass-token"
-      : form.recaptchaToken;
+    const recaptchaToken = form.recaptchaToken;
 
     if (!recaptchaToken) {
       setError("Debes confirmar que no eres un robot.");
@@ -108,6 +93,8 @@ export default function LoginPage() {
         recaptchaToken,
       });
 
+      if (!lifecycle.current.mounted || request !== lifecycle.current.request) return;
+
       // 1️⃣ EL BACKEND PIDE OTP
       if (data.requiresOtp) {
         navigate("/otp", {
@@ -117,21 +104,19 @@ export default function LoginPage() {
             message: data.message,
             resendCooldownSeconds: data.resendCooldownSeconds,
             nextPath,
+            institutions: validateOptions(data.institutions || []),
+            platformAccess,
           },
         });
         return;
       }
 
       // 2️⃣ LOGIN COMPLETO SIN OTP
-      const { token, role, name, email } = data;
-      login({ token, role, email, name });
-
-      if (nextPath) navigate(nextPath);
-      else if (role === "ADMIN") navigate("/admin");
-      else if (role === "ESTUDIANTE") navigate("/student");
-      else if (role === "TUTOR") navigate("/tutor");
+      const session = validateSession(data);
+      login(data, []);
+      navigate(authorizedNext(nextPath, session) || sessionHome(session));
     } catch (err) {
-      console.error(err);
+      if (!lifecycle.current.mounted || request !== lifecycle.current.request) return;
 
       const msgBackend =
         err?.response?.data?.message || err?.response?.data?.error;
@@ -141,23 +126,17 @@ export default function LoginPage() {
       } else if (msgBackend) {
         setError(msgBackend);
       } else {
-        setError("Usuario o contraseña incorrectos.");
+        setError(err.response ? "Usuario o contraseña incorrectos." : "No pudimos confirmar tu acceso. Revisa tu conexión y vuelve a intentarlo.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 mostrar preloader sólo en login
-  if (showPreloader) {
-    return <LoginPreloader onDone={() => setShowPreloader(false)} />;
-  }
-
-  // Tu login tal cual
   return (
     <div className="min-h-screen flex bg-slate-50">
       {/* LADO IZQUIERDO – Branding (igual estilo que OTP) */}
-      <aside className="hidden lg:flex w-1/2 xl:w-7/12 bg-gradient-to-br from-uvBlue via-uvBlue to-uvGreen text-white relative overflow-hidden">
+      <aside className="hidden lg:flex w-1/2 xl:w-7/12 bg-uvBlue text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-15 pointer-events-none">
           <div className="absolute -top-24 -left-10 w-72 h-72 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-black/10 blur-3xl" />
@@ -170,11 +149,11 @@ export default function LoginPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Plataforma de tutorías académicas
               </p>
-              <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight">
+              <h2 className="text-3xl xl:text-4xl font-semibold tracking-tight">
                 Bienvenido a TutorLink
-              </h1>
+              </h2>
               <p className="mt-1 text-base text-white/85 leading-relaxed">
-                Inicia sesión con tu correo institucional para acceder al
+                Inicia sesión con el correo principal de tu cuenta para acceder al
                 acompañamiento académico con tus tutores.
               </p>
             </div>
@@ -184,14 +163,14 @@ export default function LoginPage() {
                 Acceso institucional
               </h2>
               <ul className="mt-1 space-y-1 text-sm text-white/85">
-                <li>• Solo usuarios autorizados de la Universidad Veracruzana.</li>
+                <li>• Una cuenta puede participar en varias instituciones.</li>
                 <li>• Tus datos se usan únicamente para fines académicos.</li>
                 <li>• Te recomendamos cerrar sesión al terminar.</li>
               </ul>
             </div>
 
             <p className="pt-4 text-[0.6875rem] text-white/70">
-              Universidad Veracruzana · Facultad de Negocios y Tecnologías
+              TutorLink · Acceso seguro
             </p>
           </div>
         </div>
@@ -206,14 +185,17 @@ export default function LoginPage() {
               <Logo variant="horizontal" className="h-10" />
             </div>
 
-            <h2 className="text-2xl sm:text-3xl font-semibold text-uvBlue text-center mb-1">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-uvBlue text-center mb-1">
               Inicia sesión en TutorLink
-            </h2>
+            </h1>
             <p className="text-xs sm:text-sm text-slate-600 text-center mb-5">
-              Usa tu correo institucional y contraseña para acceder a la
+              Usa el correo principal de tu cuenta y contraseña para acceder a la
               plataforma.
             </p>
 
+            {auth.notice && <p role="status" className="mb-4 text-sm">{auth.notice}</p>}
+            {platformAccess && <p role="status" className="mb-4 text-sm text-slate-700">Acceso al ámbito global para SUPER_ADMIN. El servidor verificará tus permisos.</p>}
+            <Link className="mb-4 block text-uvBlue underline" to={platformAccess ? "/login" : "/login?access=platform"}>{platformAccess ? "Acceso institucional" : "Acceso de plataforma"}</Link>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
               <div>
@@ -221,7 +203,7 @@ export default function LoginPage() {
                   htmlFor="email"
                   className="block text-xs font-semibold text-slate-700 mb-1"
                 >
-                  Correo institucional
+                  Correo principal
                 </label>
                 <input
                   id="email"
@@ -290,7 +272,6 @@ export default function LoginPage() {
               {/* reCAPTCHA */}
               <div className="flex justify-center mt-2" data-cy="login-recaptcha">
                 {renderRecaptchaStatus({
-                  isCypressE2E,
                   isRecaptchaConfigured,
                   onChange: handleRecaptchaChange,
                 })}

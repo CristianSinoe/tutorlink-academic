@@ -80,6 +80,8 @@ describe("OtpPage", () => {
       data: {
         token: "jwt-123",
         role: "ESTUDIANTE",
+        roles: ["ESTUDIANTE"],
+        institutionId: 1,
         email: "qa@uv.mx",
         name: "QA User",
       },
@@ -103,9 +105,11 @@ describe("OtpPage", () => {
     expect(authValue.login).toHaveBeenCalledWith({
       token: "jwt-123",
       role: "ESTUDIANTE",
+        roles: ["ESTUDIANTE"],
+        institutionId: 1,
       email: "qa@uv.mx",
       name: "QA User",
-    });
+    }, []);
     expect(apiClient.post).toHaveBeenCalledWith("/api/auth/login/verify-otp", {
       otpToken: "otp-123",
       code: "123456",
@@ -175,4 +179,68 @@ describe("OtpPage", () => {
       otpToken: "otp-123",
     });
   });
+});
+
+const institutions = [{ institutionId: 1, name: 'Escuela A', roles: ['DOCENTE', 'TUTOR'] }, { institutionId: 2, name: 'Escuela B', roles: ['ESTUDIANTE'] }];
+function contextualOtp(state) {
+  return renderWithProviders(<Routes><Route path="/otp" element={<OtpPage />} /><Route path="/context" element={<p>Elegir espacio</p>} /><Route path="/student" element={<p>Estudiante</p>} /><Route path="/platform" element={<p>Plataforma</p>} /></Routes>,
+    { initialEntries: [{ pathname: '/otp', state: { otpToken: 'otp-context', email: 'persona@personal.test', institutions, ...state } }] });
+}
+it('exige elegir entre instituciones antes de consumir OTP', async () => {
+  contextualOtp(); const user = userEvent.setup();
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456');
+  await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(screen.getByRole('alert')).toHaveTextContent(/selecciona una institución/i);
+  expect(apiClient.post).not.toHaveBeenCalled();
+});
+it('envía la institución elegida y conserva todos los roles del contrato', async () => {
+  const data = { token: 'jwt', role: 'TUTOR', roles: ['DOCENTE', 'TUTOR'], institutionId: 1, email: 'persona@personal.test', name: 'Persona' };
+  apiClient.post.mockResolvedValueOnce({ data });
+  const { authValue } = contextualOtp(); const user = userEvent.setup();
+  await user.selectOptions(screen.getByLabelText('Institución de acceso'), '1');
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByText('Elegir espacio')).toBeInTheDocument();
+  expect(apiClient.post).toHaveBeenCalledWith('/api/auth/login/verify-otp', { otpToken: 'otp-context', code: '123456', institutionId: 1 });
+  expect(authValue.login).toHaveBeenCalledWith(data, institutions);
+});
+it('una única institución ya está seleccionada y un rol dirige a su espacio', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt', role: 'ESTUDIANTE', roles: ['ESTUDIANTE'], institutionId: 2, email: 'p@example.test', name: 'Persona' } });
+  contextualOtp({ institutions: [institutions[1]] }); const user = userEvent.setup();
+  expect(screen.getByLabelText('Institución de acceso')).toHaveValue('2');
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByText('Estudiante')).toBeInTheDocument();
+});
+it('acceso de plataforma omite institución y exige respuesta global autorizada', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt', role: 'SUPER_ADMIN', roles: ['PLATFORM_SUPER_ADMIN'], institutionId: null, email: 'p@example.test', name: 'Persona' } });
+  contextualOtp({ platformAccess: true }); const user = userEvent.setup();
+  expect(screen.queryByLabelText('Institución de acceso')).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByText('Plataforma')).toBeInTheDocument();
+  expect(apiClient.post).toHaveBeenCalledWith('/api/auth/login/verify-otp', { otpToken: 'otp-context', code: '123456' });
+});
+it('rechaza respuesta contextual ajena antes de persistirla', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt', role: 'ESTUDIANTE', roles: ['ESTUDIANTE'], institutionId: 2, email: 'p@example.test', name: 'Persona' } });
+  const { authValue } = contextualOtp({ institutions: [institutions[0]] }); const user = userEvent.setup();
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByRole('alert')).toBeInTheDocument(); expect(authValue.login).not.toHaveBeenCalled();
+});
+it('conserva la institución elegida tras reenvío y verifica con la nueva prueba', async () => {
+  vi.useFakeTimers();
+  contextualOtp({ resendCooldownSeconds: 1 });
+  await act(async () => { vi.advanceTimersByTime(1000); }); vi.useRealTimers();
+  apiClient.post.mockResolvedValueOnce({ data: { otpToken: 'renewed', resendCooldownSeconds: 1, message: 'Código reenviado' } });
+  const user = userEvent.setup(); await user.selectOptions(screen.getByLabelText('Institución de acceso'), '2');
+  await user.click(screen.getByRole('button', { name: /reenviar código$/i }));
+  await screen.findByText('Código reenviado'); expect(screen.getByLabelText('Institución de acceso')).toHaveValue('2');
+  apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt', role: 'ESTUDIANTE', roles: ['ESTUDIANTE'], institutionId: 2, email: 'p@example.test', name: 'Persona' } });
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByText('Estudiante')).toBeInTheDocument();
+  expect(apiClient.post).toHaveBeenLastCalledWith('/api/auth/login/verify-otp', { otpToken: 'renewed', code: '123456', institutionId: 2 });
+});
+it('no concede plataforma a una respuesta institucional ni atribuye el rechazo a un código incorrecto', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { token: 'jwt', role: 'ESTUDIANTE', roles: ['ESTUDIANTE'], institutionId: 2, email: 'p@example.test', name: 'Persona' } });
+  const { authValue } = contextualOtp({ platformAccess: true }); const user = userEvent.setup();
+  await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(/utiliza el acceso institucional/);
+  expect(authValue.login).not.toHaveBeenCalled();
 });
