@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TutorQuestionsIntegrationTest extends AbstractIntegrationTest {
 
     @Test
-    void shouldListGlobalPendingQuestionsForTutorEndpoint() throws Exception {
+    void shouldListOnlyAssignedPendingQuestionsForTutorEndpoint() throws Exception {
         User tutorUser = createUser("tutor.pending@test.com", UserRole.TUTOR);
         User tutorTwoUser = createUser("tutor.pending2@test.com", UserRole.TUTOR);
         Tutor tutorOne = createTutor(tutorUser, "T300");
@@ -37,7 +37,7 @@ class TutorQuestionsIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/tutor/questions/pending")
                         .header("Authorization", bearerToken(tutorUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)));
+                .andExpect(jsonPath("$", hasSize(1)));
     }
 
     @Test

@@ -47,7 +47,9 @@ class AdminUsersIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.message", equalTo("Estado actualizado a DISABLED")));
 
         User updated = userRepository.findById(student.getId()).orElseThrow();
-        org.junit.jupiter.api.Assertions.assertEquals(UserStatus.DISABLED, updated.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(UserStatus.ACTIVE, updated.getStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(com.sinoe.authmfa.domain.institution.MembershipStatus.SUSPENDED,
+                institutionMembershipRepository.findByInstitution_IdAndUser_IdAndRole(testInstitution.getId(),student.getId(),com.sinoe.authmfa.domain.institution.InstitutionRole.ESTUDIANTE).orElseThrow().getStatus());
     }
 
     @Test

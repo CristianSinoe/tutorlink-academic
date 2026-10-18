@@ -25,6 +25,7 @@ import com.sinoe.authmfa.domain.user.User;
 import com.sinoe.authmfa.domain.user.UserRepository;
 import com.sinoe.authmfa.domain.user.UserRole;
 import com.sinoe.authmfa.domain.user.UserStatus;
+import com.sinoe.authmfa.domain.institution.*;
 import com.sinoe.authmfa.service.EmailService;
 import com.sinoe.authmfa.service.JwtService;
 import com.sinoe.authmfa.service.OtpService;
@@ -89,6 +90,14 @@ public abstract class AbstractIntegrationTest {
     protected UserRepository userRepository;
 
     @Autowired
+    protected InstitutionRepository institutionRepository;
+
+    @Autowired
+    protected InstitutionMembershipRepository institutionMembershipRepository;
+
+    protected Institution testInstitution;
+
+    @Autowired
     protected StudentRepository studentRepository;
 
     @Autowired
@@ -135,11 +144,14 @@ public abstract class AbstractIntegrationTest {
                   tl_question_messages,
                   tl_questions,
                   tl_tutor_students,
+                  tl_institution_memberships,
+                  tl_institutions,
                   tl_students,
                   tl_tutors,
                   tl_users
                 RESTART IDENTITY CASCADE
                 """);
+        testInstitution = institutionRepository.save(Institution.builder().code("TEST").name("Test institution").build());
         reset(recaptchaService, emailService);
     }
 
@@ -157,12 +169,18 @@ public abstract class AbstractIntegrationTest {
                 .role(role)
                 .status(status)
                 .build();
-        return userRepository.save(user);
+        user = userRepository.save(user);
+        if (role != UserRole.SUPER_ADMIN) {
+            institutionMembershipRepository.save(InstitutionMembership.builder().institution(testInstitution).user(user)
+                    .role(InstitutionRole.valueOf(role.name())).build());
+        }
+        return user;
     }
 
     protected Student createStudent(User user, String matricula) {
         return studentRepository.save(Student.builder()
                 .user(user)
+                .institution(testInstitution)
                 .matricula(matricula)
                 .career("ITI")
                 .plan("2024")
@@ -175,6 +193,7 @@ public abstract class AbstractIntegrationTest {
     protected Tutor createTutor(User user, String tutorCode) {
         return tutorRepository.save(Tutor.builder()
                 .user(user)
+                .institution(testInstitution)
                 .tutorCode(tutorCode)
                 .department("Computacion")
                 .specialty("Arquitectura")
@@ -240,7 +259,7 @@ public abstract class AbstractIntegrationTest {
 
     protected String bearerToken(User user) {
         return "Bearer " + jwtService.generate(
-                Map.of("role", user.getRole().name(), "uid", user.getId()),
+                Map.of("uid", user.getId(), "authVersion", user.getAuthorizationVersion(), "institutionId", testInstitution.getId()),
                 user.getEmail());
     }
 
