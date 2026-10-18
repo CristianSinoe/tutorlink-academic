@@ -42,6 +42,11 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    /** Incremented whenever memberships change, invalidating previously issued context tokens. */
+    @Column(name = "authorization_version", nullable = false)
+    @Builder.Default
+    private Long authorizationVersion = 1L;
+
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(nullable = false, columnDefinition = "user_status")

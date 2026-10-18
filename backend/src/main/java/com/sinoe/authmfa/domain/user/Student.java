@@ -1,10 +1,11 @@
 package com.sinoe.authmfa.domain.user;
 
+import com.sinoe.authmfa.domain.institution.Institution;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tl_students")
+@Table(name = "tl_students", uniqueConstraints=@UniqueConstraint(columnNames={"institution_id","user_id"}))
 @Getter
 @Setter
 @Builder
@@ -17,11 +18,15 @@ public class Student {
     private Long id;
 
     // Relación 1:1 con tl_users
-    @OneToOne(optional = false)
-    @JoinColumn(name = "user_id", unique = true)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "institution_id")
+    private Institution institution;
+
+    @Column(nullable = false, length = 50)
     private String matricula;
 
     private String career;

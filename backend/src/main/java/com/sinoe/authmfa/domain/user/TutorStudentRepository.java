@@ -29,11 +29,20 @@ public interface TutorStudentRepository extends JpaRepository<TutorStudent, Long
         JOIN FETCH t.user tu
         JOIN FETCH ts.student s
         JOIN FETCH s.user su
-        WHERE (:tutorCode IS NULL OR t.tutorCode = :tutorCode)
+        WHERE (:institution IS NULL OR (t.institution.id=:institution AND s.institution.id=:institution))
+          AND (:tutorCode IS NULL OR t.tutorCode = :tutorCode)
           AND (:matricula IS NULL OR s.matricula = :matricula)
         """)
-    List<TutorStudent> searchAssignments(
+    List<TutorStudent> searchAssignmentsScoped(
+            @Param("institution") Long institution,
             @Param("tutorCode") String tutorCode,
             @Param("matricula") String matricula
     );
+    default List<TutorStudent> searchAssignments(String tutorCode,String matricula) {
+        return searchAssignmentsScoped(com.sinoe.authmfa.security.ScopedProfiles.institutionId(),tutorCode,matricula);
+    }
+    @Query("select distinct ts.student.id from TutorStudent ts where ts.student.institution.id=:institution")
+    List<Long> assignedStudentsInInstitution(@Param("institution") Long institution);
+    @Query("select distinct ts.tutor.id from TutorStudent ts where ts.tutor.institution.id=:institution")
+    List<Long> assignedTutorsInInstitution(@Param("institution") Long institution);
 }
