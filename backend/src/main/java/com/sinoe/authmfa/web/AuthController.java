@@ -2,6 +2,7 @@ package com.sinoe.authmfa.web;
 
 import com.sinoe.authmfa.domain.otp.OtpCode;
 import com.sinoe.authmfa.domain.user.User;
+import com.sinoe.authmfa.domain.user.UserRole;
 import com.sinoe.authmfa.domain.user.UserRepository;
 import com.sinoe.authmfa.domain.user.UserStatus;
 import com.sinoe.authmfa.dto.ApiPayload;
@@ -12,6 +13,7 @@ import com.sinoe.authmfa.service.EmailService;
 import com.sinoe.authmfa.service.JwtService;
 import com.sinoe.authmfa.service.OtpService;
 import com.sinoe.authmfa.service.RecaptchaService;
+import com.sinoe.authmfa.service.AuthorizationContextService;
 import com.sinoe.authmfa.validation.AgeValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -57,6 +59,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final OtpService otpService;
     private final EmailService emailService;
+    private final AuthorizationContextService authorizationContexts;
 
     record ActivateRequest(String token) {
     }
@@ -99,14 +102,14 @@ public class AuthController {
             u = users.save(u);
             uid = u.getId();
 
-            String token = jwt.generate(
-                    Map.of("role", u.getRole().name(), "uid", u.getId()),
-                    u.getEmail());
+            var context = authorizationContexts.issue(u, null);
 
             audit.log(http, uid, REGISTER, true, null, "Usuario registrado");
             return ResponseEntity.ok(AuthDtos.JwtResponse.builder()
-                    .token(token)
+                    .token(context.token())
                     .role(u.getRole().name())
+                    .institutionId(context.institutionId())
+                    .roles(context.roles())
                     .email(u.getEmail())
                     .name(u.getName())
                     .build());
@@ -274,8 +277,8 @@ public class AuthController {
                     new AuthDtos.OtpChallengeResponse(
                             true,
                             otp.getPublicId(),
-                            "Se envió un código de verificación a tu correo institucional.",
-                            otpService.getResendCooldownSeconds()));
+                            "Se envió un código de verificación a tu correo principal.",
+                            otpService.getResendCooldownSeconds(),authorizationContexts.available(u)));
 
         } catch (Exception ex) {
             audit.log(http, uid, LOGIN, false, EXCEPTION, ex.getMessage());
@@ -384,16 +387,20 @@ public class AuthController {
                 return ResponseEntity.status(403).body(new AuthDtos.ApiMessage(msg));
             }
 
-            String token = jwt.generate(
-                    Map.of("role", u.getRole().name(), "uid", u.getId()),
-                    u.getEmail());
+            if(req.getInstitutionId()==null && u.getRole()!=UserRole.SUPER_ADMIN && authorizationContexts.available(u).size()!=1) {
+                audit.log(http,uid,LOGIN_OTP,false,"CONTEXT_SELECTION_REQUIRED","Selecciona una institución autorizada");
+                return ResponseEntity.badRequest().body(new AuthDtos.ApiMessage("Selecciona una institución autorizada al verificar OTP"));
+            }
+            var context = authorizationContexts.issue(u, req.getInstitutionId());
 
             audit.log(http, uid, LOGIN_OTP, true, null, "OTP ok, login completado");
 
             return ResponseEntity.ok(
                     AuthDtos.JwtResponse.builder()
-                            .token(token)
+                            .token(context.token())
                             .role(u.getRole().name())
+                            .institutionId(context.institutionId())
+                            .roles(context.roles())
                             .email(u.getEmail())
                             .name(u.getName())
                             .build());
@@ -402,6 +409,24 @@ public class AuthController {
             audit.log(http, uid, LOGIN_OTP, false, EXCEPTION, ex.getMessage());
             throw ex;
         }
+    }
+
+    @GetMapping("/institutions")
+    public ResponseEntity<java.util.List<AuthDtos.InstitutionOption>> availableInstitutions(Authentication auth) {
+        User user=users.findByEmail(lower(auth.getName())).orElseThrow();
+        return ResponseEntity.ok(authorizationContexts.available(user));
+    }
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<AuthDtos.ApiMessage> contextDenied() {
+        return ResponseEntity.status(403).body(new AuthDtos.ApiMessage("Contexto no autorizado"));
+    }
+    @PostMapping("/context")
+    public ResponseEntity<AuthDtos.JwtResponse> selectContext(Authentication auth,
+            @Valid @RequestBody AuthDtos.ContextRequest request) {
+        User user = users.findByEmail(lower(auth.getName())).orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+        var context = authorizationContexts.issue(user, request.getInstitutionId());
+        return ResponseEntity.ok(AuthDtos.JwtResponse.builder().token(context.token()).role(user.getRole().name())
+                .roles(context.roles()).institutionId(context.institutionId()).email(user.getEmail()).name(user.getName()).build());
     }
 
     @PostMapping("/password/change/request")

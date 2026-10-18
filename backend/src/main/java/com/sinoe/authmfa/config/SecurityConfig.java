@@ -36,10 +36,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> {
+                    var points=new java.util.LinkedHashMap<org.springframework.security.web.util.matcher.RequestMatcher,org.springframework.security.web.AuthenticationEntryPoint>();
+                    points.put(new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/api/attachments/**"),(request,response,exception) -> {
+                        response.setStatus(401);response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"message\":\"Autenticación requerida\"}");
+                    });
+                    var entry=new org.springframework.security.web.authentication.DelegatingAuthenticationEntryPoint(points);
+                    entry.setDefaultEntryPoint(new org.springframework.security.web.authentication.Http403ForbiddenEntryPoint());
+                    errors.authenticationEntryPoint(entry);
+                })
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/register").denyAll()
                         .requestMatchers(
                                 "/api/health",
-                                "/api/auth/register",
+                                "/api/institution-invitations/accept",
                                 "/api/auth/login",
                                 "/api/auth/activate",
                                 "/api/auth/first-login/complete",
@@ -55,9 +66,11 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/dev/email-preview/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/docs/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/platform/**").hasRole("PLATFORM_SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/api/questions/**").hasAnyRole("ESTUDIANTE", "TUTOR", "ADMIN")
-                        .requestMatchers("/api/tutor/**").hasRole("TUTOR")
+                        .requestMatchers("/api/tutor/**").hasAnyRole("TUTOR", "SUPER_ADMIN")
+                        .requestMatchers("/api/teacher/**").hasAnyRole("DOCENTE", "SUPER_ADMIN")
                         .requestMatchers("/api/student/**").hasRole("ESTUDIANTE")
                         .anyRequest().authenticated()
                 )

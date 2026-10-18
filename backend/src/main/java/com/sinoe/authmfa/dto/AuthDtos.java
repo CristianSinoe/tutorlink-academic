@@ -94,9 +94,16 @@ public class AuthDtos {
     public static class JwtResponse implements ApiPayload {
         private String token;
         private String role;
+        private Long institutionId;
+        private java.util.List<String> roles;
         private String email;
         private String name;
     }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ContextRequest { @NotNull private Long institutionId; }
 
     @Getter
     @Setter
@@ -115,7 +122,12 @@ public class AuthDtos {
         private String otpToken; // publicId del OTP
         private String message;
         private long resendCooldownSeconds;
+        private java.util.List<InstitutionOption> institutions;
+        public OtpChallengeResponse(boolean requiresOtp,String otpToken,String message,long resendCooldownSeconds) {
+            this(requiresOtp,otpToken,message,resendCooldownSeconds,java.util.List.of());
+        }
     }
+    public record InstitutionOption(Long institutionId,String name,java.util.List<String> roles) { }
 
     @Data
     @AllArgsConstructor
@@ -127,6 +139,8 @@ public class AuthDtos {
 
         @NotBlank
         private String code;      // código de 6 dígitos que escribió el usuario
+
+        @Positive private Long institutionId;
     }
 
     @Data

@@ -18,12 +18,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.ArrayList;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final InstitutionAccessService accessService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
@@ -36,12 +38,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Jws<io.jsonwebtoken.Claims> jws = jwtService.parse(token);
                 Claims c = jws.getBody();
                 String email = c.getSubject();
-                String role = (String) c.get("role");
-                if (email != null && role != null) {
+                Number uid = c.get("uid", Number.class);
+                Number version = c.get("authVersion", Number.class);
+                Number institutionId = c.get("institutionId", Number.class);
+                if (email != null && uid != null && version != null) {
+                    var access = accessService.resolve(uid.longValue(), institutionId == null ? null : institutionId.longValue(), version.longValue());
+                    List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+                    for (String role : access.roles()) authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
                     var authToken = new UsernamePasswordAuthenticationToken(
-                            email,
+                            access.user().getEmail(),
                             null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                            authorities);
+                    authToken.setDetails(access);
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             } catch (Exception ex) {

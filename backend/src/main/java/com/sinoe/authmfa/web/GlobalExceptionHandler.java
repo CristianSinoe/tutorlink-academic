@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import com.sinoe.authmfa.service.AcademicService.AcademicConflictException;
 
 @RestControllerAdvice
 @Slf4j
@@ -45,6 +46,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(new AuthDtos.ApiMessage(ex.getMessage()));
     }
 
+    @ExceptionHandler(AcademicConflictException.class)
+    public ResponseEntity<AuthDtos.ApiMessage> conflict(AcademicConflictException ex) {
+        return ResponseEntity.status(409).body(new AuthDtos.ApiMessage(ex.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<AuthDtos.ApiMessage> accessDenied() {
+        return ResponseEntity.status(403).body(new AuthDtos.ApiMessage("Operación no autorizada"));
+    }
     @ExceptionHandler(SecurityException.class)
     public ResponseEntity<AuthDtos.ApiMessage> security(SecurityException ex) {
         log.warn("Security exception", ex);
