@@ -55,7 +55,7 @@ public class AdminUserController {
                 .collect(Collectors.toMap(AdminUserDtos.StudentListItem::getId, Function.identity()));
         var tutorProfiles = adminUserService.listTutorsWithProfile().stream()
                 .collect(Collectors.toMap(AdminUserDtos.TutorListRow::getId, Function.identity()));
-        List<UserRow> list = users.findAll()
+        List<UserRow> list = users.findInstitutionUsers(com.sinoe.authmfa.security.ScopedProfiles.institutionId())
                 .stream()
                 .map(u -> {
                     var student = studentProfiles.get(u.getId());
@@ -152,7 +152,7 @@ public class AdminUserController {
         }
 
         User u = adminUserService.changeUserStatus(userId, dto.getStatus(), actorUserId);
-        return ResponseEntity.ok(new AuthDtos.ApiMessage("Estado actualizado a " + u.getStatus().name()));
+        return ResponseEntity.ok(new AuthDtos.ApiMessage("Estado actualizado a " + dto.getStatus().toUpperCase(java.util.Locale.ROOT)));
     }
 
     @PostMapping("/tutor-students/assign")
@@ -239,7 +239,7 @@ public class AdminUserController {
 
     @GetMapping("/admins")
     public ResponseEntity<List<UserRow>> listAdmins() {
-        List<UserRow> list = users.findByRole(UserRole.ADMIN)
+        List<UserRow> list = users.findInstitutionAdministrators(com.sinoe.authmfa.security.ScopedProfiles.institutionId())
                 .stream()
                 .map(u -> new UserRow(
                         u.getId(),

@@ -24,6 +24,7 @@ public class AdminUserService {
 
     private static final String USER_NOT_FOUND_PREFIX = "Usuario no encontrado: ";
 
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
     private final UserRepository users;
     private final StudentRepository students;
     private final TutorRepository tutors;
@@ -65,6 +66,7 @@ public class AdminUserService {
 
         // 3) Crear perfil académico
         Student s = Student.builder()
+                .institution(legacyInstitution(u))
                 .user(u)
                 .matricula(dto.getMatricula())
                 .career(dto.getCareer())
@@ -114,6 +116,7 @@ public class AdminUserService {
 
         // 3) Perfil tutor
         Tutor t = Tutor.builder()
+                .institution(legacyInstitution(u))
                 .user(u)
                 .tutorCode(dto.getTutorCode())
                 .department(dto.getDepartment())
@@ -138,6 +141,7 @@ public class AdminUserService {
 
     @Transactional
     public User createAdminUser(AdminUserDtos.CreateAdminUser dto, String frontendBaseUrl) {
+        if(com.sinoe.authmfa.security.ScopedProfiles.institutionId()!=null) throw new org.springframework.security.access.AccessDeniedException("ADMIN se gestiona desde la plataforma");
 
         String emailLower = dto.getEmail().toLowerCase().trim();
 
@@ -178,6 +182,9 @@ public class AdminUserService {
     
     @Transactional
     public User changeUserStatus(Long userId, String statusRaw, Long actorUserId) {
+        Long scoped=com.sinoe.authmfa.security.ScopedProfiles.institutionId();
+        if(scoped!=null && ((Number)entityManager.createNativeQuery("select count(*) from tl_institution_memberships where institution_id=:i and user_id=:u")
+                .setParameter("i",scoped).setParameter("u",userId).getSingleResult()).longValue()==0) throw new org.springframework.security.access.AccessDeniedException("Usuario ajeno a la institución");
         User u = findUserByIdOrThrow(userId);
         UserStatus newStatus = parseUserStatus(statusRaw);
 
@@ -185,8 +192,15 @@ public class AdminUserService {
             throw new SecurityException("No puedes cambiar tu propio estado de usuario.");
         }
 
-        u.setStatus(newStatus);
-        return users.save(u);
+        Long institution=com.sinoe.authmfa.security.ScopedProfiles.institutionId();
+        if(institution!=null) {
+            if(u.getRole()==UserRole.SUPER_ADMIN) throw new org.springframework.security.access.AccessDeniedException("Cuenta global no administrable");
+            int changed=entityManager.createNativeQuery("update tl_institution_memberships set status=:status where institution_id=:i and user_id=:u and role<>'ADMIN'")
+                    .setParameter("status",newStatus==UserStatus.ACTIVE ? "ACTIVE" : "SUSPENDED").setParameter("i",institution).setParameter("u",userId).executeUpdate();
+            if(changed==0) throw new org.springframework.security.access.AccessDeniedException("Membresía no administrable");
+            return u;
+        }
+        u.setStatus(newStatus);return users.save(u);
     }
 
     @Transactional
@@ -238,6 +252,14 @@ public class AdminUserService {
         return "Tmp" + base.substring(0, 8) + "!";
     }
 
+    private com.sinoe.authmfa.domain.institution.Institution legacyInstitution(User user) {
+        Long id=com.sinoe.authmfa.security.ScopedProfiles.institutionId();
+        if(id==null) return null;
+        var institution=entityManager.getReference(com.sinoe.authmfa.domain.institution.Institution.class,id);
+        var member=com.sinoe.authmfa.domain.institution.InstitutionMembership.builder().institution(institution).user(user)
+                .role(com.sinoe.authmfa.domain.institution.InstitutionRole.valueOf(user.getRole().name())).build();
+        entityManager.persist(member);return institution;
+    }
     private AdminUserService self() {
         return selfProvider.getObject();
     }
@@ -328,14 +350,21 @@ public class AdminUserService {
     // Editar estudiante
     @Transactional
     public Student updateStudentUser(Long userId, AdminUserDtos.UpdateStudentUser dto) {
+        Long scoped=com.sinoe.authmfa.security.ScopedProfiles.institutionId();
+        if(scoped!=null && ((Number)entityManager.createNativeQuery("select count(*) from tl_institution_memberships where institution_id=:i and user_id=:u")
+                .setParameter("i",scoped).setParameter("u",userId).getSingleResult()).longValue()==0) throw new org.springframework.security.access.AccessDeniedException("Usuario ajeno a la institución");
         User u = findUserByIdOrThrow(userId);
 
-        if (u.getRole() != UserRole.ESTUDIANTE)
+        if (com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null && u.getRole() != UserRole.ESTUDIANTE)
             throw new IllegalArgumentException("El usuario no es un ESTUDIANTE");
 
         if (!AgeValidator.between15and120(dto.getBirthDate()))
             throw new IllegalArgumentException("La edad debe estar entre 15 y 120 años");
 
+        if(com.sinoe.authmfa.security.ScopedProfiles.institutionId()!=null &&
+                (!java.util.Objects.equals(u.getEmail(),dto.getEmail()) || !java.util.Objects.equals(u.getName(),dto.getName())
+                 || !java.util.Objects.equals(u.getLastNamePaterno(),dto.getLastNamePaterno()) || !java.util.Objects.equals(u.getLastNameMaterno(),dto.getLastNameMaterno())))
+            throw new AcademicService.AcademicConflictException("La identidad global no se edita desde una institución");
         String newEmail = dto.getEmail().toLowerCase().trim();
         String currentEmail = u.getEmail() != null ? u.getEmail().toLowerCase().trim() : null;
 
@@ -367,9 +396,9 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public java.util.List<AdminUserDtos.StudentListItem> listStudentsWithProfile() {
 
-        var assignedStudentIds = new java.util.HashSet<>(tutorStudents.findAssignedStudentIds());
+        var assignedStudentIds = new java.util.HashSet<>((com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null ? tutorStudents.findAssignedStudentIds() : tutorStudents.assignedStudentsInInstitution(com.sinoe.authmfa.security.ScopedProfiles.institutionId())));
 
-        return students.findAll()
+        return (com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null ? students.findAll() : students.findByInstitution_Id(com.sinoe.authmfa.security.ScopedProfiles.institutionId()))
                 .stream()
                 .map(st -> {
 
@@ -398,9 +427,9 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public java.util.List<AdminUserDtos.TutorListRow> listTutorsWithProfile() {
 
-        var assignedTutorIds = new java.util.HashSet<>(tutorStudents.findAssignedTutorIds());
+        var assignedTutorIds = new java.util.HashSet<>((com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null ? tutorStudents.findAssignedTutorIds() : tutorStudents.assignedTutorsInInstitution(com.sinoe.authmfa.security.ScopedProfiles.institutionId())));
 
-        return tutors.findAll()
+        return (com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null ? tutors.findAll() : tutors.findByInstitution_Id(com.sinoe.authmfa.security.ScopedProfiles.institutionId()))
                 .stream()
                 .map(t -> {
 
@@ -426,18 +455,22 @@ public class AdminUserService {
     // Actualizar tutor
     @Transactional
     public Tutor updateTutorUser(Long userId, AdminUserDtos.UpdateTutorUser dto) {
+        Long scoped=com.sinoe.authmfa.security.ScopedProfiles.institutionId();
+        if(scoped!=null && ((Number)entityManager.createNativeQuery("select count(*) from tl_institution_memberships where institution_id=:i and user_id=:u")
+                .setParameter("i",scoped).setParameter("u",userId).getSingleResult()).longValue()==0) throw new org.springframework.security.access.AccessDeniedException("Usuario ajeno a la institución");
         User u = findUserByIdOrThrow(userId);
 
-        if (u.getRole() != UserRole.TUTOR)
+        if (com.sinoe.authmfa.security.ScopedProfiles.institutionId()==null && u.getRole() != UserRole.TUTOR)
             throw new IllegalStateException("El usuario con id=" + userId + " no es TUTOR");
 
         Tutor t = tutors.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("No se encontró perfil Tutor"));
 
-        u.setName(dto.getName());
-        u.setLastNamePaterno(dto.getLastNamePaterno());
-        u.setLastNameMaterno(dto.getLastNameMaterno());
-        u.setEmail(dto.getEmail());
+        if(com.sinoe.authmfa.security.ScopedProfiles.institutionId()!=null &&
+                (!java.util.Objects.equals(u.getEmail(),dto.getEmail()) || !java.util.Objects.equals(u.getName(),dto.getName())
+                 || !java.util.Objects.equals(u.getLastNamePaterno(),dto.getLastNamePaterno()) || !java.util.Objects.equals(u.getLastNameMaterno(),dto.getLastNameMaterno())))
+            throw new AcademicService.AcademicConflictException("La identidad global no se edita desde una institución");
+        u.setName(dto.getName());u.setLastNamePaterno(dto.getLastNamePaterno());u.setLastNameMaterno(dto.getLastNameMaterno());u.setEmail(dto.getEmail());
 
         t.setTutorCode(dto.getTutorCode());
         t.setDepartment(dto.getDepartment());
@@ -456,6 +489,7 @@ public class AdminUserService {
         if (tsOpt.isEmpty())
             throw new EntityNotFoundException("No existe la asignación con id=" + assignmentId);
 
+        if(com.sinoe.authmfa.security.ScopedProfiles.institutionId()!=null && !com.sinoe.authmfa.security.ScopedProfiles.belongs(tsOpt.get().getStudent().getInstitution().getId())) throw new org.springframework.security.access.AccessDeniedException("Asignación ajena a la institución");
         tutorStudents.delete(tsOpt.get());
     }
 

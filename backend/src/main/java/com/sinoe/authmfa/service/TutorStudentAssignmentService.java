@@ -32,6 +32,9 @@ public class TutorStudentAssignmentService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Estudiante no encontrado con matrícula: " + dto.getMatricula()));
 
+        if(com.sinoe.authmfa.security.ScopedProfiles.institutionId()!=null &&
+                (!com.sinoe.authmfa.security.ScopedProfiles.belongs(tutor.getInstitution().getId()) || !com.sinoe.authmfa.security.ScopedProfiles.belongs(student.getInstitution().getId())))
+            throw new org.springframework.security.access.AccessDeniedException("Asignación entre instituciones no permitida");
         tutorStudents.findByStudent_Id(student.getId()).ifPresent(tutorStudents::delete);
 
         TutorStudent assignment = TutorStudent.builder()

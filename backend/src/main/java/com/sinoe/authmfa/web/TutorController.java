@@ -39,13 +39,9 @@ public class TutorController {
     }
 
     @GetMapping("/questions/pending")
-    public ResponseEntity<List<Question>> pending(@RequestParam(name = "scope", required = false) Scope scope) {
-
-        List<Question> out = (scope == null)
-                ? questions.findByStatusOrderByCreatedAtAsc(Status.PENDIENTE)
-                : questions.findByStatusAndScopeOrderByCreatedAtAsc(Status.PENDIENTE, scope);
-
-        return ResponseEntity.ok(out);
+    public ResponseEntity<List<com.sinoe.authmfa.dto.qa.TutorPendingQuestionDto>> pending(@RequestParam(name="scope",required=false) String scope,Authentication auth) {
+        User user=qa.requireUserByEmail(auth.getName());
+        return ResponseEntity.ok(qa.findPendingQuestionsForTutor(user.getId(),scope,null));
     }
 
     @PostMapping("/questions/{id}/answer")

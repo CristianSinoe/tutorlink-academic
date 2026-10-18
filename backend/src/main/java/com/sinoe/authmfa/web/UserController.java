@@ -52,7 +52,7 @@ public class UserController {
         // ============================
         // ROLE: ESTUDIANTE
         // ============================
-        if (user.getRole().name().equals("ESTUDIANTE")) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ESTUDIANTE"))) {
 
             Student st = studentRepository.findByUser_Id(user.getId()).orElse(null);
 
@@ -97,7 +97,7 @@ public class UserController {
 
         // ROLE: TUTOR
 
-        if (user.getRole().name().equals("TUTOR")) {
+        if (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_TUTOR"))) {
 
             Tutor t = tutorRepository.findByUser_Id(user.getId()).orElse(null);
 

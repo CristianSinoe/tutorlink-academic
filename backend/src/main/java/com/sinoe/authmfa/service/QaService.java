@@ -45,6 +45,7 @@ public class QaService {
     private static final String INVALID_QUESTION_STATUS_MESSAGE = "Estado de pregunta inválido: ";
     private static final String INVALID_QUESTION_SCOPE_MESSAGE = "Scope de pregunta inválido: ";
 
+    @org.springframework.beans.factory.annotation.Autowired private com.sinoe.authmfa.security.InstitutionAccessService institutionAccess;
     private final UserRepository users;
     private final StudentRepository students;
     private final TutorRepository tutors;
@@ -57,6 +58,28 @@ public class QaService {
     private final EmailService emailService;
     private final ObjectProvider<QaService> selfProvider;
 
+    private void requireContextRole(Long user,String role) {
+        var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if(auth!=null && auth.getDetails() instanceof com.sinoe.authmfa.security.InstitutionAccessService.Access a) {
+            if(!a.user().getId().equals(user) || !institutionAccess.resolve(user,a.institutionId(),a.user().getAuthorizationVersion()).roles().contains(role))
+                throw new org.springframework.security.access.AccessDeniedException("Membresía de tutoría requerida");
+        }
+    }
+    private UserRole contextRole(User user) {
+        var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if(auth!=null && auth.getDetails() instanceof com.sinoe.authmfa.security.InstitutionAccessService.Access a) {
+            var attributes=org.springframework.web.context.request.RequestContextHolder.getRequestAttributes();
+            String path=attributes instanceof org.springframework.web.context.request.ServletRequestAttributes r ? r.getRequest().getRequestURI() : "";
+            if(path.startsWith("/api/tutor")&&a.roles().contains("TUTOR")) return UserRole.TUTOR;
+            if(path.startsWith("/api/student")&&a.roles().contains("ESTUDIANTE")) return UserRole.ESTUDIANTE;
+            if(path.startsWith("/api/admin")&&a.roles().contains("ADMIN")) return UserRole.ADMIN;
+            if(user.getRole()!=UserRole.DOCENTE && user.getRole()!=UserRole.SUPER_ADMIN && a.roles().contains(user.getRole().name())) return user.getRole();
+            if(a.roles().contains("TUTOR")) return UserRole.TUTOR;
+            if(a.roles().contains("ESTUDIANTE")) return UserRole.ESTUDIANTE;
+            throw new org.springframework.security.access.AccessDeniedException("Rol de tutoría requerido");
+        }
+        return user.getRole();
+    }
     // HELPERS
 
     private static final int MAX_MESSAGE_BODY_LENGTH = 8000;
@@ -72,22 +95,24 @@ public class QaService {
     }
 
     public Student requireStudentByUserId(Long userId) {
+        requireContextRole(userId,"ESTUDIANTE");
         return students.findByUser_Id(userId)
                 .orElseThrow(() -> new IllegalStateException("User is not a student: " + userId));
     }
 
     public Tutor requireTutorByUserId(Long userId) {
+        requireContextRole(userId,"TUTOR");
         return tutors.findByUser_Id(userId)
                 .orElseThrow(() -> new IllegalStateException("User is not a tutor: " + userId));
     }
 
     public Question requireQuestion(Long id) {
-        return questions.findById(id)
+        return questions.findById(id).filter(value -> com.sinoe.authmfa.security.ScopedProfiles.belongs(value.getStudent().getInstitution()==null ? null : value.getStudent().getInstitution().getId()))
                 .orElseThrow(() -> new EntityNotFoundException("question not found: " + id));
     }
 
     public Student requireStudentById(Long studentId) {
-        return students.findById(studentId)
+        return students.findById(studentId).filter(s -> com.sinoe.authmfa.security.ScopedProfiles.belongs(s.getInstitution()==null ? null : s.getInstitution().getId()))
                 .orElseThrow(() -> new EntityNotFoundException("No se encontró el estudiante con id=" + studentId));
     }
 
@@ -269,11 +294,11 @@ public class QaService {
         }
 
         QuestionMessage message;
-        if (sender.getRole() == UserRole.ESTUDIANTE) {
+        if (contextRole(sender) == UserRole.ESTUDIANTE) {
             validateStudentQuestionOwnership(sender.getId(), question);
             message = createThreadMessage(question, sender, normalizedBody);
             notifyTutorAboutStudentFollowUp(question, message.getCreatedAt(), frontendBaseUrl);
-        } else if (sender.getRole() == UserRole.TUTOR) {
+        } else if (contextRole(sender) == UserRole.TUTOR) {
             Tutor tutor = requireTutorByUserId(sender.getId());
             ensureTutorCanWrite(tutor, question);
             message = createThreadMessage(question, sender, normalizedBody);
@@ -317,12 +342,12 @@ public class QaService {
                 .build();
         questionMessageRevisions.save(revision);
 
-        if (editor.getRole() == UserRole.TUTOR && question.getStatus() != Status.RECHAZADA) {
+        if (contextRole(editor) == UserRole.TUTOR && question.getStatus() != Status.RECHAZADA) {
             question.setStatus(Status.CORREGIDA);
             questions.save(question);
             Tutor tutor = requireTutorByUserId(editorUserId);
             notifyStudentAboutTutorReply(question, tutor, revision.getCreatedAt(), frontendBaseUrl);
-        } else if (editor.getRole() == UserRole.ESTUDIANTE) {
+        } else if (contextRole(editor) == UserRole.ESTUDIANTE) {
             notifyTutorAboutStudentFollowUp(question, revision.getCreatedAt(), frontendBaseUrl);
         }
 
@@ -365,7 +390,7 @@ public class QaService {
         // Obtener el estudiante a partir del userId
         Student student = requireStudentByUserId(userId);
 
-        Question q = questions.findById(questionId)
+        Question q = questions.findById(questionId).filter(value -> com.sinoe.authmfa.security.ScopedProfiles.belongs(value.getStudent().getInstitution()==null ? null : value.getStudent().getInstitution().getId()))
                 .orElseThrow(() -> new EntityNotFoundException("Pregunta no encontrada"));
 
         // Validar que la pregunta pertenezca al estudiante autenticado
@@ -586,7 +611,7 @@ public class QaService {
     @Transactional(readOnly = true)
     public StudentQuestionDetailDto getStudentQuestionDetail(Long userId, Long questionId) {
         Student student = requireStudentByUserId(userId);
-        Question q = questions.findById(questionId)
+        Question q = questions.findById(questionId).filter(value -> com.sinoe.authmfa.security.ScopedProfiles.belongs(value.getStudent().getInstitution()==null ? null : value.getStudent().getInstitution().getId()))
                 .orElseThrow(() -> new IllegalArgumentException("Pregunta no encontrada"));
         validateStudentQuestionOwnership(student, q);
         List<Answer> allAnswers = answers.findByQuestion_IdOrderByVersionAsc(questionId);
@@ -862,7 +887,7 @@ public class QaService {
         QuestionMessage message = QuestionMessage.builder()
                 .question(question)
                 .senderUser(sender)
-                .senderRole(sender.getRole())
+                .senderRole(contextRole(sender))
                 .messageType(QuestionMessageType.TEXT)
                 .body(body)
                 .visible(true)
@@ -1048,17 +1073,17 @@ public class QaService {
         if (question.getStatus() == Status.RECHAZADA) {
             return false;
         }
-        return switch (viewer.getRole()) {
+        return switch (contextRole(viewer)) {
             case ESTUDIANTE -> question.getStudent() != null
                     && question.getStudent().getUser() != null
                     && Objects.equals(question.getStudent().getUser().getId(), viewer.getId());
             case TUTOR -> canTutorAccessQuestion(requireTutorByUserId(viewer.getId()), question);
-            case ADMIN -> false;
+            case ADMIN, DOCENTE, SUPER_ADMIN -> false;
         };
     }
 
     private boolean canCorrectMessage(User viewer, QuestionMessage message) {
-        if (viewer.getRole() == UserRole.ADMIN || message.getQuestion() == null) {
+        if (contextRole(viewer) == UserRole.ADMIN || message.getQuestion() == null) {
             return false;
         }
         if (message.getQuestion().getStatus() == Status.RECHAZADA) {
@@ -1075,12 +1100,13 @@ public class QaService {
     }
 
     private void ensureCanReadQuestion(User viewer, Question question) {
-        switch (viewer.getRole()) {
+        switch (contextRole(viewer)) {
             case ESTUDIANTE -> validateStudentQuestionOwnership(viewer.getId(), question);
             case TUTOR -> ensureTutorCanRead(requireTutorByUserId(viewer.getId()), question);
-            case ADMIN -> {
+            case ADMIN, SUPER_ADMIN -> {
                 // lectura permitida
             }
+            case DOCENTE -> throw new SecurityException("Las consultas de tutoría no pertenecen al rol docente");
         }
     }
 
