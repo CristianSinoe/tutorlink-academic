@@ -19,7 +19,7 @@ rectangle "TutorLink - Plataforma SaaS educativa" #E8F1FB {
   component "Frontend web\nReact + Vite" as frontend
   component "API REST y logica de negocio\nSpring Boot" as backend
   database "PostgreSQL\ndatos multiinstitucion" as database
-  component "Seguridad\nJWT, OTP y control de roles" as security
+  component "Seguridad\nJWT contextual, OTP, membresias y control de roles" as security
   component "Modulos academicos\nclases, tareas, asistencia y tutoria" as academic
   component "Seguimiento y alertas\nnotificaciones y trazabilidad" as alerts
 }
@@ -48,7 +48,8 @@ alerts --> whatsapp : alertas familiares autorizadas
 
 note bottom of database
 La separacion logica se aplica por institucion
-en usuarios, configuracion y datos academicos.
+en membresias, usuarios, cursos, grupos y datos academicos.
+Tutor-Estudiante y Docente-Grupo son relaciones independientes.
 end note
 
 note bottom of whatsapp
