@@ -1,19 +1,4 @@
-// src/router/TutorRoute.jsx
-import { Navigate } from "react-router-dom";
 import PropTypes from "prop-types";
-import ProtectedRoute from "./ProtectedRoute";
-import { useAuth } from "../context/useAuth.js";
-
-export default function TutorRoute({ children }) {
-  const { auth } = useAuth();
-
-  return (
-    <ProtectedRoute>
-      {auth.role === "TUTOR" ? children : <Navigate to="/login" />}
-    </ProtectedRoute>
-  );
-}
-
-TutorRoute.propTypes = {
-  children: PropTypes.node,
-};
+import RoleRoute from "./RoleRoute";
+export default function TutorRoute({children}) { return <RoleRoute role="TUTOR">{children}</RoleRoute>; }
+TutorRoute.propTypes = { children: PropTypes.node };

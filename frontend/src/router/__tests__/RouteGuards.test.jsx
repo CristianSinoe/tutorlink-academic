@@ -40,7 +40,7 @@ describe("Route guards", () => {
             </AdminRoute>
           }
         />
-        <Route path="/login" element={<div>Login screen</div>} />
+        <Route path="/access-denied" element={<div>Access denied</div>} />
       </Routes>,
       {
         route: "/admin/users",
@@ -52,7 +52,7 @@ describe("Route guards", () => {
       },
     );
 
-    expect(await screen.findByText("Login screen")).toBeInTheDocument();
+    expect(await screen.findByText("Access denied")).toBeInTheDocument();
   });
 
   it("impide que un tutor acceda al panel admin", async () => {
@@ -66,7 +66,7 @@ describe("Route guards", () => {
             </AdminRoute>
           }
         />
-        <Route path="/login" element={<div>Login screen</div>} />
+        <Route path="/access-denied" element={<div>Access denied</div>} />
       </Routes>,
       {
         route: "/admin/users",
@@ -78,7 +78,7 @@ describe("Route guards", () => {
       },
     );
 
-    expect(await screen.findByText("Login screen")).toBeInTheDocument();
+    expect(await screen.findByText("Access denied")).toBeInTheDocument();
   });
 
   it("permite acceso al panel admin cuando el rol es ADMIN", async () => {
@@ -92,7 +92,7 @@ describe("Route guards", () => {
             </AdminRoute>
           }
         />
-        <Route path="/login" element={<div>Login screen</div>} />
+        <Route path="/access-denied" element={<div>Access denied</div>} />
       </Routes>,
       {
         route: "/admin/users",

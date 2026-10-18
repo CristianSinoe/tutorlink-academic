@@ -1,19 +1,4 @@
-// src/router/StudentRoute.jsx
-import { Navigate } from "react-router-dom";
 import PropTypes from "prop-types";
-import ProtectedRoute from "./ProtectedRoute";
-import { useAuth } from "../context/useAuth.js";
-
-export default function StudentRoute({ children }) {
-  const { auth } = useAuth();
-
-  return (
-    <ProtectedRoute>
-      {auth.role === "ESTUDIANTE" ? children : <Navigate to="/login" />}
-    </ProtectedRoute>
-  );
-}
-
-StudentRoute.propTypes = {
-  children: PropTypes.node,
-};
+import RoleRoute from "./RoleRoute";
+export default function StudentRoute({children}) { return <RoleRoute role="ESTUDIANTE">{children}</RoleRoute>; }
+StudentRoute.propTypes = { children: PropTypes.node };
