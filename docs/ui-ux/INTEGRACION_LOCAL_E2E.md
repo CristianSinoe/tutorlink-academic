@@ -9,9 +9,12 @@ Desde la raíz, iniciar únicamente el Compose dedicado:
 ```sh
 docker compose -f docker-compose.e2e.yml up -d db
 cp backend/.env.e2e.example backend/.env.e2e.local
+# Completa los tres campos privados indicados abajo antes de continuar.
 set -a; . backend/.env.e2e.local; set +a
 ./scripts/e2e/verify-environment.sh
 ```
+
+`backend/.env.e2e.example` deja vacíos `DB_PASSWORD`, `SECURITY_JWT_SECRET` y `RECAPTCHA_SECRET_KEY`. Complétalos únicamente en `backend/.env.e2e.local`: la contraseña debe coincidir con el PostgreSQL efímero definido en `docker-compose.e2e.yml`; genera el secreto JWT local con `openssl rand -hex 32`; configura la clave secreta oficial de prueba reCAPTCHA v2 de Google en el archivo local. No copies claves productivas. Los archivos `.env.e2e.local` y los demás `.env` privados permanecen ignorados por Git.
 
 `docker-compose.e2e.yml` usa el proyecto `tutorlink-e2e`, PostgreSQL en `127.0.0.1:55433`, la base `tutorlink_e2e` y `tmpfs`, sin volumen nombrado. El script y el perfil `e2e` rechazan cualquier host, puerto o base distintos.
 
@@ -32,7 +35,7 @@ El perfil `demo` aplica Flyway V1–V30, valida JPA y ejecuta `DemoDataSeeder`. 
 
 El correo no sale del proceso: `InMemoryDemoMailSender` almacena temporalmente el mensaje de OTP sólo en memoria. No expone controlador HTTP, archivo, log, variable Vite ni credencial. La automatización E2E puede acceder a esa información exclusivamente mediante la tarea IPC local configurada para la batería; debe limpiar el buzón al finalizar.
 
-Las credenciales sintéticas son los correos `admin1.demo15@example.invalid` a `admin3.demo15@example.invalid` y la contraseña configurada por `DEMO_PASSWORD` (el ejemplo emplea `TutorLinkDemo2026!`). Las claves reCAPTCHA del ejemplo son las oficiales de prueba de Google y no sustituyen controles de producción.
+Las credenciales sintéticas son los correos `admin1.demo15@example.invalid` a `admin3.demo15@example.invalid` y la contraseña configurada por `DEMO_PASSWORD` (el ejemplo emplea `TutorLinkDemo2026!`). La clave pública reCAPTCHA del ejemplo es la oficial de prueba de Google; la clave secreta se configura solamente en el archivo local y no sustituyen controles de producción.
 
 ## Baterías y alcance
 
