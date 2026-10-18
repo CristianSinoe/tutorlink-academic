@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+!backend/.env.e2e.example
+!frontend/.env.e2e.example
 
 node_modules/
 frontend/node_modules/
