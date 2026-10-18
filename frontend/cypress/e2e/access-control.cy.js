@@ -7,25 +7,19 @@ describe("TutorLink access control", () => {
 
   it("bloquea a estudiante en rutas admin", () => {
     cy.visitAsRole("/admin/users", "student");
-    cy.location("pathname").should("eq", "/login");
+    cy.location("pathname").should("eq", "/access-denied");
   });
 
   it("bloquea a tutor en rutas admin", () => {
     cy.visitAsRole("/admin/users", "tutor");
-    cy.location("pathname").should("eq", "/login");
+    cy.location("pathname").should("eq", "/access-denied");
   });
 
   it("permite a admin entrar a rutas admin", () => {
-    cy.fixture("admin-users").then((users) => {
-      cy.intercept("GET", "/api/admin/users", {
-        statusCode: 200,
-        body: users,
-      }).as("getAdminUsers");
-    });
-
+    cy.mockAdminApis();
     cy.visitAsRole("/admin/users", "admin");
-    cy.wait("@getAdminUsers");
+    cy.wait("@getInstitutionalUsers");
     cy.location("pathname").should("eq", "/admin/users");
-    cy.contains("Gestión de usuarios").should("be.visible");
+    cy.contains("Gestión de usuarios institucionales").should("be.visible");
   });
 });

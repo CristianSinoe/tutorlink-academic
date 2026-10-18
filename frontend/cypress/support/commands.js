@@ -1,3 +1,11 @@
+function mockContext(user) {
+  const roles = user.roles || [user.role];
+  const institutionId = user.institutionId || 1;
+  cy.intercept("GET", "/api/auth/institutions", { body: [{ institutionId, name: "Escuela de pruebas", roles }] });
+  cy.intercept("POST", "/api/auth/context", { body: { token: user.token, role: user.role, roles, institutionId, email: user.email, name: user.name } });
+  return { version: 2, token: user.token, role: user.role, roles, institutionId, email: user.email, name: user.name, selectedRole: roles[0] };
+}
+
 function getRecaptchaStubScript() {
   return `
     (() => {
@@ -36,7 +44,7 @@ function getRecaptchaStubScript() {
       };
 
       if (onloadName && typeof globalThis[onloadName] === "function") {
-        globalThis[onloadName]();
+        setTimeout(() => globalThis[onloadName](), 0);
       }
     })();
   `;
@@ -53,14 +61,10 @@ Cypress.Commands.add("mockRecaptcha", () => {
 Cypress.Commands.add("seedAuth", (role, overrides = {}) => {
   cy.fixture("users").then((users) => {
     const user = { ...users[role], ...overrides };
+    const contextual = mockContext(user);
     globalThis.window.localStorage.setItem(
       "auth",
-      JSON.stringify({
-        token: user.token,
-        role: user.role,
-        email: user.email,
-        name: user.name,
-      }),
+      JSON.stringify(contextual),
     );
   });
 });
@@ -68,16 +72,12 @@ Cypress.Commands.add("seedAuth", (role, overrides = {}) => {
 Cypress.Commands.add("visitAsRole", (path, role, overrides = {}) => {
   cy.fixture("users").then((users) => {
     const user = { ...users[role], ...overrides };
+    const contextual = mockContext(user);
     cy.visit(path, {
       onBeforeLoad(win) {
         win.localStorage.setItem(
           "auth",
-          JSON.stringify({
-            token: user.token,
-            role: user.role,
-            email: user.email,
-            name: user.name,
-          }),
+          JSON.stringify(contextual),
         );
       },
     });
@@ -130,12 +130,23 @@ Cypress.Commands.add("mockTutorApis", () => {
 });
 
 Cypress.Commands.add("mockAdminApis", () => {
-  cy.fixture("admin-users").then((users) => {
-    cy.intercept("GET", "/api/admin/users", {
-      statusCode: 200,
-      body: users,
-    }).as("getAdminUsers");
-  });
+  const users = {
+    items: [
+      { userId: 2, name: "Tutor E2E", email: "tutor.e2e@example.test", status: "ACTIVE", roles: ["TUTOR"] },
+      { userId: 3, name: "Estudiante E2E", email: "student.e2e@example.test", status: "ACTIVE", roles: ["ESTUDIANTE"] },
+    ], total: 2, page: 0, size: 20,
+  };
+  const detail = { userId: 2, name: "Tutor E2E", lastNamePaterno: "Pruebas", email: "tutor.e2e@example.test", status: "ACTIVE", profiles: [{ role: "TUTOR", code: "T-2", department: "Tutorías" }], memberships: [{ role: "TUTOR", status: "ACTIVE" }] };
+  cy.intercept("GET", "/api/admin/institution/users/2", { statusCode: 200, body: detail }).as("getInstitutionalUser");
+  cy.intercept("GET", "/api/admin/institution/users/3", { statusCode: 200, body: { userId: 3, name: "Estudiante E2E", email: "student.e2e@example.test", status: "ACTIVE", profiles: [{ role: "ESTUDIANTE", code: "S-3", career: "ISC", semester: 2 }], memberships: [{ role: "ESTUDIANTE", status: "ACTIVE" }] } });
+  cy.intercept("GET", "/api/admin/institution/users*", { statusCode: 200, body: users }).as("getInstitutionalUsers");
+  cy.intercept("PATCH", "/api/admin/institution/users/2/roles/TUTOR/status", { statusCode: 200, body: {} }).as("patchInstitutionalMembership");
+  cy.intercept("POST", "/api/admin/institution/users/import-csv*", { statusCode: 200, body: { total: 1, created: 1, invited: 0, skipped: 0, failed: 0, rows: [] } }).as("importInstitutionalCsv");
+  cy.intercept("POST", "/api/admin/institution/users/import-excel*", { statusCode: 200, body: { total: 1, created: 1, invited: 0, skipped: 0, failed: 0, rows: [] } }).as("importInstitutionalExcel");
+  cy.intercept("GET", "/api/admin/institution/users/invitations*", { statusCode: 200, body: { content: [{ id: 7, contactEmail: "invite@example.test", role: "ESTUDIANTE", expiresAt: "2030-01-01T00:00:00Z", status: "PENDING" }], page: 0, size: 20, totalElements: 1, totalPages: 1 } }).as("getInstitutionalInvitations");
+  cy.intercept("POST", "/api/admin/institution/users/invitations", { statusCode: 201, body: {} }).as("createInstitutionalInvitation");
+  cy.intercept("POST", "/api/admin/institution/users/invitations/7/resend", { statusCode: 204, body: {} }).as("resendInstitutionalInvitation");
+  cy.intercept("DELETE", "/api/admin/institution/users/invitations/7", { statusCode: 204, body: {} }).as("cancelInstitutionalInvitation");
 
   cy.fixture("assignments").then((assignments) => {
     cy.intercept("GET", "/api/admin/users/tutor-students", {
@@ -143,10 +154,10 @@ Cypress.Commands.add("mockAdminApis", () => {
       body: assignments.rows,
     }).as("getAssignments");
 
-    cy.intercept("POST", "/api/admin/users/tutor-students/import-csv", {
+    cy.intercept("POST", "/api/admin/users/tutor-students/import-excel", {
       statusCode: 200,
       body: assignments.importResult,
-    }).as("importAssignmentsCsv");
+    }).as("importAssignmentsExcel");
   });
 });
 
@@ -158,6 +169,8 @@ Cypress.Commands.add("loginViaUiAs", (role) => {
         : role;
     const roleName = String(roleValue);
     const user = users[roleName];
+    const contextual = mockContext(user);
+    cy.mockRecaptcha();
 
     if (roleName === "student") {
       cy.mockStudentApis();
@@ -171,6 +184,7 @@ Cypress.Commands.add("loginViaUiAs", (role) => {
       statusCode: 200,
       body: {
         requiresOtp: true,
+        institutions: [{ institutionId: contextual.institutionId, name: "Escuela de pruebas", roles: contextual.roles }],
         otpToken: `${roleName}-otp-token`,
         message: "Se envió un código de verificación a tu correo institucional.",
         resendCooldownSeconds: 0,
@@ -182,6 +196,8 @@ Cypress.Commands.add("loginViaUiAs", (role) => {
       body: {
         token: user.token,
         role: user.role,
+        roles: contextual.roles,
+        institutionId: contextual.institutionId,
         email: user.email,
         name: user.name,
       },
@@ -191,6 +207,7 @@ Cypress.Commands.add("loginViaUiAs", (role) => {
     cy.contains("Inicia sesión en TutorLink", { timeout: 10000 }).should("be.visible");
     cy.get('[data-cy="login-email"]').type(user.email);
     cy.get('[data-cy="login-password"]').type(user.password);
+    cy.get('[data-cy="mock-recaptcha-button"]').click();
     cy.get('[data-cy="login-submit"]').click();
     cy.wait("@loginRequest");
     cy.url().should("include", "/otp");

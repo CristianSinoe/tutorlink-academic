@@ -25,7 +25,7 @@ describe("TutorLink tutor flow", () => {
     cy.visitAsRole("/tutor/pending", "tutor");
 
     cy.wait("@getTutorPending");
-    cy.contains("Preguntas pendientes").should("be.visible");
+    cy.contains("h1", "Preguntas pendientes").should("be.visible");
     cy.get('[data-cy="tutor-open-detail"]').first().click();
     cy.wait("@getTutorDetail");
     cy.contains("Conversación de la pregunta").should("be.visible");

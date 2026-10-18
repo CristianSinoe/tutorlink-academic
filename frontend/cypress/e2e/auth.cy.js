@@ -5,9 +5,10 @@ describe("TutorLink auth", () => {
       body: { message: "Credenciales inválidas." },
     }).as("invalidLogin");
 
+    cy.mockRecaptcha();
     cy.visit("/login");
     cy.contains("Inicia sesión en TutorLink", { timeout: 10000 }).should("be.visible");
-    cy.get('[data-cy="login-recaptcha-bypassed"]').should("be.visible");
+    cy.get('[data-cy="mock-recaptcha-button"]').click();
     cy.get('[data-cy="login-email"]').type("wrong@example.test");
     cy.get('[data-cy="login-password"]').type("bad-password");
     cy.get('[data-cy="login-submit"]').click();
@@ -21,6 +22,7 @@ describe("TutorLink auth", () => {
 
     cy.location("pathname").should("eq", "/student");
     cy.contains("Dashboard del estudiante").should("be.visible");
+    cy.get('button[aria-label="Abrir menú"]').then($button => { if ($button.is(':visible')) cy.wrap($button).click(); });
     cy.get('[data-cy="logout-button"]').filter(":visible").first().click();
     cy.location("pathname").should("eq", "/login");
   });

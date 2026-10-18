@@ -19,5 +19,12 @@
     "role": "ADMIN",
     "name": "Admin E2E",
     "token": "jwt-admin-e2e"
+  },
+  "teacher": {
+    "email": "teacher.e2e@example.test",
+    "password": "Password123!",
+    "role": "DOCENTE",
+    "name": "Docente E2E",
+    "token": "jwt-teacher-e2e"
   }
 }

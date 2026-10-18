@@ -46,6 +46,7 @@ export default defineConfig([
     languageOptions: {
       globals: {
         ...globals.browser,
+        ...globals.node,
         describe: 'readonly',
         it: 'readonly',
         expect: 'readonly',
@@ -57,5 +58,9 @@ export default defineConfig([
         cy: 'readonly',
       },
     },
+  },
+  {
+    files: ['cypress.config.js'],
+    languageOptions: { globals: globals.node },
   },
 ])

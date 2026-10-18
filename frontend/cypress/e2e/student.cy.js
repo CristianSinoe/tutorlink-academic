@@ -4,6 +4,7 @@ describe("TutorLink student flow", () => {
       expect(text).to.include("Pregunta enviada correctamente.");
     });
 
+    cy.mockRecaptcha();
     cy.mockStudentApis();
     cy.visitAsRole("/student/ask", "student");
 
@@ -13,6 +14,7 @@ describe("TutorLink student flow", () => {
     cy.get('textarea[name="body"]').type(
       "Necesito saber si puedo registrar una experiencia educativa fuera de tiempo.",
     );
+    cy.get('[data-cy="mock-recaptcha-button"]').click();
     cy.get('[data-cy="student-ask-submit"]').click();
 
     cy.wait("@createStudentQuestion");
