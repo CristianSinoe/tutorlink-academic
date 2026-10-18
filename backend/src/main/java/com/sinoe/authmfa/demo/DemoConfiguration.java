@@ -11,7 +11,7 @@ import java.sql.SQLException;
 import java.util.UUID;
 
 @Configuration(proxyBeanMethods = false)
-@Profile("demo")
+@Profile("demo-snapshot")
 public class DemoConfiguration {
     @Bean(destroyMethod = "close")
     public HikariDataSource dataSource() throws SQLException {

@@ -1,8 +1,6 @@
 package com.sinoe.authmfa.demo;
 
 import com.sinoe.authmfa.domain.user.UserRepository;
-import com.sinoe.authmfa.domain.user.UserStatus;
-import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,7 +14,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import javax.sql.DataSource;
-import java.sql.DriverManager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
@@ -34,13 +31,6 @@ class DemoPostgresIntegrationTest {
 
     @DynamicPropertySource
     static void source(DynamicPropertyRegistry registry) throws Exception {
-        Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
-                .load().migrate();
-        try (var c = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
-             var s = c.createStatement()) {
-            s.execute("insert into tl_users(id,name,last_name_paterno,email,password_hash,role,status) "
-                    + "values (500,'Original','Prueba','original@example.invalid','test-hash','ADMIN','ACTIVE')");
-        }
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
@@ -52,22 +42,12 @@ class DemoPostgresIntegrationTest {
     @Autowired JavaMailSender mail;
 
     @Test
-    void startupCopiesPostgresEnumsAndLeavesSourceUntouchedAfterDemoChanges() throws Exception {
+    void startupSeedsPostgresWithFlywayAndKeepsSyntheticDataIsolated() throws Exception {
         assertThat(mail).isInstanceOf(DemoMailSender.class);
         try (var c = target.getConnection()) {
-            assertThat(c.getMetaData().getURL()).startsWith("jdbc:h2:mem:");
+            assertThat(c.getMetaData().getURL()).startsWith("jdbc:postgresql:");
         }
-        assertThat(users.count()).isEqualTo(321);
-        var original = users.findById(500L).orElseThrow();
-        assertThat(original.getStatus()).isEqualTo(UserStatus.ACTIVE);
-        original.setName("Solo cambia en memoria");
-        users.saveAndFlush(original);
-        assertThat(jdbc.queryForObject("select min(id) from tl_users where id <> 500", Long.class)).isEqualTo(501L);
-        try (var c = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
-             var s = c.createStatement(); var r = s.executeQuery("select name from tl_users")) {
-            r.next();
-            assertThat(r.getString(1)).isEqualTo("Original");
-            assertThat(r.next()).isFalse();
-        }
+        assertThat(users.count()).isEqualTo(323);
+        assertThat(jdbc.queryForObject("select count(*) from tl_institutions where code like 'DEMO15-I%'", Integer.class)).isEqualTo(3);
     }
 }

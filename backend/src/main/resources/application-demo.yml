@@ -3,13 +3,10 @@ spring:
     activate:
       on-profile: demo
   flyway:
-    enabled: false
+    enabled: true
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
-    properties:
-      hibernate.hbm2ddl.halt_on_error: true
+      ddl-auto: validate
 
 tutorlink:
   demo:
