@@ -1,3 +1,4 @@
+import ProfileContextSection from '../../components/context/ProfileContextSection';
 // src/pages/admin/AdminProfilePage.jsx
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
@@ -77,6 +78,8 @@ export default function AdminProfilePage() {
           {renderProfileContent({ loading, me, fullName })}
         </section>
 
+        <ProfileContextSection />
+
         <section className="text-xs text-slate-500">
           Si detectas algún dato incorrecto, contacta al soporte del sistema
           para solicitar su actualización.
@@ -95,9 +98,9 @@ export default function AdminProfilePage() {
 
 function InfoRow({ label, value }) {
   return (
-    <div>
+    <div className="min-w-0">
       <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="text-sm text-slate-900 mt-0.5">{value || "—"}</p>
+      <p className="mt-0.5 break-words text-sm text-slate-900">{value || "—"}</p>
     </div>
   );
 }
@@ -181,7 +184,7 @@ function renderProfileContent({ loading, me, fullName }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 text-sm">
       <InfoRow label="Nombre completo" value={fullName} />
-      <InfoRow label="Correo institucional" value={me.email} />
+      <InfoRow label="Correo principal" value={me.email} />
       <InfoRow label="Rol" value={me.role || "ADMIN"} />
       <InfoRow label="Estado de cuenta" value={me.status || "—"} />
     </div>
