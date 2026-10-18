@@ -16,6 +16,8 @@
     <lombok.version>1.18.34</lombok.version>
     <testcontainers.version>1.20.4</testcontainers.version>
     <jacoco.version>0.8.12</jacoco.version>
+    <docker.api.version>1.40</docker.api.version>
+    <tutorlink.build.directory>${project.basedir}/target</tutorlink.build.directory>
   </properties>
 
   <dependencyManagement>
@@ -152,6 +154,7 @@
   </dependencies>
 
   <build>
+    <directory>${tutorlink.build.directory}</directory>
     <plugins>
       <!-- Empaquetado Spring Boot: usar 3.3.4 y repackage en package -->
       <plugin>
@@ -191,6 +194,9 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
         <configuration>
+          <systemPropertyVariables>
+            <api.version>${docker.api.version}</api.version>
+          </systemPropertyVariables>
           <environmentVariables>
             <DOCKER_API_VERSION>1.40</DOCKER_API_VERSION>
           </environmentVariables>
