@@ -26,6 +26,7 @@ export default function AssignmentsPage() {
 
   // Modal detalle por tutor
   const [selectedTutor, setSelectedTutor] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
   const [studentPage, setStudentPage] = useState(0);
   const [newMatricula, setNewMatricula] = useState("");
 
@@ -228,6 +229,7 @@ export default function AssignmentsPage() {
   const closeTutorDetail = () => {
     if (savingAssign || removing) return;
     setSelectedTutor(null);
+    setRemoveTarget(null);
     setNewMatricula("");
     setStudentSuggestions([]);
     setShowSuggestions(false);
@@ -279,10 +281,6 @@ export default function AssignmentsPage() {
   const handleRemoveAssignment = async (assignment) => {
     if (!selectedTutor) return;
 
-    const confirmRemove = globalThis.window.confirm(
-      `¿Quitar al estudiante ${assignment.studentName} (${assignment.matricula}) de este tutor?`
-    );
-    if (!confirmRemove) return;
 
     try {
       setRemoving(true);
@@ -380,7 +378,7 @@ export default function AssignmentsPage() {
           <button
             onClick={() => setIsImportOpen(true)}
             data-cy="admin-assignments-import-open"
-            className="px-4 py-2 rounded-full bg-uvGreen hover:bg-green-600 text-white text-sm font-semibold shadow-sm transition"
+            className="tl-button-positive"
           >
             <span className="flex items-center gap-2"><img src="/microsoft-excel-svgrepo-com.svg" alt="" className="h-5 w-5" />Importar Excel</span>
           </button>
@@ -458,25 +456,25 @@ export default function AssignmentsPage() {
               <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Código tutor
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Nombre tutor
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Correo
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Departamento
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Especialidad
                     </th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       # Estudiantes
                     </th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Acciones
                     </th>
                   </tr>
@@ -543,11 +541,7 @@ export default function AssignmentsPage() {
 
       {/* MODAL IMPORTAR EXCEL */}
       {isImportOpen && (
-        <Modal onClose={() => !importing && setIsImportOpen(false)}>
-          <h2 className="text-xl font-semibold text-uvBlue mb-4">
-            Importar asignaciones por Excel
-          </h2>
-
+        <Modal title="Importar asignaciones por Excel" size="form" dirty={Boolean(excelFile)} busy={importing} onClose={() => !importing && setIsImportOpen(false)}>
           <p className="text-sm text-slate-600 mb-3">
             Selecciona un archivo .xlsx. En la primera hoja, coloca cada campo en su propia columna, en este orden (| separa celdas en el ejemplo):
           </p>
@@ -569,8 +563,8 @@ export default function AssignmentsPage() {
             className="mb-4 text-sm"
           />
 
-          <div className="flex justify-end gap-3">
-            <button
+          <div className="tl-form-actions flex justify-end gap-3">
+            <button data-dialog-close
               type="button"
               disabled={importing}
               onClick={() => {
@@ -608,11 +602,9 @@ export default function AssignmentsPage() {
 
       {/* MODAL DETALLE DE ASIGNACIONES POR TUTOR */}
       {selectedTutor && (
-        <Modal onClose={closeTutorDetail}>
-          <h2 className="text-xl font-semibold text-uvBlue mb-4">
-            Asignaciones de {selectedTutor.tutorName}
-          </h2>
-
+        <Modal title={`Asignaciones de ${selectedTutor.tutorName}`} size="management" dirty={Boolean(newMatricula.trim())} busy={savingAssign || removing} onClose={closeTutorDetail}>
+          {feedback && <div role={feedback.type === "error" ? "alert" : "status"} className={feedback.type === "error" ? "tl-alert tl-alert-error mb-4" : "tl-alert tl-alert-success mb-4"}>{feedback.message}</div>}
+          <div className="tl-detail-columns items-start"><div className="tl-detail-section">
           <div className="mb-4 text-sm text-slate-700 space-y-1">
             <p>
               <span className="font-semibold">Código: </span>
@@ -730,6 +722,7 @@ export default function AssignmentsPage() {
           </section>
 
           {/* TABLA DE ESTUDIANTES DE ESTE TUTOR */}
+          </div><div className="tl-detail-section">
           <section>
             <h3 className="text-sm font-semibold text-slate-800 mb-2">
               Estudiantes asignados
@@ -739,16 +732,16 @@ export default function AssignmentsPage() {
               <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Matrícula
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Nombre
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Correo
                     </th>
-                    <th className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <th scope="col" className="px-4 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
                       Acciones
                     </th>
                   </tr>
@@ -772,7 +765,7 @@ export default function AssignmentsPage() {
                         <button
                           type="button"
                           disabled={removing}
-                          onClick={() => handleRemoveAssignment(s)}
+                          onClick={() => setRemoveTarget(s)}
                           className="
                             inline-flex items-center px-3 py-1.5 
                             border border-red-300 text-red-600 
@@ -802,18 +795,8 @@ export default function AssignmentsPage() {
           </section>
 
           <Pagination label="Páginas de estudiantes asignados" result={{ totalElements: selectedTutor.students.length, totalPages: Math.ceil(selectedTutor.students.length / 5), size: 5 }} page={studentPage} loading={removing} onPage={setStudentPage} />
-          <div className="mt-5 flex justify-end">
-            <button
-              onClick={closeTutorDetail}
-              className="
-                px-4 py-2 border border-slate-300 rounded-full 
-                text-slate-700 hover:bg-slate-100 
-                text-sm transition
-              "
-            >
-              Cerrar
-            </button>
-          </div>
+          {removeTarget && <section role="alert" className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4"><p>¿Quitar al estudiante {removeTarget.studentName} ({removeTarget.matricula}) de este tutor?</p><div className="mt-3 flex flex-wrap gap-3"><button className="tl-button-secondary" type="button" disabled={removing} onClick={() => setRemoveTarget(null)}>Cancelar</button><button className="tl-button-danger" type="button" disabled={removing} onClick={() => handleRemoveAssignment(removeTarget)}>{removing ? 'Procesando…' : 'Confirmar retiro'}</button></div></section>}
+          </div></div>
         </Modal>
       )}
     </div>
@@ -823,12 +806,13 @@ export default function AssignmentsPage() {
 Modal.propTypes = {
   children: PropTypes.node.isRequired,
   onClose: PropTypes.func.isRequired,
+  title: PropTypes.string.isRequired, size: PropTypes.string, dirty: PropTypes.bool, busy: PropTypes.bool,
 };
 
 /* ============================
    COMPONENTES AUXILIARES
 ============================= */
 
-function Modal({ children, onClose }) {
-  return <Dialog title="Asignaciones de tutoría" wide onClose={onClose}>{children}</Dialog>;
+function Modal({ children, onClose, title, size, dirty, busy }) {
+  return <Dialog title={title} size={size} dirty={dirty} busy={busy} onClose={onClose} footer={size === 'management' ? <button data-dialog-close className="tl-button-secondary" type="button" onClick={onClose}>Cerrar</button> : undefined}>{children}</Dialog>;
 }

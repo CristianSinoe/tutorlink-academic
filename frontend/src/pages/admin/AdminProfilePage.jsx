@@ -32,8 +32,8 @@ export default function AdminProfilePage() {
     : "—";
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50 rounded-2xl">
-      <div className="max-w-4xl mx-auto px-4 py-6 md:py-8 space-y-6">
+    <div className="tl-profile-page">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -159,7 +159,7 @@ function StatusBadge({ status }) {
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.6875rem] font-medium ${colorClasses}`}
     >
-      Estado: {normalized}
+      Estado: {{ ACTIVE: 'Activo', CREATED_BY_ADMIN: 'Pendiente de activación', DISABLED: 'Desactivado', BLOCKED: 'Bloqueado' }[normalized] || normalized}
     </span>
   );
 }
@@ -186,7 +186,7 @@ function renderProfileContent({ loading, me, fullName }) {
       <InfoRow label="Nombre completo" value={fullName} />
       <InfoRow label="Correo principal" value={me.email} />
       <InfoRow label="Rol" value={me.role || "ADMIN"} />
-      <InfoRow label="Estado de cuenta" value={me.status || "—"} />
+      <InfoRow label="Estado de cuenta" value={{ ACTIVE: "Activo", CREATED_BY_ADMIN: "Pendiente de activación", DISABLED: "Desactivado", BLOCKED: "Bloqueado" }[me.status] || me.status || "—"} />
     </div>
   );
 }
