@@ -116,3 +116,19 @@ Mantener nombre textual de escuela aunque el logo falle; reservar dimensiones y 
 - Periodos y cursos: «Ver detalles» abre el formulario editable conectado a PUT institucional. No se borra el formulario al fallar ni se anuncia éxito antes de la respuesta.
 
 Los listados usan **10 registros por página** (usuarios institucionales, invitaciones, periodos, cursos, grupos, materias y consultas). Los modales de asignaciones y grupos conservan **5 registros por página**. Las exportaciones mantienen todos los resultados filtrados.
+
+## Variante administrativa desktop-first — 18/10/2026
+
+La apariencia ADMIN se delimita mediante `WorkspaceLayout appearance="admin"`, `.tl-admin` y un contexto exclusivamente visual para que los portales conserven la presentación. Ese contexto nunca decide roles ni institución. Los demás espacios conservan sus estilos; no cambia la escala raíz del navegador ni ThemeProvider.
+
+- Fondo de trabajo `#F7F9FC`, navegación `#F1F4F9`, texto `#17243B`, secundario `#52627B`, borde `#DFE6EF`; azul institucional mediante el token vigente de acción. Marca verde original y acciones positivas oscuras conservadas.
+- Sidebar 248 px en escritorio desde 1024 px, logo original y variante sidebar con fallback al isotipo existente. Estados activos con texto, borde y acento azul; iconos SVG discretos con etiquetas visibles. Las opciones se agrupan por función.
+- Tokens centralizados para superficies, borde, radio (14 px), separación (24 px), altura mínima de control (44 px), sombra, tamaños de diálogo y capa modal. Mantener las reglas existentes de tipografía, foco y movimiento reducido.
+- Tablas: padding 16×18 px en listados y 12×14 px en diálogos, encabezados asociados mediante `scope=col` y una región horizontal posicionada y accesible. La presentación administrativa no depende del padding global con `!important`.
+- Contenido de listados hasta 1600 px; perfil propio hasta 1120 px. Encabezados y acciones admiten wrap; no se eliminan columnas, filtros, importaciones, exportaciones ni ayudas.
+- Diálogos: confirmación 480 px; formulario 800 px; perfil 1120 px; gestión 1600 px. Márgenes horizontales de 32 px en escritorio, 16 px en tablet y 12 px en móvil. Adaptación por CSS/viewport, sin detección de sistema operativo.
+- Un cuerpo con scroll vertical, con encabezado y pie fuera de él. Las tablas internas solo desplazan horizontalmente. Formularios distribuidos en dos columnas cuando hay espacio; grupos y asignaciones en dos secciones horizontales desde 1280 px. Listados de 10 filas y modales de 5, con índices y salto directo intactos.
+- Dirty state solo en memoria: Escape, backdrop y controles de cierre piden confirmación de descarte si corresponde. «Seguir editando» conserva valores y foco. El cambio de perfil con borrador solicita una decisión explícita. No se persiste información entre instituciones ni se reintentan escrituras automáticamente.
+- Durante una escritura se impide cerrar; el guardado exitoso sigue el flujo existente. En perfiles y catálogos se anuncia la confirmación. Las confirmaciones de acciones institucionales conservan su semántica y alcance.
+
+Contraste sRGB calculado: texto/fondo 14.73:1; secundario/blanco 6.19:1; azul/selección suave 6.63:1; blanco/azul 7.68:1; blanco/verde oscuro 7.13:1. Esto verifica pares concretos, no una certificación WCAG completa.

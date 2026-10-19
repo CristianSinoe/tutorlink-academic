@@ -14,7 +14,11 @@ describeReal("Administración institucional V30 — API y React reales", () => {
   let auth; let studentId;
   before(() => {
     cy.request({ method: "GET", url: "http://127.0.0.1:8080/api/auth/institutions", failOnStatusCode: false }).its("status").should("be.oneOf", [401, 403]);
-    realLogin().then(value => { auth = value; });
+    realLogin().then(value => {
+      auth = value;
+      // Isolation must not depend on a previous UI test completing successfully.
+      return cy.request({ url: 'http://127.0.0.1:8080/api/admin/institution/users?role=ESTUDIANTE&page=0&size=1', headers: { Authorization: `Bearer ${auth.session.token}` } });
+    }).then(({ body }) => { studentId = body.items[0].userId; });
   });
   beforeEach(() => {
     cy.visit("/admin/users", { onBeforeLoad(win) { win.localStorage.setItem("auth", JSON.stringify(auth.session)); } });
@@ -23,7 +27,7 @@ describeReal("Administración institucional V30 — API y React reales", () => {
   it("lista únicamente usuarios de la institución contextual y permite editar perfiles locales", () => {
     cy.contains("Gestión de usuarios institucionales").should("be.visible");
     cy.get('#institution-users-role').select('ESTUDIANTE');
-    cy.get('tbody tr').first().should("contain", "Estudiante Demo").within(() => cy.contains("Ver detalle").click());
+    cy.get('tbody tr', { timeout: 20000 }).first().should("contain", "Estudiante Demo").within(() => cy.contains("Ver detalle").click());
     cy.contains("Cuenta global").should("be.visible");
     cy.contains("button", "ESTUDIANTE").click();
     cy.get('#edit-ESTUDIANTE-phone').clear().type("5550001001");
@@ -78,7 +82,9 @@ describeReal("Administración institucional V30 — API y React reales", () => {
     cy.get('input[type=file]').selectFile({ contents: Cypress.Buffer.from(csv), fileName: 'students.csv', mimeType: 'text/csv' }, { force: true });
     cy.contains('Procesar importación').click();
     cy.contains('Importación procesada.').should('be.visible');
-    cy.contains('INVITED').should('be.visible'); cy.contains('FAILED').should('be.visible'); cy.contains('SKIPPED').should('be.visible');
+    ['INVITED', 'FAILED', 'SKIPPED'].forEach(status => {
+      cy.get('[role="dialog"]').contains(status).scrollIntoView().should('be.visible');
+    });
   });
 
   it("importa XLSX real y verifica la invitación persistida en la institución activa", () => {

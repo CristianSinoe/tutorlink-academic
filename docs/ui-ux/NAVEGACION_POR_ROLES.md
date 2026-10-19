@@ -89,3 +89,16 @@ La navegación no ofrece Administradores: `/admin/admins` conserva compatibilida
 ## Ajuste implementado: perfil y sesión
 
 La identidad y salida se agrupan al pie del sidebar compartido. La selección de institución y espacio se ofrece en Mi perfil, conservando las APIs y guardias. Las rutas docentes y de SUPER_ADMIN disponen de una superficie de perfil limitada a datos de sesión y contexto. El detalle de rutas, navegación móvil y pruebas está en [NAVEGACION_SESION.md](NAVEGACION_SESION.md).
+
+## Presentación administrativa actualizada — 18/10/2026
+
+La variante clara solo se aplica al layout ADMIN. Se mantienen guardias, URLs y condiciones de acceso:
+
+- Resumen: Dashboard (`/admin`).
+- Comunidad: Usuarios, Estudiantes, Docentes y Tutores.
+- Gestión académica: Periodos académicos, Cursos y materias, Grupos.
+- Tutorías: Asignaciones Tutor–Estudiante, independientes de Docente–Grupo.
+- Vinculación: Invitaciones.
+- Cuenta: Mi perfil.
+
+La identidad de la persona, institución activa y rol permanece al pie del sidebar, seguida del cierre de sesión. El cambio institucional sigue exclusivamente dentro de «Instituciones y contexto de trabajo» en Mi perfil; no se añade ningún selector al encabezado. La navegación móvil conserva su drawer, teclado, foco y cierre al cambiar de ruta. El logo usa el activo original para fondo claro. DOCENTE, TUTOR, ESTUDIANTE y plataforma no adoptan este sidebar claro.

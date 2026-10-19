@@ -9,16 +9,21 @@ describe('Paginación, detalles y modales con contratos simulados', () => {
     cy.intercept('GET', '/api/admin/academic/groups/3/enrollments*', { body: paged(Array.from({ length: 12 }, (_, i) => ({ studentId: i + 1, matricula: `S${i + 1}`, name: `Estudiante ${i + 1}`, status: 'ACTIVE' }))) });
     cy.intercept('GET', '/api/admin/institution/users*', { body: { items: [], total: 0, size: 100, page: 0 } });
   });
-  [320, 375, 768, 1024, 1440].forEach(width => {
+  [320, 375, 768, 1024, 1366, 1440, 1920].forEach(width => {
     it(`mantiene el grupo y su paginación dentro de la pantalla a ${width}px`, () => {
-      cy.viewport(width, 900); cy.visitAsRole('/admin/groups', 'admin');
+      cy.viewport(width, width === 1366 ? 768 : 900); cy.visitAsRole('/admin/groups', 'admin');
       cy.contains('button', 'Gestionar').click();
       cy.get('[role=dialog]').should('be.visible').then($dialog => {
-        const rect = $dialog[0].getBoundingClientRect(); expect(rect.left).to.be.at.least(0); expect(rect.right).to.be.at.most(width); expect(rect.height).to.be.at.most(900);
+        const rect = $dialog[0].getBoundingClientRect(); expect(rect.left).to.be.at.least(0); expect(rect.right).to.be.at.most(width); expect(rect.height).to.be.at.most(width === 1366 ? 768 : 900);
+        if (width >= 1024) expect(rect.width).to.be.at.least(Math.min(width - 64, 1600) - 2);
+        const body = $dialog[0].querySelector('.tl-dialog-body'); expect(getComputedStyle(body).overflowY).to.equal('auto');
+        $dialog[0].querySelectorAll('.tl-modal-list').forEach(list => expect(list.scrollHeight).to.be.at.most(list.clientHeight + 1));
       });
       cy.get('nav[aria-label="Páginas de docentes asignados"]').within(() => cy.get('button[aria-label="Página 3"]').click());
       cy.get('[role="region"][aria-label="Docentes asignados"]').should('contain', 'Docente 11').find('tbody tr').should('have.length', 2);
       cy.get('nav[aria-label="Páginas de inscripciones"]').within(() => { cy.get('button[aria-label="Página 3"]').click(); cy.get('button[aria-label="Página 3"]').should('have.attr', 'aria-current', 'page'); });
+      cy.get('[role=dialog] .tl-modal-list').each($list => expect($list[0].scrollHeight).to.be.at.most($list[0].clientHeight + 1));
+      cy.window().then(win => expect(win.document.documentElement.scrollWidth).to.be.at.most(win.innerWidth + 1));
       cy.get('[role=dialog]').find('button[aria-label="Cerrar ventana"]').focus().type('{esc}'); cy.get('[role=dialog]').should('not.exist');
       cy.contains('button', 'Gestionar').should('be.focused');
     });

@@ -73,3 +73,20 @@ Las pantallas académicas incorporan estados diferenciados de carga, error, vac�
 H10: se mantiene la ayuda contextual ya recuperada. Las verificaciones automatizadas incluyen salto a página 10, estado deshabilitado durante carga, formulario conservado ante 409 y perfiles combinados. Las pruebas Cypress de diseño usan contratos simulados: no acreditan integración PostgreSQL ni conformidad WCAG completa.
 
 Resultados efectivos de esta revisión: Vitest **104/104**, suite HTTP H2 `Phase15H2Test` **23/23**, lint y build Vite aprobados. Cypress con contratos simulados: `navigation-spacing.cy.js` **8/8** (grupos a 320/375/768/1024/1440 px, scroll/páginas, foco al cerrar, asignaciones, edición), `admin.cy.js` **4/4**, `academic.cy.js` **2/2**. La primera ejecución de `academic.cy.js` falló por una fixture DOCENTE ausente y por seleccionar un enlace oculto del sidebar; se corrigieron los datos y se acotaron los selectores al encabezado principal, manteniendo las aserciones. La repetición pasó. Evidencias en `frontend/cypress/videos/`. No se ejecutó la batería PostgreSQL real en esta revisión.
+
+## Rediseño administrativo — 18/10/2026
+
+| Heurística | Evidencia y severidad inicial | Corrección |
+| --- | --- | --- |
+| H1 Visibilidad | Guardados/actualizaciones poco claros (2) | Estados anunciables, indicadores reales de carga y confirmación |
+| H2 Correspondencia | Estados técnicos expuestos (2) | Etiquetas legibles conservando enums y valores de formularios |
+| H3 Control | Cierres que descartaban formularios (3) | Confirmar descarte, conservar borrador/foco y bloquear cierres al guardar |
+| H4 Consistencia | Sidebar, formularios y modales heterogéneos (2) | Variante/tokens administrativos y tamaños semánticos |
+| H5 Prevención | Retiro por confirmación nativa y cierres en escritura (2) | Confirmación dentro del diálogo y controles pendientes protegidos |
+| H6 Reconocimiento | Menú sin categorías y perfil sin selección explicada (2) | Grupos con iconos/etiquetas y ayuda para seleccionar perfil |
+| H7 Eficiencia | Ancho uniforme limita tareas de gestión (2) | Listados fluidos y gestión en columnas sin cambiar filtros/paginación |
+| H8 Minimalismo | Sidebar pesado y scrolls anidados (3) | Navegación clara, superficies diferenciadas y un cuerpo modal con scroll |
+| H9 Recuperación | Formulario/foco inestable ante cambios y errores (3) | Valores conservados, errores asociados cuando corresponde y callback de cierre estable |
+| H10 Ayuda | Riesgo de ocultar controles al simplificar (2) | Ayudas, etiquetas y acciones existentes conservadas |
+
+Se detectó y corrigió una regresión de reflow en las pruebas ampliadas: etiquetas `sr-only` de encabezados de tabla quedaban posicionadas fuera de la región horizontal y generaban scroll global (1730 px de ancho en un viewport de 683 px). La región ahora establece el contexto de posicionamiento y contiene esas etiquetas sin ocultar datos. Las mismas aserciones se mantuvieron al repetir las pruebas.

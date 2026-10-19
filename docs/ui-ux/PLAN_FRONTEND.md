@@ -145,3 +145,11 @@ Dependencias pendientes concretas: SMTP/URL de aceptación; catálogo de referen
 Se añadieron las rutas ADMIN `/admin/periods`, `/admin/courses` y `/admin/groups`, además de `/teacher/courses` y `/student/courses`. `academicApi` valida el envelope paginado y normaliza campos JDBC; los formularios comparten `Dialog`, `Field`, `Button`, `Table`, estados y paginación. El detalle de grupo obtiene docentes e inscripciones con lecturas administrativas autorizadas, usa IDs de perfil institucional en los selectores, excluye relaciones activas y confirma retiros.
 
 La fase no crea pantallas de clases, tareas, entregas, asistencia ni adjuntos. La verificación HTTP H2 cubre las lecturas nuevas, sanitización, filtros de estado, paginación, retiro histórico y `403` para grupos ajenos. La spec Cypress real académica está preparada para el entorno PostgreSQL/OTP existente; su resultado debe reportarse por separado de los mocks y no se considera integración real si Docker o el backend no están disponibles.
+
+## Incremento realizado: presentación administrativa desktop-first
+
+Se implementaron tokens/variante visual, shell agrupado claro, diálogos adaptativos y presentación de las pantallas administrativas existentes. Se conservaron servicios y adaptadores, firmas/payloads de las llamadas, rutas, permisos, identidad institucional, formatos de archivo, filtros y cantidades de filas.
+
+La ejecución se realizó por etapas: diagnóstico/capturas base; shell y diálogo con 29 pruebas de navegación/contexto; adaptación de pantallas y suite frontend; comprobaciones responsive y corrección del desbordamiento detectado; documentación y actualización del grafo. No se instalaron dependencias. El proyecto no tiene typecheck independiente.
+
+La batería real se intentó mediante el orquestador existente y abortó al detectar `EADDRINUSE` en 5173 y 8080. No se reutilizaron esos servidores ni se detuvieron procesos del usuario. La validación PostgreSQL real del rediseño queda pendiente de una ejecución con esos puertos libres y el entorno efímero autorizado. Los recorridos de navegador con contratos simulados y las capturas se informan por separado de esa validación.

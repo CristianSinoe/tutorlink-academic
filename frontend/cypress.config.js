@@ -48,6 +48,15 @@ export default defineConfig({
     supportFile: "cypress/support/e2e.js",
     specPattern: "cypress/e2e/**/*.cy.js",
     setupNodeEvents(on, config) {
+      if (config.env.DESIGN_CAPTURE) {
+        on('before:browser:launch', (browser, launchOptions) => {
+          if (browser.name === 'electron') {
+            launchOptions.preferences.width = 1920;
+            launchOptions.preferences.height = 1080;
+          }
+          return launchOptions;
+        });
+      }
       if (process.env.CYPRESS_REAL_E2E === "true") {
         const socketPath = process.env.TUTORLINK_E2E_IPC_SOCKET;
         const secret = process.env.TUTORLINK_E2E_IPC_TOKEN;

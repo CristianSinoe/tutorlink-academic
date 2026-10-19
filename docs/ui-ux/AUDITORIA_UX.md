@@ -82,3 +82,22 @@ Logo y sus SVG, AdminFilterSelect, ExportActions/adminExport, ExcelImportHelp, C
 | Lectura contrato/controladores/DTO y Graphify | Desfases y dependencias identificados | Pruebas de uso con personas |
 
 No se ejecutó suite backend en esta fase documental. Las 275 pruebas del backend reportadas en fase 1.5 son antecedente, no una ejecución nueva. No se ejecutó build React porque no hay cambios de código. La validación manual propuesta comprende teclado, lectores de pantalla, 320/375/768/1024/1440 px, zoom, estados de red y cuentas demo con varios roles/instituciones. Véase [PLAN_FRONTEND.md](PLAN_FRONTEND.md).
+
+## Revisión implementada — rediseño administrativo, 18/10/2026
+
+La auditoría anterior se conserva como registro histórico. Esta revisión trabaja sobre `eee56ae`, con la administración V30, los catálogos académicos y la paginación de 10 filas ya existentes. No modifica backend, adaptadores, rutas, contratos, autenticación ni autorizaciones.
+
+Diagnóstico comprobado con fuentes y capturas en laptop/móvil:
+
+| Hallazgo | Impacto | Tratamiento aplicado |
+| --- | --- | --- |
+| Contenedor único y sidebar azul pesado | Poco ancho útil en tablas y jerarquía insuficiente | Variante administrativa clara, navegación agrupada, contenido hasta 1600 px |
+| Diálogo normal/amplio sin distinción por tarea | Formularios estrechos y gestión compleja con scrolls anidados | Cuatro tamaños semánticos; encabezado y pie independientes del único cuerpo desplazable |
+| Utilidades locales y padding global `!important` | Densidad y controles inconsistentes | Tokens administrativos delimitados; conservación del estilo anterior fuera de ADMIN |
+| Cierre sin proteger borradores | Pérdida accidental de datos | Confirmación de descarte dentro del mismo diálogo y cierres bloqueados durante escritura |
+| Confirmación nativa al retirar tutoría | Interacción y foco diferentes al resto del panel | Confirmación accesible dentro de la gestión existente, antes del mismo DELETE |
+| Desbordamiento con texto duplicado | Scroll horizontal global en móvil/zoom | Región de tabla posicionada para contener sus etiquetas accesibles; cabeceras y paginación con wrap |
+
+Las capturas anteriores se obtuvieron sirviendo una copia temporal de `eee56ae` en 5175; el rediseño se verificó en 5174. No se alteró el servidor del usuario. Los archivos normalizados de comparación se conservan localmente en `frontend/cypress/screenshots/admin-redesign-evidence/`, con prefijos `before`/`after`, anchos 375 y 1366, y cinco superficies: usuarios, perfil, asignaciones, grupo y formulario. Son artefactos de prueba ignorados por Git y se regeneran con la spec `admin-redesign.cy.js` y `DESIGN_CAPTURE=before|after` contra cada versión.
+
+Límites conservados: la consulta completa de perfiles para filtros/exportaciones, el límite existente de los catálogos/selectores y la política de cuenta global/membresías siguen siendo los de la aplicación previa. No se presentaron cambios de datos o de API como mejoras visuales.
