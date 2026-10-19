@@ -12,9 +12,10 @@ export default function Logo({
     vertical: "/tutorlink-logo-primary-vertical.svg",
     isotype: "/tutorlink-isotype.svg",
     monoWhite: "/white02.svg",
+    sidebar: "/tutorlink-isotype.svg",
     black: "/tutorlink-logotype-black.svg",
   };
-  const institutionalLogo = variant === "monoWhite" ? theme.sidebarLogoUrl || theme.logoUrl : theme.loginLogoUrl || theme.logoUrl;
+  const institutionalLogo = (variant === "monoWhite" || variant === "sidebar") ? theme.sidebarLogoUrl || theme.logoUrl : theme.loginLogoUrl || theme.logoUrl;
 
   return (
     <img

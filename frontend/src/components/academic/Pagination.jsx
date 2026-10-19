@@ -6,7 +6,7 @@ export default function Pagination({ result, page, loading, onPage, label = 'Pag
   const id = useId();
   const total = Math.max(1, result?.totalPages ?? Math.ceil((result?.totalElements || 0) / (result?.size || 10)));
   const pages = [...new Set([0, total - 1, ...Array.from({ length: 5 }, (_, i) => page + i - 2).filter(value => value >= 0 && value < total)])].sort((a, b) => a - b);
-  return <nav aria-label={label} className="flex flex-col items-center justify-center gap-3 border-t p-4 text-sm">
+  return <nav aria-label={label} className="tl-pagination flex flex-col items-center justify-center gap-3 border-t p-4 text-sm">
     <p aria-live="polite">{result ? `${result.totalElements ?? 0} resultado(s) · ` : ''}Página {page + 1} de {total}</p>
     <div className="flex flex-wrap items-center justify-center gap-2">
       <Button variant="secondary" disabled={page <= 0 || loading} onClick={() => onPage(page - 1)}>Anterior</Button>
