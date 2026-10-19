@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: tutorlink_test
-      POSTGRES_USER: tutorlink_user
-      POSTGRES_PASSWORD: super_segura
+      POSTGRES_DB: ${DB_NAME:-tutorlink_test}
+      POSTGRES_USER: ${DB_USER:-tutorlink_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env local}
     ports:
       - "127.0.0.1:55432:5432"
     volumes:
@@ -22,9 +22,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_NAME: tutorlink_test
-      DB_USER: tutorlink_user
-      DB_PASSWORD: super_segura
+      DB_NAME: ${DB_NAME:-tutorlink_test}
+      DB_USER: ${DB_USER:-tutorlink_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env local}
       PORT: 8080
     ports:
       - "8080:8080"

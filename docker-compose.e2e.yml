@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: tutorlink_e2e
       POSTGRES_USER: tutorlink_e2e
-      POSTGRES_PASSWORD: tutorlink_e2e_only
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Carga backend/.env.e2e.local antes de ejecutar Compose}
     ports:
       - "127.0.0.1:55433:5432"
     tmpfs:

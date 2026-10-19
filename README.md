@@ -1,66 +1,91 @@
 # TutorLink
 
-TutorLink es una plataforma academica con:
+Backend Spring Boot 3 / Java 17, frontend React / Vite y PostgreSQL 16. Las pruebas locales usan exclusivamente cuentas sintéticas y una base E2E efímera; no requieren credenciales personales ni conexión a producción.
 
-- `frontend`: React + Vite
-- `backend`: Spring Boot
-- `db`: PostgreSQL
+## Requisitos
 
-## Uso local con Docker
+- Debian/Linux con Docker Engine y Compose v2 accesibles por el usuario, sin ejecutar Maven/Cypress como root.
+- Java 17 y Maven 3.9; Python 3 para preparar configuración y revisar secretos.
+- Node.js según `.nvmrc` (20.19.5) y npm. Si utilizas nvm: `nvm install && nvm use`.
+- Dependencias Linux de Electron/Cypress. Ante una biblioteca ausente, consultar el diagnóstico de `npx cypress verify`.
 
-Levanta todo el stack con:
+## Preparar una copia nueva
 
-```bash
-docker compose up --build
+```sh
+# Desde la raíz de este repositorio
+python3 scripts/e2e/prepare-local.py
+cd frontend
+npm ci
+npx cypress verify
+cd ../backend
+# Descarga dependencias con red antes de usar el runner offline.
+mvn -DskipTests package dependency:go-offline
+cd ..
+python3 scripts/check-secrets.py
 ```
 
-Servicios expuestos:
+La preparación crea `backend/.env.e2e.local` privado (0600), con contraseña de base y secreto JWT aleatorios y configuración de prueba. No sobrescribe un archivo existente. El runner actual utiliza Maven offline (`-o`): si falta un artefacto, completa su descarga con Maven en línea antes de repetir. No cambies a una base externa para resolverlo.
 
-- Frontend en `http://localhost:5173`
-- Backend en `http://localhost:8080`
+## E2E reales: React → Spring Boot → PostgreSQL
 
-Desde otros dispositivos en la misma red local, abre el frontend con:
+Detén tus servidores de desarrollo en **5173/8080**; PostgreSQL E2E requiere **55433** libre.
 
-```text
-http://IP_DE_LA_MAQUINA:5173
+```sh
+./scripts/e2e/run-real-admin-cypress.sh
 ```
 
-En ese caso, el frontend detecta automaticamente el host usado en el navegador y llama al backend en:
+El script carga la configuración privada, comprueba el datasource `tutorlink_e2e`, inicia PostgreSQL efímero, aplica Flyway, siembra datos sintéticos, inicia Spring Boot/Vite y ejecuta las specs reales administrativa y académica. No simula respuestas de negocio. Autentica mediante API real y OTP por socket Unix; no expone OTP por HTTP. Al terminar elimina únicamente sus procesos y recursos Compose E2E. La clave/capacidad local de reCAPTCHA no verifica visualmente el widget Google.
 
-```text
-http://IP_DE_LA_MAQUINA:8080
+Resultado de referencia del 19/10/2026: **10/10 pruebas reales aprobadas**. Los resultados de una ejecución nueva son los que determine su salida, no esta referencia. Vídeos locales en `frontend/cypress/videos/`; capturas de fallos en `frontend/cypress/screenshots/`. No versionar estos artefactos ni compartirlos sin revisar datos sensibles.
+
+## Pruebas frontend y Cypress con mocks
+
+```sh
+cd frontend
+npm test
+npm run lint
+npm run build
 ```
 
-## Obtener la IP local en Linux
+Para las specs simuladas, en una terminal:
 
-Puedes obtener la IP de la maquina anfitriona con cualquiera de estos comandos:
-
-```bash
-ip addr
-hostname -I
+```sh
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-## Variables de entorno importantes
+En otra terminal:
 
-### Frontend
+```sh
+cd frontend
+env -u ELECTRON_RUN_AS_NODE npx cypress run --browser electron \
+  --config 'baseUrl=http://127.0.0.1:5174,excludeSpecPattern=**/*.real.cy.js'
+```
 
-- `VITE_API_BASE_URL`
-  - si tiene valor, el frontend usa esa URL del backend;
-  - si esta vacia o no existe, el frontend usa `window.location` y construye `PROTOCOLO://HOST:8080`.
+Referencia: **48/48 pruebas con mocks** el 19/10/2026. Detener el Vite de esa terminal con `Ctrl+C`. No confundir estos resultados con las pruebas reales ni con sesiones de usabilidad con personas.
 
-El archivo [`frontend/.env.example`](/home/sinoe/TUTORLINK/frontend/.env.example) deja `VITE_API_BASE_URL` vacio a proposito para activar la autodeteccion.
+## Pruebas backend
 
-### Backend
+```sh
+cd backend
+mvn test
+```
 
-- `FRONTEND_BASE_URL`
-  - se usa para links generados por el backend, como flujos de primer ingreso o correos;
-  - no se autodetecta en servidor, asi que si necesitas enlaces externos correctos en LAN debes definirlo manualmente, por ejemplo `http://IP_DE_LA_MAQUINA:5173`.
-- `TUTORLINK_CORS_ALLOWED_ORIGIN_PATTERNS`
-  - por defecto permite patrones para `localhost`, `127.0.0.1`, `192.168.*.*` y `10.*.*.*`;
-  - esta configuracion es solo para desarrollo local/LAN y en produccion debe restringirse.
+Algunas integraciones usan Testcontainers y necesitan Docker. Revisar los resultados Surefire y las pruebas omitidas; una omisión no equivale a aprobación. Esta suite es independiente del entorno E2E orquestado.
 
-## Notas de Docker Compose
+## Desarrollo persistente con Compose (opcional)
 
-- `backend` se conecta a PostgreSQL usando el hostname interno `db`.
-- PostgreSQL no se publica hacia la red local; queda accesible solo dentro de Docker.
-- No hay IPs fijas en `docker-compose.yml`, por lo que el stack puede levantarse en cualquier maquina sin tocar codigo.
+Para E2E utiliza siempre el script anterior. Para el stack de desarrollo persistente:
+
+1. Copia `.env.example` a `.env` y define una contraseña local aleatoria (`openssl rand -hex 32`).
+2. Copia `backend/.env.example` a `backend/.env.docker`; configura JWT, reCAPTCHA y correo **de desarrollo**. Sustituye todos los placeholders; mantén bootstrap y alta automática de ADMIN desactivados salvo un procedimiento explícito.
+3. Ejecuta `docker compose up --build`. La contraseña de `.env` se comparte entre PostgreSQL y backend; los valores privados no están en Git. Conserva la configuración de volúmenes existentes: cambiar una variable no rota contraseñas ya persistidas.
+
+Frontend: `http://localhost:5173`; backend: `http://localhost:8080`. `VITE_API_BASE_URL` vacío conserva la autodetección del host. Nunca poner secretos en `VITE_*`. Para acceso LAN, configurar `FRONTEND_BASE_URL` y CORS conscientemente; en producción restringir orígenes y utilizar configuración propia, sin perfiles demo.
+
+## Documentación
+
+- [Integración E2E: escenarios, límites y reproducción](docs/ui-ux/INTEGRACION_LOCAL_E2E.md)
+- [Contrato de API](docs/CONTRATO_API_CURSOS.md)
+- [Configuración privada y revisión antes de publicar](SECURITY.md)
+- [Sistema de diseño](docs/ui-ux/SISTEMA_DISENO.md)

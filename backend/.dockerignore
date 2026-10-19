@@ -7,3 +7,10 @@ node_modules
 logs
 *.log
 .env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore

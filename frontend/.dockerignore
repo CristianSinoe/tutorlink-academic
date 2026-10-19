@@ -8,3 +8,9 @@ dist
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+cypress.env.json
+cypress/videos
+cypress/screenshots
+coverage
+*.pem
+*.key

@@ -4,17 +4,18 @@ Esta guía ejecuta React y Spring Boot contra recursos locales y efímeros. No u
 
 ## Preparación
 
-Desde la raíz, iniciar únicamente el Compose dedicado:
+Desde una copia nueva, preparar la configuración privada antes de iniciar Compose:
 
 ```sh
-docker compose -f docker-compose.e2e.yml up -d db
-cp backend/.env.e2e.example backend/.env.e2e.local
-# Completa los tres campos privados indicados abajo antes de continuar.
+python3 scripts/e2e/prepare-local.py
+# No sobrescribe backend/.env.e2e.local si ya existe.
 set -a; . backend/.env.e2e.local; set +a
 ./scripts/e2e/verify-environment.sh
 ```
 
-`backend/.env.e2e.example` deja vacíos `DB_PASSWORD`, `SECURITY_JWT_SECRET` y `RECAPTCHA_SECRET_KEY`. Complétalos únicamente en `backend/.env.e2e.local`: la contraseña debe coincidir con el PostgreSQL efímero definido en `docker-compose.e2e.yml`; genera el secreto JWT local con `openssl rand -hex 32`; configura la clave secreta oficial de prueba reCAPTCHA v2 de Google en el archivo local. No copies claves productivas. Los archivos `.env.e2e.local` y los demás `.env` privados permanecen ignorados por Git.
+El generador crea contraseña PostgreSQL y secreto JWT aleatorios sin imprimirlos y escribe con permisos `0600`. Usa la clave oficial pública de prueba de Google, ya utilizada por el backend; nunca una clave productiva. Las capacidades IPC y reCAPTCHA de ejecución las genera el runner. Los archivos locales privados permanecen ignorados por Git. Compose ahora exige `DB_PASSWORD` desde el entorno: para inspección manual, carga primero el archivo local como arriba. No utiliza una contraseña fija en el YAML.
+
+Para dependencias, requisitos y comandos completos de instalación, consultar [README](../../README.md) y [SECURITY](../../SECURITY.md).
 
 `docker-compose.e2e.yml` usa el proyecto `tutorlink-e2e`, PostgreSQL en `127.0.0.1:55433`, la base `tutorlink_e2e` y `tmpfs`, sin volumen nombrado. El script y el perfil `e2e` rechazan cualquier host, puerto o base distintos.
 
@@ -26,7 +27,7 @@ SPRING_PROFILES_ACTIVE=demo,e2e mvn -o -DskipTests spring-boot:run
 
 # en otra terminal
 cd frontend
-VITE_API_URL=http://127.0.0.1:8080 \
+VITE_API_BASE_URL=http://127.0.0.1:8080 \
 VITE_RECAPTCHA_SITE_KEY=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI \
 npm run dev -- --host 127.0.0.1
 ```
@@ -48,7 +49,7 @@ npm run lint
 npm run build
 ```
 
-La batería real debe ejecutarse con React y Spring Boot ya iniciados, sin `cy.intercept` para endpoints de negocio. Debe comprobar login/OTP, JWT contextual, cambio de institución, usuarios V30, perfiles, roles, membresías, invitaciones e importaciones; cada escritura se confirma con un GET posterior. Sus resultados se reportan por separado de Vitest y Cypress simulados.
+La batería real debe ejecutarse mediante el orquestador, que inicia sus propios React y Spring Boot; requiere sus puertos libres y no usa `cy.intercept` para endpoints de negocio. Debe comprobar login/OTP, JWT contextual, cambio de institución, usuarios V30, perfiles, roles, membresías, invitaciones e importaciones; cada escritura se confirma con un GET posterior. Sus resultados se reportan por separado de Vitest y Cypress simulados.
 
 ### Cypress real y puente OTP
 
@@ -147,8 +148,45 @@ Para reproducirlo en una terminal Debian local con permisos de usuario para Dock
 cd ~/TUTORLINK
 set -a; . backend/.env.e2e.local; set +a
 ./scripts/e2e/verify-environment.sh
-docker compose -f docker-compose.e2e.yml up -d db
 scripts/e2e/run-real-admin-cypress.sh
 ```
 
 El script inicia el backend `demo,e2e`, Vite en `127.0.0.1:5173` y las specs reales administrativa y académica, y limpia únicamente el proyecto Compose efímero, el socket OTP y el directorio temporal. Si el usuario pertenece al grupo `docker`, no se requiere ejecutar Maven, Vite ni Cypress como root. Si la política local no concede escucha o acceso al socket, debe corregirse esa política de la máquina de desarrollo; no se debe relajar el código de seguridad ni cambiar el datasource.
+
+### Repetición del rediseño administrativo — 19/10/2026
+
+Se repitieron las pruebas en Electron 118 mediante Cypress 13.17.0. Esta vez el orquestador pudo reservar 5173/8080 e iniciar Spring Boot y PostgreSQL efímero: no se reprodujo el bloqueo anterior de puertos. Las pruebas simuladas usaron un Vite propio en 127.0.0.1:5174, separado del Vite real del orquestador.
+
+| Batería | Resultado final | Evidencia local |
+| --- | --- | --- |
+| Cypress con mocks: 11 specs de autenticación, contexto, roles, administración, académico, responsive e interacciones | 48 aprobadas, 0 fallidas/pendientes/omitidas | `/tmp/tutorlink-e2e-retest-mocked.log` |
+| Cypress real: administración institucional | 9 aprobadas | `/tmp/tutorlink-e2e-retest-real-final.log`, vídeo `frontend/cypress/videos/institution-admin.real.cy.js.mp4` |
+| Cypress real: recorrido académico | 1 aprobado | mismo log, vídeo `frontend/cypress/videos/academic.real.cy.js.mp4` |
+| ESLint después del ajuste de la spec | Aprobado, salida 0 | `/tmp/tutorlink-e2e-retest-lint.log` |
+
+La primera ejecución real tuvo 7 aprobadas y 3 fallidas. El listado de estudiantes todavía estaba cargando al vencer la espera predeterminada de cuatro segundos; el escenario de aislamiento dependía de un ID obtenido en esa prueba fallida y recibió 400 al usar un ID ausente; el reporte CSV tenía una fila fuera de la zona visible del cuerpo del diálogo. Se corrigió exclusivamente la spec: espera explícita de hasta 20 segundos para el listado, obtención independiente del estudiante desde la API durante la preparación y desplazamiento de cada estado del reporte antes de comprobar su visibilidad. No se redujeron aserciones ni se modificaron producto, contratos, permisos o infraestructura. La segunda ejecución completa pasó 10/10 sobre una base efímera nueva.
+
+Las nueve pruebas administrativas cubren perfiles ESTUDIANTE/DOCENTE/TUTOR, suspensión/reactivación, rechazo entre instituciones, invitaciones y reenvío/cancelación, CSV parcial, XLSX, duplicados, combinación y revocación selectiva DOCENTE/TUTOR y cambio A→B desde Mi perfil. El recorrido académico crea periodo/curso/grupo, asigna docente, inscribe y retira estudiante, consulta los dos espacios y comprueba conflictos y aislamiento. Estos resultados corresponden a las aserciones existentes; no amplían la cobertura a operaciones ausentes de esas specs.
+
+La autenticación real de estas specs se realiza mediante peticiones HTTP a login/verificación OTP, recuperación por IPC y posterior instalación de la sesión en React. El orquestador utiliza la capacidad reCAPTCHA local restringida a demo,e2e. Esto no equivale a verificar visualmente el widget externo ni todo el formulario de login contra Google. No hay interceptores de negocio en las specs reales. Los vídeos y logs son artefactos locales temporales, no archivos versionados; no se incluyen OTP, secretos ni JWT en esta documentación.
+
+Comandos de reproducción:
+
+```sh
+# Desde la raíz; requiere configuración E2E local y puertos 5173/8080 libres.
+scripts/e2e/run-real-admin-cypress.sh
+
+# Batería simulada, en dos terminales desde frontend:
+npm run dev -- --host 127.0.0.1 --port 5174 --strictPort
+env -u ELECTRON_RUN_AS_NODE npx cypress run --browser electron \
+  --config 'baseUrl=http://127.0.0.1:5174,excludeSpecPattern=**/*.real.cy.js'
+```
+
+La ejecución real final terminó con salida 0 y eliminó el contenedor y la red del proyecto `tutorlink-e2e`; el script conserva su limpieza de procesos, buzón y socket. Estas son pruebas automatizadas funcionales y de interacción; no sustituyen sesiones de usabilidad con personas ni una auditoría WCAG completa. En esta repetición no se volvieron a ejecutar Vitest, build ni pruebas backend unitarias.
+
+
+### Preparación para publicación — 19/10/2026
+
+Se eliminaron contraseñas fijas de los Compose: PostgreSQL y backend reciben la misma variable privada. El nuevo generador `scripts/e2e/prepare-local.py` prepara configuración local (0600), sin sobrescribir archivos existentes ni imprimir valores. Cuatro pruebas Python verifican generación, preservación, detector del índice y rechazo de datasource externo. `scripts/check-secrets.py --history` no encontró firmas conocidas ni archivos privados versionados en las referencias locales examinadas; no certifica ausencia de cualquier secreto y no reescribe historial. Las antiguas contraseñas demo no deben reutilizarse como credenciales reales.
+
+La nueva repetición E2E con configuración recién generada quedó **bloqueada antes de crear recursos**, porque otros procesos Node/Java ocupaban 5173/8080. No se detuvieron esos procesos. Los resultados 10/10 reales y 48/48 con mocks de la sección anterior corresponden a la ejecución previa; no se presentan como una ejecución posterior a este ajuste de configuración. El frontend completo se volvió a comprobar antes de publicar. El workflow Repository hygiene revisa archivos e historial sin imprimir valores en cada push/PR; su resultado remoto debe consultarse en GitHub después del push.
