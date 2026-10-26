@@ -66,6 +66,9 @@ public class AuthDtos {
 
         @NotBlank
         private String recaptchaToken;
+
+        @Size(max = 60)
+        private String institutionCode;
     }
 
     // ACTIVATE ACCOUNT
@@ -127,7 +130,11 @@ public class AuthDtos {
             this(requiresOtp,otpToken,message,resendCooldownSeconds,java.util.List.of());
         }
     }
-    public record InstitutionOption(Long institutionId,String name,java.util.List<String> roles) { }
+    public record InstitutionOption(Long institutionId,String name,java.util.List<String> roles,String code) {
+        public InstitutionOption(Long institutionId,String name,java.util.List<String> roles) {
+            this(institutionId,name,roles,null);
+        }
+    }
 
     @Data
     @AllArgsConstructor
@@ -141,6 +148,9 @@ public class AuthDtos {
         private String code;      // código de 6 dígitos que escribió el usuario
 
         @Positive private Long institutionId;
+
+        @Size(max = 60)
+        private String institutionCode;
     }
 
     @Data

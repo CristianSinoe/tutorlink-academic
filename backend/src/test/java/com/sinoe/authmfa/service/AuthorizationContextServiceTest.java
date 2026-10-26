@@ -35,4 +35,17 @@ class AuthorizationContextServiceTest {
         when(institutions.findById(1L)).thenReturn(Optional.of(a));when(institutions.findById(2L)).thenReturn(Optional.of(b));
         assertThrows(IllegalStateException.class,() -> new AuthorizationContextService(memberships,institutions,jwt).issue(user,null));verifyNoInteractions(jwt);
     }
+
+    @Test void institutionCodesAreNormalizedForPublicLinks() {
+        assertEquals("BENITOJUAREZ", AuthorizationContextService.normalizeCode("  benitojuarez "));
+        assertEquals("DEMO15-I1", AuthorizationContextService.normalizeCode("demo15-i1"));
+    }
+
+    @Test void institutionCodesRejectPathTraversalAndUnsafeCharacters() {
+        assertThrows(IllegalArgumentException.class, () -> AuthorizationContextService.normalizeCode("/admin"));
+        assertThrows(IllegalArgumentException.class, () -> AuthorizationContextService.normalizeCode("school name"));
+        assertThrows(IllegalArgumentException.class, () -> AuthorizationContextService.normalizeCode("-school"));
+        assertThrows(IllegalArgumentException.class, () -> AuthorizationContextService.normalizeCode("school-"));
+        assertThrows(IllegalArgumentException.class, () -> AuthorizationContextService.normalizeCode("a".repeat(61)));
+    }
 }

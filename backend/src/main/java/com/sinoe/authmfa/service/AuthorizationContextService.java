@@ -54,8 +54,27 @@ public class AuthorizationContextService {
         }
         List<com.sinoe.authmfa.dto.AuthDtos.InstitutionOption> result=new ArrayList<>();
         grouped.forEach((id,roles) -> institutions.findById(id).filter(i -> i.getStatus()==InstitutionStatus.ACTIVE)
-                .ifPresent(i -> result.add(new com.sinoe.authmfa.dto.AuthDtos.InstitutionOption(id,i.getName(),List.copyOf(roles)))));
+                .ifPresent(i -> result.add(new com.sinoe.authmfa.dto.AuthDtos.InstitutionOption(id,i.getName(),List.copyOf(roles),i.getCode()))));
         return result;
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public Institution resolveActiveCode(String rawCode) {
+        String code = normalizeCode(rawCode);
+        return institutions.findByCode(code)
+                .filter(i -> i.getStatus() == InstitutionStatus.ACTIVE)
+                .orElseThrow(() -> new AccessDeniedException("Institución no disponible"));
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public boolean hasActiveMembership(User user, Long institutionId) {
+        return !memberships.findByUser_IdAndInstitution_IdAndStatus(user.getId(), institutionId, MembershipStatus.ACTIVE).isEmpty();
+    }
+
+    public static String normalizeCode(String rawCode) {
+        if (rawCode == null || !rawCode.trim().matches("[A-Za-z0-9](?:[A-Za-z0-9-]{0,58}[A-Za-z0-9])?"))
+            throw new IllegalArgumentException("Código institucional inválido");
+        return rawCode.trim().toUpperCase(Locale.ROOT);
     }
     public record IssuedContext(String token, Long institutionId, List<String> roles) { }
 }

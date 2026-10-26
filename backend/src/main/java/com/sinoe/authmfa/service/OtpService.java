@@ -103,12 +103,17 @@ public class OtpService {
     // GENERAR OTP PARA LOGIN (como ya lo tenías)
 
     public OtpCode generateLoginOtpForUser(Long userId) {
+        return generateLoginOtpForUser(userId, null);
+    }
+
+    public OtpCode generateLoginOtpForUser(Long userId, Long institutionId) {
         String code = generateCode();
         String publicId = UUID.randomUUID().toString();
         Instant now = Instant.now();
 
         OtpCode otp = OtpCode.builder()
                 .userId(userId)
+                .institutionId(institutionId)
                 .code(code)
                 .publicId(publicId)
                 .purpose(LOGIN_PURPOSE)

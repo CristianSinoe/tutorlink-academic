@@ -28,6 +28,9 @@ public class OtpCode {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "institution_id")
+    private Long institutionId;
+
     @Column(nullable = false, length = 6)
     private String code;
 

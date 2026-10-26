@@ -267,8 +267,20 @@ public class AuthController {
                         .body(new AuthDtos.ApiMessage(msg));
             }
 
-            var otp = otpService.generateLoginOtpForUser(u.getId());
+            Long scopedInstitutionId = null;
+            if (reqDto.getInstitutionCode() != null && !reqDto.getInstitutionCode().isBlank()) {
+                var institution = authorizationContexts.resolveActiveCode(reqDto.getInstitutionCode());
+                if (u.getRole() != UserRole.SUPER_ADMIN
+                        && !authorizationContexts.hasActiveMembership(u, institution.getId())) {
+                    audit.log(http, uid, LOGIN, false, "INSTITUTION_DENIED", "Acceso institucional no autorizado");
+                    return ResponseEntity.status(403).body(new AuthDtos.ApiMessage("No tienes acceso a esta institución."));
+                }
+                scopedInstitutionId = institution.getId();
+            }
+            var otp = otpService.generateLoginOtpForUser(u.getId(), scopedInstitutionId);
             emailService.sendLoginOtpEmail(u.getEmail(), otp.getCode());
+
+            final Long loginInstitutionId = scopedInstitutionId;
 
             audit.log(http, uid, "LOGIN_OTP_REQUEST", true, null,
                     "Credenciales válidas, OTP enviado al correo");
@@ -278,7 +290,10 @@ public class AuthController {
                             true,
                             otp.getPublicId(),
                             "Se envió un código de verificación a tu correo principal.",
-                            otpService.getResendCooldownSeconds(),authorizationContexts.available(u)));
+                            otpService.getResendCooldownSeconds(), loginInstitutionId == null
+                                    ? authorizationContexts.available(u)
+                                    : authorizationContexts.available(u).stream()
+                                        .filter(i -> loginInstitutionId.equals(i.institutionId())).toList()));
 
         } catch (Exception ex) {
             audit.log(http, uid, LOGIN, false, EXCEPTION, ex.getMessage());
@@ -331,7 +346,7 @@ public class AuthController {
                 return ResponseEntity.status(429).body(new AuthDtos.ApiMessage(msg));
             }
 
-            OtpCode newOtp = otpService.generateLoginOtpForUser(u.getId());
+            OtpCode newOtp = otpService.generateLoginOtpForUser(u.getId(), currentOtp.getInstitutionId());
             emailService.sendLoginOtpEmail(u.getEmail(), newOtp.getCode());
 
             audit.log(http, uid, LOGIN_OTP_RESEND, true, null, "Nuevo OTP enviado al correo");
@@ -374,6 +389,18 @@ public class AuthController {
 
             uid = u.getId();
 
+            Long requestedInstitutionId = req.getInstitutionId();
+            if (req.getInstitutionCode() != null && !req.getInstitutionCode().isBlank()) {
+                var institution = authorizationContexts.resolveActiveCode(req.getInstitutionCode());
+                if (otp.getInstitutionId() != null && !otp.getInstitutionId().equals(institution.getId())) {
+                    audit.log(http, uid, LOGIN_OTP, false, "INSTITUTION_MISMATCH", "El desafío no corresponde a la institución");
+                    return ResponseEntity.status(403).body(new AuthDtos.ApiMessage("El acceso institucional no coincide con el desafío."));
+                }
+                requestedInstitutionId = institution.getId();
+            } else if (otp.getInstitutionId() != null) {
+                requestedInstitutionId = otp.getInstitutionId();
+            }
+
             if (u.getStatus() != UserStatus.ACTIVE) {
                 String msg;
                 switch (u.getStatus()) {
@@ -387,11 +414,11 @@ public class AuthController {
                 return ResponseEntity.status(403).body(new AuthDtos.ApiMessage(msg));
             }
 
-            if(req.getInstitutionId()==null && u.getRole()!=UserRole.SUPER_ADMIN && authorizationContexts.available(u).size()!=1) {
+            if(requestedInstitutionId==null && u.getRole()!=UserRole.SUPER_ADMIN && authorizationContexts.available(u).size()!=1) {
                 audit.log(http,uid,LOGIN_OTP,false,"CONTEXT_SELECTION_REQUIRED","Selecciona una institución autorizada");
                 return ResponseEntity.badRequest().body(new AuthDtos.ApiMessage("Selecciona una institución autorizada al verificar OTP"));
             }
-            var context = authorizationContexts.issue(u, req.getInstitutionId());
+            var context = authorizationContexts.issue(u, requestedInstitutionId);
 
             audit.log(http, uid, LOGIN_OTP, true, null, "OTP ok, login completado");
 

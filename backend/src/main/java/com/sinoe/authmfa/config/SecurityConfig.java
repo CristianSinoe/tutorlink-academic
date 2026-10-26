@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register").denyAll()
                         .requestMatchers(
                                 "/api/health",
+                                "/api/public/institutions/**",
                                 "/api/institution-invitations/accept",
                                 "/api/auth/login",
                                 "/api/auth/activate",
