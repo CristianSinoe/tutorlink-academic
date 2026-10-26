@@ -90,3 +90,51 @@ Resultados efectivos de esta revisión: Vitest **104/104**, suite HTTP H2 `Phase
 | H10 Ayuda | Riesgo de ocultar controles al simplificar (2) | Ayudas, etiquetas y acciones existentes conservadas |
 
 Se detectó y corrigió una regresión de reflow en las pruebas ampliadas: etiquetas `sr-only` de encabezados de tabla quedaban posicionadas fuera de la región horizontal y generaban scroll global (1730 px de ancho en un viewport de 683 px). La región ahora establece el contexto de posicionamiento y contiene esas etiquetas sin ocultar datos. Las mismas aserciones se mantuvieron al repetir las pruebas.
+
+## Controles compartidos e iconos — 22/10/2026
+
+Hallazgo de severidad 2: coexistían botones de píldora y rectangulares, y las acciones repetidas ocupaban espacio innecesario en tablas. Se unifica el radio de botones y campos a 8 px en todos los perfiles y se usan iconos con nombre accesible y ayuda contextual en acciones repetidas.
+
+| Heurística | Aplicación en esta revisión |
+| --- | --- |
+| H1 Visibilidad | Estados pendientes y deshabilitados conservados; `aria-busy` en botones compartidos |
+| H2 Correspondencia | Ojo, papelera y desvinculación representan acciones concretas; la ayuda explica su alcance |
+| H3 Control | Escape cierra primero la ayuda; cancelar la confirmación conserva la asignación |
+| H4 Consistencia | Una geometría para botones, controles y ayudas en todos los espacios |
+| H5 Prevención | Quitar asignación mantiene confirmación previa; no elimina la cuenta |
+| H6 Reconocimiento | Nombre accesible, descripción contextual y ayuda tanto con cursor como con teclado |
+| H7 Eficiencia | Acciones de fila compactas, con objetivos de 44×44 px |
+| H8 Minimalismo | Se reduce texto repetido sin ocultar acciones ni cambiar datos |
+| H9 Recuperación | Se mantienen los mensajes y formularios existentes ante errores |
+| H10 Ayuda | Ayudas visibles y persistentes al mover el cursor sobre ellas; exportaciones conservan PDF/Excel |
+
+Criterios de aceptación: botones con radio común y altura mínima en los seis contextos, ayudas operables con foco y Escape, confirmación antes del DELETE de asignaciones y modal contenido en el viewport. Vitest, Cypress simulado, lint y build verifican estas propiedades; no se realizan entrevistas o pruebas moderadas con usuarios ni una nueva integración real de backend en este ajuste visual. Los resultados históricos anteriores se conservan como evidencia de sus respectivas revisiones.
+
+Resultados: **113/113 pruebas Vitest**, **48/48 Cypress con contratos simulados**, ESLint y build Vite aprobados. Tras el ajuste del límite de diálogo se repitieron `admin-redesign.cy.js` y `navigation-spacing.cy.js`: **12/12**, incluidos tamaños de 320 a 1920 px. Evidencias locales en `frontend/cypress/screenshots/` y `frontend/cypress/videos/` (ignoradas por Git). Una primera ejecución falló en la visibilidad de la ayuda: `pointer-events: none` impedía su interacción; se corrigió para admitir hover sobre la ayuda y se mantuvo la aserción al repetir. El build mantiene advertencias de tamaño de bundle y antigüedad de Browserslist, sin errores. Graphify actualizado; la extracción SQL permanece limitada por la ausencia de `tree_sitter_sql`.
+
+## Espacios coherentes y consulta de actividades docentes — 22/10/2026
+
+Ampliación posterior: DOCENTE+TUTOR comparte resumen y menú, sin selector entre esos dos roles ni permisos nuevos. La gestión de actividades ahora incluye CRUD propio, confirmaciones de descarte/eliminación y revisión de entregas. Se conserva el texto del estudiante y su historial: la eliminación con dependencias devuelve 409; los borradores permanecen privados. El resumen distingue cifras docentes y de tutorías, con indisponibilidad explícita ante fallos.
+
+Hallazgo corregido durante Cypress: al cancelar una eliminación o recibir un conflicto, el foco y el scroll podían dejar el control o el mensaje fuera del área visible. Cancelar restaura el foco al icono de origen; los mensajes de escritura reciben foco y desplazamiento al centro del cuerpo modal. Las verificaciones mantienen sus aserciones de visibilidad y desplazan explícitamente el listado al consultar elementos situados más abajo, como haría el usuario dentro de un modal con scroll.
+
+Se aplican H1 (estados y cifras reales), H2 (docencia/tutorías diferenciadas), H3 (cancelación, descarte y foco), H4 (shell y componentes comunes), H5 (autoría, bloqueo de escrituras y protección histórica), H6 (grupo y alumno identificados), H7 (búsquedas y paginación), H8 (vista conjunta sin duplicar espacios), H9 (formularios conservados, errores visibles y reintentos de lectura) y H10 (reglas de publicación, privacidad y archivos explicadas). Ver [detalle funcional y límites](DOCENCIA_TUTORIAS_ACTIVIDADES.md). Las notas de consulta limitada que siguen corresponden al incremento anterior.
+
+Problemas observados (severidad 2): diferencias de apariencia entre ADMIN y tutorías, y ausencia de acceso desde las materias docentes a las actividades disponibles. La presentación del shell ahora es compartida por todos los perfiles, con destinos separados por autorización. «Ver actividades» consulta tareas y materiales por grupo usando las API existentes.
+
+| Heurística | Aplicación |
+| --- | --- |
+| H1 | Carga anunciada y estados publicados/borradores explícitos |
+| H2 | Etiquetas «Mis materias», «Tareas» y «Clases y materiales» |
+| H3 | Diálogo cerrable con Escape y restauración del foco al grupo |
+| H4 | Mismo sidebar, cabecera, tarjetas, formularios y diálogos compartidos |
+| H5 | Solo lectura; no se ofrecen operaciones académicas aún no implementadas en React |
+| H6 | Materia, grupo y periodo visibles dentro de las actividades |
+| H7 | Búsqueda y paginación por grupo, cinco actividades por página |
+| H8 | Detalle progresivo sin mezclar docencia y tutoría |
+| H9 | Error distinguible del vacío; reintento de lectura y descarte de respuestas antiguas |
+| H10 | Explicación del alcance de borradores, fechas y entregas tardías |
+
+La actualización visual no cambia guardias, JWT ni permisos backend. Las pruebas de UI utilizan contratos simulados y no constituyen una nueva validación E2E PostgreSQL ni una prueba de usabilidad con participantes. Las conversaciones heredadas conservan sus diálogos locales y no se consideran migradas al componente compartido por este cambio.
+
+Resultados finales: **118/118 Vitest** (26 archivos), **50/50 Cypress simulados** (11 specs), ESLint y build Vite aprobados. Se verificaron shell claro en seis contextos, cambio DOCENTE/TUTOR, contexto institucional, cierre de sesión, actividades a 375/1366 px, foco al cerrar y regresiones de reflow de 320 a 1920 px. Las capturas locales `workspace-tutor`, `workspace-estudiante`, `workspace-docente` y `teacher-activities-*` están en `frontend/cypress/screenshots/`; los videos se guardan en `frontend/cypress/videos/`. Las primeras ejecuciones detectaron una instrucción de bienvenida que las regresiones de navegación necesitaban: se conservó la identificación del espacio docente y se sustituyó únicamente la promesa obsoleta de módulos futuros por el acceso funcional a materias. La repetición completa pasó sin reducir las aserciones. Graphify actualizado; build conserva sus advertencias previas de tamaño de bundle/Browserslist.

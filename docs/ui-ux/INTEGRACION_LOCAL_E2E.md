@@ -1,5 +1,15 @@
 # Integración local E2E con PostgreSQL
 
+## Ampliación de docencia y tutorías — 22/10/2026
+
+La spec `academic.real.cy.js` incorpora un segundo recorrido sin interceptores: sesión real de `tutor1.demo15@example.invalid` con DOCENTE+TUTOR, resumen conjunto, creación/edición/eliminación de material propio con lecturas posteriores, creación de tarea publicada, entrega sintética mediante la API estudiantil y revisión desde React, seguida de rechazo 409 al eliminar la tarea con historial. Todas las escrituras están limitadas al PostgreSQL efímero del orquestador.
+
+**Ejecución de navegador real pendiente:** `scripts/e2e/run-real-admin-cypress.sh` validó el entorno `tutorlink_e2e` y abortó al reservar los puertos: **5173 EADDRINUSE y 8080 EADDRINUSE**. No se detuvieron ni se utilizaron esos servicios, y no se crearon recursos E2E en ese intento. Para reproducir, detener desde sus propias terminales los servidores de desarrollo que ocupan ambos puertos y ejecutar el mismo script. No se ha aprobado este nuevo recorrido React–Spring Boot–PostgreSQL usando únicamente mocks.
+
+La suite HTTP backend sí se ejecutó con PostgreSQL Testcontainers independiente del bloqueo: `Phase15PostgresTest` **28/28** y `Phase15H2Test` **28/28**, dentro de **308/308** pruebas backend sin omisiones. Incluye aislamiento institucional con la misma cuenta en dos escuelas, CRUD propio, denegación a otro autor/sin asignación, membresía suspendida, validaciones, protección de entregas/referencias, ocultación de borradores y rollback ante fallo de auditoría. Esto valida HTTP/JWT/SQL sin implicar una sesión de navegador real contra ese backend. Los correos/reCAPTCHA de dichas pruebas HTTP se sustituyen según el contrato de integración existente; las decisiones de autorización y las operaciones de base son reales.
+
+Frontend final: **126/126 Vitest**, **52/52 Cypress simulados**, ESLint y build aprobados. Las primeras ejecuciones detectaron mensajes fuera de la zona visible del modal: se corrigió el foco/desplazamiento de errores y restauración al cancelar; las aserciones de visibilidad se mantuvieron. La suite completa final pasó. Las compilaciones simultáneas también provocaron tiempos de carga insuficientes en una ejecución intermedia; la repetición estabilizada pasó sin omitir pruebas ni desactivar controles. Estos resultados son de la ampliación conjunta y no reemplazan las matrices históricas que siguen.
+
 Esta guía ejecuta React y Spring Boot contra recursos locales y efímeros. No usa `.env.demo`, `docker-compose.yml`, volúmenes persistentes, SMTP ni bases existentes.
 
 ## Preparación

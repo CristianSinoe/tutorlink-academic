@@ -2,6 +2,12 @@
 
 > UI 2B.2: el frontend no consume aún un endpoint de branding. El futuro contrato de marca contextual y ruta pública propuesta se documentan en [PERSONALIZACION_INSTITUCIONAL.md](ui-ux/PERSONALIZACION_INSTITUCIONAL.md); no forman parte de esta API ni otorgan contexto o permisos.
 
+## Acceso institucional por código — backend V31
+
+El código institucional funciona como slug estable para enlaces de acceso. `GET /api/public/institutions/{code}` devuelve solo `{code,name}` para instituciones activas; no crea sesión ni revela membresías. `POST /api/auth/login` acepta opcionalmente `institutionCode`, y `POST /api/auth/login/verify-otp` acepta el mismo campo. En ese flujo el OTP queda vinculado a la institución en `otp_codes.institution_id`; un código distinto durante la verificación responde `403`. Los códigos son alfanuméricos con guiones, de 1 a 60 caracteres, y se normalizan a mayúsculas.
+
+Ejemplo: una institución con código `BENITOJUAREZ` podrá usar `/benitojuarez/login`; la demo usa `/DEMO15-I1/login`. El frontend todavía debe implementar esas rutas; `/login` continúa siendo compatible.
+
 ## Consumo frontend — fase 2B.1
 
 React consume ahora el JwtResponse completo (`token`, `role` legado, `institutionId`, `roles`, `email`, `name`). La sesión local versionada conserva un rol visual autorizado sin cambiar permisos ni el JWT. OTP recibe las opciones del desafío y envía institutionId cuando corresponde antes de consumir el código. Cambiar escuela utiliza únicamente GET `/api/auth/institutions` y POST `/api/auth/context`, bloquea escrituras durante transición y descarta respuestas del contexto anterior.
@@ -338,6 +344,31 @@ Las lecturas administrativas de docentes solo incluyen `teacherId`, código, nom
 El retiro actualiza `status=WITHDRAWN` y conserva la fila. El POST de inscripción existente reactiva una fila retirada. No existe endpoint para retirar docentes. Las asignaciones Docente–Grupo, inscripciones Estudiante–Grupo y tutorías Tutor–Estudiante continúan siendo relaciones independientes.
 
 React consume estos envelopes mediante `frontend/src/api/academicApi.js`, convierte mapas `snake_case` a modelos de vista y descarta respuestas de generaciones de contexto anteriores. Las rutas disponibles son `/admin/periods`, `/admin/courses`, `/admin/groups`, `/teacher/courses` y `/student/courses`; no ofrecen enlaces funcionales a tareas, clases, entregas, asistencia o adjuntos en esta fase.
+
+Ampliación de consulta docente (22/10/2026): `/teacher/courses` incorpora «Ver actividades» por grupo. Reutiliza `GET /api/teacher/tasks` y `GET /api/teacher/contents` con `groupId`, `q`, `page` y `size=5`. Los resultados usan el mismo `PagedResponse`; el adaptador convierte `due_at` y `allow_late_submissions` a camelCase. Se muestran título, instrucciones/cuerpo como texto, estado publicado/borrador y, para tareas, fecha límite y permiso de tardías. El backend conserva las comprobaciones de asignación, membresía, autoría e institución. No se envía `institutionId`, no se agregan endpoints y esta vista no modifica actividades ni expone adjuntos o URLs. Los permisos DOCENTE y TUTOR siguen siendo independientes.
+
+### Gestión docente y espacio conjunto (22/10/2026)
+
+La ampliación posterior incorpora CRUD y revisión desde esa misma vista. DOCENTE+TUTOR comparte navegación y resumen sin modificar roles, JWT ni contratos de tutorías. Los permisos permanecen independientes.
+
+| Método y ruta | Entrada y resultado | Autorización / restricciones |
+| --- | --- | --- |
+| POST `/api/teacher/tasks` | `{groupId,title,instructions,dueAt,published,allowLateSubmissions}` → 201 `{id}` | Docente vigente asignado al grupo; autor obtenido del contexto |
+| POST `/api/teacher/contents` | `{groupId,title,body,published}` → 201 `{id}` | Misma regla |
+| PUT `/api/teacher/tasks/{id}` | `{title,instructions,dueAt,published,allowLateSubmissions}` → 204 | Autor vigente y asignado; grupo/autor no editables |
+| PUT `/api/teacher/contents/{id}` | `{title,body,published}` → 204 | Misma regla de autoría |
+| DELETE `/api/teacher/tasks/{id}` o `/contents/{id}` | Sin cuerpo → 204 | Solo autor asignado; 409 ante entregas/borradores o cualquier referencia histórica |
+| GET `/api/teacher/tasks/{id}/students` | `q,status=ALL\|PENDING\|ON_TIME\|LATE,page,size` → `PagedResponse` | Docente asignado con acceso a la tarea; alumnos vigentes |
+
+Las lecturas de tareas y contenidos incorporan `can_manage` booleano para presentar acciones de autoría; el backend vuelve a autorizar cada escritura. Títulos de 1–200 caracteres, texto máximo 20000 y fecha límite obligatoria para tareas. Un PUT no acepta despublicar una tarea con entregas o borradores (409). Los estados históricos de las entregas no se recalculan al editar fechas. Las operaciones de negocio se auditan y revierten si falla la auditoría. No se modificaron migraciones.
+
+Ejemplo de revisión (sin correo ni identidad global):
+
+```json
+{"content":[{"student_id":12,"matricula":"S012","name":"Ana","last_name_paterno":"Ejemplo","last_name_materno":null,"submission_id":40,"status":"ON_TIME","body":"Respuesta final","submitted_at":"2026-10-22T12:00:00Z"},{"student_id":13,"matricula":"S013","name":"Luis","last_name_paterno":"Ejemplo","last_name_materno":null,"submission_id":null,"status":"PENDING","body":null,"submitted_at":null}],"page":0,"size":5,"totalElements":2,"totalPages":1}
+```
+
+Un borrador se trata como PENDING y no expone sus campos. Se excluyen inscripciones retiradas, cuentas no activas y membresías estudiantiles no vigentes. La autorización central de adjuntos valida tarea y entregas finales. Las referencias usan los endpoints existentes con `actingRole=DOCENTE`; no se agregan URLs a esta respuesta ni se implementa carga binaria. Errores: 400 entrada inválida, 403 uniforme para recurso ajeno/inexistente/no autorizado, 409 historial protegido o estado incompatible. Ver [uso y límites](ui-ux/DOCENCIA_TUTORIAS_ACTIVIDADES.md).
 
 ## Edición de catálogos académicos desde detalles (18-10-2026)
 

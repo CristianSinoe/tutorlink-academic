@@ -11,9 +11,13 @@ credentials.json
 service-account*.json
 __pycache__/
 *.pyc
+.attach_pid*
+hs_err_pid*
+*.hprof
 !.env.example
 !backend/.env.e2e.example
 !frontend/.env.e2e.example
+!backend/.env.local.example
 
 node_modules/
 frontend/node_modules/

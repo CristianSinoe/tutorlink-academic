@@ -32,6 +32,7 @@ services:
   frontend:
     build:
       context: ./frontend
+      target: development
     restart: unless-stopped
     depends_on:
       - backend

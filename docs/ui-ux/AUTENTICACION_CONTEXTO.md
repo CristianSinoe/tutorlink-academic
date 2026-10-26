@@ -1,5 +1,11 @@
 # Autenticación y contexto implementados — fase 2B.1
 
+## Ampliación de presentación DOCENTE+TUTOR — 22/10/2026
+
+Una sesión con los dos roles académicos utiliza una vista conjunta, sin emitir un rol nuevo ni cambiar las autoridades del token. El registro local sigue en versión 2. Si solo existen DOCENTE y TUTOR, la sesión elige inicialmente DOCENTE y entra a `/teacher`; una preferencia previa TUTOR sigue siendo válida. Navegar entre rutas docentes y de tutoría conserva el JWT y el rol seleccionado, siempre que ambos estén vigentes. Las guardias siguen comprobando el rol de cada ruta; un TUTOR sin DOCENTE no puede abrir materias.
+
+El selector del perfil agrupa esos dos roles en «Docencia y tutorías» y desaparece cuando no hay otros espacios que elegir. ADMIN, ESTUDIANTE y SUPER_ADMIN no obtienen acceso académico por esta agrupación. El cambio de institución sigue revalidando roles en backend, esperando escrituras activas y desmontando contenido de la generación anterior. Ver [guía funcional](DOCENCIA_TUTORIAS_ACTIVIDADES.md).
+
 Fecha: 13 de octubre de 2026. Esta fase implementa código React sobre la arquitectura existente. No cambia backend, migraciones V27–V30, autoridades JWT ni el esquema de autenticación. Contratos: [CONTRATO_API_CURSOS.md](../CONTRATO_API_CURSOS.md). Diagnóstico original: [AUDITORIA_UX.md](AUDITORIA_UX.md).
 
 Actualización 2B.2: login, OTP, primer acceso e invitaciones mantienen TutorLink. `ThemeProvider` no realiza solicitudes de branding ni altera JWT, contexto, guardias o cambio de institución. Véase [PERSONALIZACION_INSTITUCIONAL.md](PERSONALIZACION_INSTITUCIONAL.md).

@@ -1,5 +1,9 @@
 # Navegación propuesta por roles — TutorLink
 
+Ampliación posterior del 22/10/2026: DOCENTE+TUTOR utiliza un único espacio «Docencia y tutorías» con inicio `/teacher`, materias/actividades y rutas heredadas `/tutor/pending`, `/tutor/history`, `/tutor/profile`. No se requiere selector entre estos dos roles; `/tutor` redirige al resumen conjunto cuando ambos están presentes. Las asignaciones y permisos siguen siendo independientes. Usuarios con un solo rol conservan únicamente sus funciones autorizadas. Ver [funcionamiento y límites](DOCENCIA_TUTORIAS_ACTIVIDADES.md). Las descripciones anteriores de consulta sin edición se conservan abajo como historia de la implementación.
+
+Actualización implementada, 22/10/2026: todos los espacios autenticados comparten la apariencia clara y los patrones de navegación del panel administrativo, manteniendo sus destinos y guardias por rol. DOCENTE tiene «Mis materias» en Gestión académica (`/teacher/courses`) y un acceso desde su inicio; cada grupo abre tareas y clases/materiales autorizados en un diálogo de consulta paginado. TUTOR conserva exclusivamente sus funciones de acompañamiento y consultas. Esta ampliación no incorpora edición de actividades ni cambia permisos.
+
 > Actualización 13/10/2026 — `WorkspaceLayout` es el shell de ADMIN, ESTUDIANTE, TUTOR, DOCENTE y plataforma: navegación por rol, identidad/contexto y cierre de sesión están en el sidebar. DOCENTE y TUTOR continúan separados. Los menús académicos y CRUD SaaS sin ruta funcional siguen fuera de navegación.
 
 Estado: propuesta, no rutas nuevas implementadas. Rutas vigentes: [AUDITORIA_UX.md](AUDITORIA_UX.md); API: [CONTRATO_API_CURSOS.md](../CONTRATO_API_CURSOS.md). Los permisos se verifican en el servidor. Un menú o selector no otorga permisos.

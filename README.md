@@ -89,3 +89,7 @@ Frontend: `http://localhost:5173`; backend: `http://localhost:8080`. `VITE_API_B
 - [Contrato de API](docs/CONTRATO_API_CURSOS.md)
 - [Configuración privada y revisión antes de publicar](SECURITY.md)
 - [Sistema de diseño](docs/ui-ux/SISTEMA_DISENO.md)
+
+## Producción: Render por imágenes + Aiven + Resend
+
+La guía [RENDER_AIVEN_RESEND](docs/deployment/RENDER_AIVEN_RESEND.md) explica las imágenes, los campos de Render, TLS/CA de Aiven, dominio remitente y pruebas de entrega. El perfil `prod` exige configuración explícita y envía por Resend HTTPS. La **RESEND_API_KEY se guarda solo en los secretos del backend de Render**; la plantilla vacía está en `deploy/render/backend.env.example`. El frontend Docker recibe únicamente configuración pública al arrancar y utiliza Nginx. No confundir una compilación local con un despliegue y entrega real ya verificados.
