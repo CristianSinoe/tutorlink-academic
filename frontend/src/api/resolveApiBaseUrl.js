@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from '../config/runtimeConfig';
+
 function normalizeConfiguredApiBaseUrl(value) {
   if (typeof value !== "string") {
     return "";
@@ -8,7 +10,7 @@ function normalizeConfiguredApiBaseUrl(value) {
 
 export function resolveApiBaseUrl() {
   const configuredBaseUrl = normalizeConfiguredApiBaseUrl(
-    import.meta.env.VITE_API_BASE_URL,
+    getApiBaseUrl(),
   );
 
   if (configuredBaseUrl) {

@@ -183,7 +183,7 @@ describe("OtpPage", () => {
 
 const institutions = [{ institutionId: 1, name: 'Escuela A', roles: ['DOCENTE', 'TUTOR'] }, { institutionId: 2, name: 'Escuela B', roles: ['ESTUDIANTE'] }];
 function contextualOtp(state) {
-  return renderWithProviders(<Routes><Route path="/otp" element={<OtpPage />} /><Route path="/context" element={<p>Elegir espacio</p>} /><Route path="/student" element={<p>Estudiante</p>} /><Route path="/platform" element={<p>Plataforma</p>} /></Routes>,
+  return renderWithProviders(<Routes><Route path="/otp" element={<OtpPage />} /><Route path="/teacher" element={<div>Docencia y tutorías</div>} /><Route path="/context" element={<p>Elegir espacio</p>} /><Route path="/student" element={<p>Estudiante</p>} /><Route path="/platform" element={<p>Plataforma</p>} /></Routes>,
     { initialEntries: [{ pathname: '/otp', state: { otpToken: 'otp-context', email: 'persona@personal.test', institutions, ...state } }] });
 }
 it('exige elegir entre instituciones antes de consumir OTP', async () => {
@@ -199,7 +199,7 @@ it('envía la institución elegida y conserva todos los roles del contrato', asy
   const { authValue } = contextualOtp(); const user = userEvent.setup();
   await user.selectOptions(screen.getByLabelText('Institución de acceso'), '1');
   await user.type(screen.getByLabelText(/código de verificación de 6 dígitos/i), '123456'); await user.click(screen.getByRole('button', { name: /confirmar código/i }));
-  expect(await screen.findByText('Elegir espacio')).toBeInTheDocument();
+  expect(await screen.findByText('Docencia y tutorías')).toBeInTheDocument();
   expect(apiClient.post).toHaveBeenCalledWith('/api/auth/login/verify-otp', { otpToken: 'otp-context', code: '123456', institutionId: 1 });
   expect(authValue.login).toHaveBeenCalledWith(data, institutions);
 });

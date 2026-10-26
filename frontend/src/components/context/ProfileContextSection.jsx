@@ -2,7 +2,7 @@ import apiClient from '../../api/axiosClient';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/useAuth';
-import { roleLabels, sessionHome, validateOptions } from '../../context/sessionStore';
+import { academicSpaces, combinedAcademic, roleLabels, sessionHome, validateOptions } from '../../context/sessionStore';
 import InstitutionSwitch from './InstitutionSwitch';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -49,9 +49,10 @@ export default function ProfileContextSection() {
       {Boolean(auth.platformOptions?.length) && <p className="mb-3 text-sm">El selector también incluye instituciones administrables desde plataforma. Ese acceso no implica membresía académica.</p>}
       <div className="flex flex-wrap items-end gap-4">
         <InstitutionSwitch />
-        {auth.roles.length > 1 && <div className="w-full min-w-0 sm:w-auto sm:max-w-full"><label htmlFor="active-role" className="block text-sm font-semibold">Espacio de trabajo</label>
-          <select id="active-role" className="tl-input" value={auth.selectedRole || ''} disabled={auth.switching || Boolean(auth.error)} onChange={e => setAction(e.target.value)}>
-            <option value="" disabled>Selecciona un rol</option>{auth.roles.map(role => <option key={role} value={role}>{roleLabels[role]}</option>)}
+        {combinedAcademic(auth) && <p className="text-sm">Docencia y tutorías están disponibles juntas, sin cambiar de espacio.</p>}
+        {academicSpaces(auth).length > 1 && <div className="w-full min-w-0 sm:w-auto sm:max-w-full"><label htmlFor="active-role" className="block text-sm font-semibold">Espacio de trabajo</label>
+          <select id="active-role" className="tl-input" value={combinedAcademic(auth) && auth.selectedRole === 'TUTOR' ? 'DOCENTE' : auth.selectedRole || ''} disabled={auth.switching || Boolean(auth.error)} onChange={e => setAction(e.target.value)}>
+            <option value="" disabled>Selecciona un rol</option>{academicSpaces(auth).map(role => <option key={role} value={role}>{role === 'DOCENTE' && combinedAcademic(auth) ? 'Docencia y tutorías' : roleLabels[role]}</option>)}
           </select></div>}
         {auth.roles.includes('SUPER_ADMIN') && <button type="button" className="tl-button-secondary" disabled={auth.switching} onClick={() => setAction('platform')}>Volver a plataforma</button>}
 

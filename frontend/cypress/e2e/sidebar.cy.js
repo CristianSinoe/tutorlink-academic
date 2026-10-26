@@ -22,13 +22,25 @@ function visitRole({ role, home }) {
   cy.intercept('GET', '/api/admin/questions/recent*', { body: [] });
   cy.intercept('GET', '/api/tutor/dashboard/summary', { body: {} });
   cy.intercept('GET', '/api/tutor/questions/recent*', { body: [] });
+  ['/api/teacher/courses*', '/api/teacher/tasks*', '/api/teacher/questions*'].forEach(url => cy.intercept('GET', url, { body: { content: [], page: 0, size: 1, totalElements: 0, totalPages: 0 } }));
   cy.intercept('GET', '/api/student/questions/my*', { body: { content: [] } });
   cy.visit(home, { onBeforeLoad(win) { win.localStorage.setItem('auth', JSON.stringify({ version: 2, ...actor, selectedRole: role })); } });
+  // Context restoration precedes the sidebar; do not race the four-second default.
+  cy.get('[data-workspace-shell]', { timeout: 15000 }).should('be.visible');
 }
 describe('Sidebar y perfil compartidos', () => {
   roles.forEach(entry => {
     it(`identidad al pie y contexto en Mi perfil: ${entry.role}`, () => {
       cy.viewport(1440, 900); visitRole(entry);
+      cy.get('[data-workspace-shell]').should('have.class', 'tl-admin-shell');
+      cy.get('aside[aria-label="Menú lateral"]').should('have.css', 'background-color', 'rgb(241, 244, 249)');
+      cy.get('aside nav a').first().should('have.class', 'tl-admin-nav-link');
+      if (['TUTOR', 'ESTUDIANTE', 'DOCENTE'].includes(entry.role)) cy.screenshot(`workspace-${entry.role.toLowerCase()}`, { capture: 'viewport', scale: true });
+      cy.get('button').filter(':visible').each($button => {
+        const button = $button[0];
+        expect(getComputedStyle(button).borderRadius, 'radio compartido').to.equal('8px');
+        expect(button.getBoundingClientRect().height, 'objetivo táctil').to.be.at.least(44);
+      });
       cy.get('aside[aria-label="Menú lateral"]').should('be.visible').within(() => {
         cy.get('[data-testid="sidebar-session"]').should('contain', 'Persona de prueba').and('contain', email);
         cy.contains('a', 'Mi perfil').click();

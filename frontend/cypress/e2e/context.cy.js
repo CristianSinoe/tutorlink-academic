@@ -5,6 +5,7 @@ function contextual(id = 1, roles = schools.find(s => s.institutionId === id).ro
   return { ...actor, token: `context-${id}`, institutionId: id, roles };
 }
 function contextApis() {
+  ['/api/teacher/courses*', '/api/teacher/tasks*', '/api/teacher/questions*'].forEach(url => cy.intercept('GET', url, { body: { content: [], page: 0, size: 1, totalElements: 0, totalPages: 0 } }));
   cy.intercept('GET', '/api/auth/institutions', { body: schools });
   cy.intercept('POST', '/api/auth/context', req => req.reply({ body: contextual(req.body.institutionId) })).as('context');
 }
@@ -12,7 +13,7 @@ function seed(win, session, selectedRole) { win.localStorage.setItem('auth', JSO
 
 describe('Contexto V30 y roles múltiples', () => {
   beforeEach(() => cy.viewport(1280, 800));
-  it('login selecciona escuela antes de OTP y alterna DOCENTE/TUTOR', () => {
+  it('login selecciona escuela antes de OTP y reúne DOCENTE/TUTOR sin cambiar JWT', () => {
     contextApis(); cy.mockRecaptcha(); cy.mockTutorApis();
     cy.intercept('POST', '/api/auth/login', { body: { requiresOtp: true, otpToken: 'proof', institutions: schools, resendCooldownSeconds: 1 } }).as('login');
     cy.intercept('POST', '/api/auth/login/verify-otp', req => { expect(req.body.institutionId).to.equal(1); req.reply({ body: contextual() }); }).as('otp');
@@ -22,10 +23,17 @@ describe('Contexto V30 y roles múltiples', () => {
     cy.get('[data-cy="mock-recaptcha-button"]').click(); cy.get('[data-cy="login-submit"]').click(); cy.wait('@login');
     cy.get('#otp-code').type('123456'); cy.get('[data-cy="otp-submit"]').click(); cy.get('[role="alert"]').should('contain', 'Selecciona una institución');
     cy.get('#otp-institution').select('1'); cy.get('[data-cy="otp-submit"]').click(); cy.wait('@otp');
-    cy.location('pathname').should('eq', '/context'); cy.contains('a', 'Mi perfil').click(); cy.get('#active-role').select('DOCENTE'); cy.get('[role="dialog"]').contains('Continuar').click();
-    cy.location('pathname').should('eq', '/teacher'); cy.contains('Estás en tu espacio docente').should('be.visible'); cy.screenshot('phase2b-docente-contexto');
-    cy.contains('a', 'Mi perfil').click(); cy.get('#active-role').select('TUTOR'); cy.get('[role="dialog"]').contains('Continuar').click();
-    cy.location('pathname').should('eq', '/tutor'); cy.contains('Dashboard del Tutor').should('be.visible');
+    cy.location('pathname').should('eq', '/teacher');
+    cy.contains('h1', 'Resumen de docencia y tutorías').should('be.visible');
+    cy.screenshot('resumen-docencia-tutorias', { capture: 'viewport', scale: true });
+    cy.get('aside').contains('a', 'Preguntas pendientes').click();
+    cy.location('pathname').should('eq', '/tutor/pending');
+    cy.get('aside').contains('a', 'Mis materias y actividades').should('be.visible');
+    cy.get('aside').contains('a', 'Mi perfil').click();
+    cy.get('#active-role').should('not.exist');
+    cy.contains('Docencia y tutorías están disponibles juntas').should('be.visible');
+    cy.window().then(win => { const auth = JSON.parse(win.localStorage.getItem('auth')); expect(auth.token).to.equal('context-1'); expect(auth.roles).to.deep.equal(['DOCENTE', 'TUTOR']); });
+    cy.screenshot('docencia-tutorias-contexto');
   });
   it('cambia institución con confirmación y datos del nuevo contexto en móvil', () => {
     contextApis(); cy.mockStudentApis(); cy.intercept('GET', '/api/me', { body: { id: 1, ...actor } }); cy.viewport(375, 812);
@@ -41,7 +49,7 @@ describe('Contexto V30 y roles múltiples', () => {
     cy.visit('/teacher', { onBeforeLoad: win => seed(win, contextual(), 'DOCENTE') }); cy.wait('@context');
     cy.intercept('POST', '/api/auth/context', { statusCode: 403, body: { message: 'Contexto no autorizado' } });
     cy.contains('a', 'Mi perfil').click(); cy.get('#active-institution').select('2'); cy.get('[role="dialog"]').contains('Continuar').click();
-    cy.contains('Tu contexto anterior se conserva').should('be.visible'); cy.contains('Escuela A').should('be.visible'); cy.location('pathname').should('eq', '/teacher/profile');
+    cy.contains('Tu contexto anterior se conserva').should('be.visible'); cy.contains('Escuela A').should('be.visible'); cy.location('pathname').should('eq', '/tutor/profile');
   });
   it('SUPER_ADMIN lista instituciones, entra a una escuela y vuelve mediante reautenticación', () => {
     const global = { ...actor, role: 'SUPER_ADMIN', token: 'global', institutionId: null, roles: ['PLATFORM_SUPER_ADMIN'] };

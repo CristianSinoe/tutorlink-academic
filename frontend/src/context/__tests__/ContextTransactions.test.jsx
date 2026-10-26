@@ -168,7 +168,7 @@ it('no persiste un cambio si localStorage falla', async () => {
 });
 it('valida rutas de retorno internas y roles globales/contextuales sin fallback legado', () => {
   const s = validateSession(session());
-  expect(sessionHome(s)).toBe('/context');
+  expect(sessionHome(s)).toBe('/teacher');
   expect(authorizedNext('/tutor/history?tab=my', s)).toBe('/tutor/history?tab=my');
   for (const path of ['https://evil.test', '//evil.test', '/admin', '/tutor/../admin', '/tutor/%2e%2e/admin', '/platform']) expect(authorizedNext(path, s)).toBeNull();
   expect(() => validateSession(session({ roles: [] }))).toThrow();

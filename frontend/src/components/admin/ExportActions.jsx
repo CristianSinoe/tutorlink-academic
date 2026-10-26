@@ -1,5 +1,7 @@
 import PropTypes from "prop-types";
 import { exportAdminListToExcel, exportAdminListToPdf } from "../../utils/adminExport";
+import Button from '../ui/Button';
+import ActionIcon from '../ui/ActionIcon';
 
 export default function ExportActions({ title, fileBaseName, columns, rows }) {
   const disabled = rows.length === 0;
@@ -7,26 +9,26 @@ export default function ExportActions({ title, fileBaseName, columns, rows }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button
+      <Button variant="danger"
         type="button"
         onClick={() => exportAdminListToPdf(exportOptions)}
         disabled={disabled}
         aria-label={`Exportar ${title} en PDF`}
-        className="inline-flex items-center gap-2 rounded-full bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uvBlue disabled:cursor-not-allowed disabled:opacity-50"
+        className="gap-2"
       >
-        <img src="/pdf18.svg" alt="" className="h-4 w-4" />
-        Exportar PDF
-      </button>
-      <button
+        <ActionIcon name="pdf" />
+        Exportar <span className="sr-only">PDF</span>
+      </Button>
+      <Button variant="positive"
         type="button"
         onClick={() => exportAdminListToExcel(exportOptions)}
         disabled={disabled}
         aria-label={`Exportar ${title} en Excel`}
-        className="inline-flex items-center gap-2 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-uvBlue disabled:cursor-not-allowed disabled:opacity-50"
+        className="gap-2"
       >
-        <img src="/microsoft-excel-svgrepo-com.svg" alt="" className="h-4 w-4" />
-        Exportar Excel
-      </button>
+        <ActionIcon name="excel" />
+        Exportar <span className="sr-only">Excel</span>
+      </Button>
     </div>
   );
 }

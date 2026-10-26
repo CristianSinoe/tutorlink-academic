@@ -1,5 +1,7 @@
 const listeners = new Set();
 const validRoles = new Set(['ADMIN', 'DOCENTE', 'TUTOR', 'ESTUDIANTE', 'SUPER_ADMIN', 'PLATFORM_SUPER_ADMIN']);
+export const combinedAcademic = session => session.roles?.includes('DOCENTE') && session.roles?.includes('TUTOR');
+export const academicSpaces = session => combinedAcademic(session) ? session.roles.filter(role => role !== 'TUTOR') : session.roles;
 export const SESSION_VERSION = 2;
 export const emptySession = () => ({ token: null, role: null, roles: [], institutionId: null, email: null, name: null, selectedRole: null });
 let snapshot = { ...emptySession(), loading: true, switching: false, options: [], platformOptions: [], platformInstitutions: [], optionsLoading: false, institutionName: '', error: '', notice: '', logoutDestination: null, redirectTo: null, generation: 0 };
@@ -15,7 +17,7 @@ export function validateSession(data, preferredRole = null) {
     throw new Error('El contexto recibido no es válido.');
   }
   return { token: data.token, role: data.role, roles: [...data.roles], institutionId, email: data.email, name: data.name,
-    selectedRole: data.roles.includes(preferredRole) ? preferredRole : data.roles.length === 1 ? data.roles[0] : null };
+    selectedRole: data.roles.includes(preferredRole) ? preferredRole : data.roles.length === 1 ? data.roles[0] : data.roles.length === 2 && combinedAcademic(data) ? 'DOCENTE' : null };
 }
 export function validateOptions(data) {
   if (!Array.isArray(data) || data.some(o => !Number.isSafeInteger(o.institutionId) || o.institutionId <= 0
@@ -39,6 +41,7 @@ export function clearSession(notice = '', logoutDestination = null) {
 export const roleLabels = { ADMIN: 'ADMIN institucional', DOCENTE: 'DOCENTE', TUTOR: 'TUTOR académico', ESTUDIANTE: 'ESTUDIANTE',
   SUPER_ADMIN: 'SUPER_ADMIN institucional', PLATFORM_SUPER_ADMIN: 'SUPER_ADMIN de plataforma' };
 export function sessionHome(session) {
+  if (combinedAcademic(session) && ['DOCENTE', 'TUTOR'].includes(session.selectedRole)) return '/teacher';
   return ({ ADMIN: '/admin', DOCENTE: '/teacher', TUTOR: '/tutor', ESTUDIANTE: '/student', SUPER_ADMIN: '/context', PLATFORM_SUPER_ADMIN: '/platform' })[session.selectedRole] || '/context';
 }
 export function authorizedNext(path, session) {

@@ -1,3 +1,4 @@
+import { getRecaptchaSiteKey } from '../../config/runtimeConfig';
 // src/pages/student/StudentNewQuestion.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,7 +10,7 @@ import Field from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
 import { Alert } from "../../components/ui/States";
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim() || "";
+const RECAPTCHA_SITE_KEY = getRecaptchaSiteKey();
 
 const SCOPE_OPTIONS = [
   { value: "GENERAL", label: "General" },

@@ -107,8 +107,8 @@ export default function StudentDashboard() {
     .slice(0, 3);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
-      <div className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-8">
+    <div className="min-w-0">
+      <div className="space-y-6">
         <PageHeader title="Dashboard del estudiante" description="Aquí puedes ver un resumen de tu actividad en TutorLink y el estado de tus preguntas académicas.">
           <div className="flex flex-col items-start md:items-end text-xs text-slate-500">
               <p className="uppercase tracking-[0.16em] text-slate-500">
@@ -213,7 +213,7 @@ export default function StudentDashboard() {
 
 function SummaryCard({ label, value, helper }) {
   return (
-    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm px-5 py-4 flex flex-col justify-between">
+    <div className="tl-card flex flex-col justify-between">
       <p className="text-[0.6875rem] font-semibold text-slate-500 uppercase tracking-[0.16em]">
         {label}
       </p>

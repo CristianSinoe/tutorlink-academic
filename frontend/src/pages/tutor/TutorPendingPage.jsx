@@ -1,3 +1,4 @@
+import IconButton from '../../components/ui/IconButton';
 import Pagination from "../../components/academic/Pagination";
 // src/pages/tutor/TutorPendingPage.jsx
 import { useEffect, useState } from "react";
@@ -311,13 +312,8 @@ export default function TutorPendingPage() {
                   {formatDateTime(q.createdAt || q.updatedAt)}
                 </td>
                 <td className="px-3 py-2.5">
-                  <button
-                    className="px-3 py-1 rounded-full border border-uvBlue text-uvBlue text-xs font-medium hover:bg-uvBlue hover:text-white transition"
-                    data-cy="tutor-open-detail"
-                    onClick={() => openDetail(q.id)}
-                  >
-                    Ver detalle / Responder
-                  </button>
+                  <IconButton icon="eye" label="Ver detalle / Responder" description={q.title}
+                    data-cy="tutor-open-detail" onClick={() => openDetail(q.id)} />
                 </td>
               </tr>
             ))}

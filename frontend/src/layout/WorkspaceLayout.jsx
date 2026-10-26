@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Logo from '../components/Logo';
+import { AdminPresentationContext } from '../context/AdminPresentationContext';
 import ContextStatus from '../components/context/ContextStatus';
 import { useAuth } from '../context/useAuth';
-import { roleLabels } from '../context/sessionStore';
+import { combinedAcademic, roleLabels } from '../context/sessionStore';
 
 function SidebarContent({ title, items, profilePath, onNavigate, appearance = 'default' }) {
   const { auth, logout } = useAuth();
@@ -17,7 +18,7 @@ function SidebarContent({ title, items, profilePath, onNavigate, appearance = 'd
     </div>
     <nav aria-label="Navegación principal" className="min-h-0 flex-1 overflow-y-auto p-3">
       {[...items, { to: profilePath, label: 'Mi perfil', group: 'Cuenta', icon: 'profile' }].map((item, index, links) => <div key={item.to}>
-        {appearance === 'admin' && item.group !== links[index - 1]?.group && <p className="tl-nav-group">{item.group}</p>}
+        {appearance === 'admin' && item.group !== links[index - 1]?.group && <p className="tl-nav-group">{item.group || 'Navegación'}</p>}
         <NavLink to={item.to} end={item.end} onClick={onNavigate}
           className={({ isActive }) => appearance === 'admin' ? `tl-admin-nav-link${isActive ? ' is-active' : ''}` : `mb-1 flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${isActive ? 'bg-white text-uvBlue hover:bg-white' : 'text-white'}`}>
           {appearance === 'admin' && <NavIcon name={item.icon} />}{item.label}
@@ -29,7 +30,7 @@ function SidebarContent({ title, items, profilePath, onNavigate, appearance = 'd
         <p className="break-words font-semibold">{auth.name}</p>
         <p className="truncate text-sm" title={auth.email}>{auth.email}</p>
         <p className="mt-2 break-words text-sm">{auth.institutionId ? auth.institutionName || `Institución ${auth.institutionId}` : 'Ámbito global de plataforma'}</p>
-        <p className="break-words text-sm font-medium">{roleLabels[auth.selectedRole] || 'Elige tu espacio de trabajo'}</p>
+        <p className="break-words text-sm font-medium">{combinedAcademic(auth) && ['DOCENTE', 'TUTOR'].includes(auth.selectedRole) ? 'Docencia y tutorías' : roleLabels[auth.selectedRole] || 'Elige tu espacio de trabajo'}</p>
       </Link>
       <div className="my-3 border-t border-white/30" />
       <button type="button" data-cy="logout-button" onClick={() => { onNavigate?.(); logout(); navigate('/login'); }}
@@ -81,10 +82,10 @@ function MobileMenu({ onClose, children, appearance = 'default' }) {
 }
 MobileMenu.propTypes = { onClose: PropTypes.func.isRequired, children: PropTypes.node, appearance: PropTypes.string };
 
-export default function WorkspaceLayout({ title, items, profilePath, children, appearance = 'default' }) {
+export default function WorkspaceLayout({ title, items, profilePath, children, appearance = 'admin' }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
-  return <>
+  return <AdminPresentationContext.Provider value={appearance === 'admin'}>
     <div data-workspace-shell data-context-background className={`flex min-h-screen min-w-0 bg-slate-50 text-slate-900 ${appearance === 'admin' ? 'tl-admin tl-admin-shell' : ''}`} >
       <a href="#workspace-main" className="tl-skip-link">Saltar al contenido</a>
       <aside aria-label="Menú lateral" className="tl-workspace-sidebar sticky top-0 hidden h-dvh w-72 shrink-0 flex-col overflow-y-auto bg-uvBlue text-white lg:flex">
@@ -105,7 +106,7 @@ export default function WorkspaceLayout({ title, items, profilePath, children, a
       </div>
     </div>
     {open && <MobileMenu appearance={appearance} onClose={close}><SidebarContent appearance={appearance} title={title} items={items} profilePath={profilePath} onNavigate={close} /></MobileMenu>}
-  </>;
+  </AdminPresentationContext.Provider>;
 }
 WorkspaceLayout.propTypes = { title: PropTypes.string.isRequired, items: PropTypes.array.isRequired, profilePath: PropTypes.string.isRequired, children: PropTypes.node, appearance: PropTypes.oneOf(['default', 'admin']) };
 

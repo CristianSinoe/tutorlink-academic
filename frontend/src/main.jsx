@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import AuthProvider from "./context/AuthContext.jsx";
 import ThemeProvider from "./theme/ThemeContext.jsx";
+import DeploymentGate from './components/DeploymentGate';
 import "./index.css";
 import { rememberInvitation } from "./context/invitationMemory";
 
@@ -16,6 +17,7 @@ if (window.location.pathname === "/accept-institution-invitation") {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    <DeploymentGate>
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
@@ -23,5 +25,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
+    </DeploymentGate>
   </React.StrictMode>
 );

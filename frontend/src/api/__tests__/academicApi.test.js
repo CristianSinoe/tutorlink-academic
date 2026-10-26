@@ -16,4 +16,13 @@ describe('academicApi', () => {
     expect(apiClient.post).toHaveBeenNthCalledWith(1, '/api/admin/academic/groups/8/teachers', { teacherId: 31 });
     expect(apiClient.post).toHaveBeenNthCalledWith(2, '/api/admin/academic/groups/8/enrollments', { studentId: 42 });
   });
+  it('reads teacher activities only for a concrete group and normalizes task fields', async () => {
+    apiClient.get.mockResolvedValue({ data: { content: [{ id: 1, due_at: '2026-12-01', allow_late_submissions: true }], page: 0, size: 5, totalElements: 1, totalPages: 1 } });
+    const result = await academicApi.teacherActivities('tasks', 7, { page: 0, size: 5, groupId: 99 });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/teacher/tasks', { params: { groupId: 7, page: 0, size: 5 } });
+    expect(result.content[0]).toMatchObject({ dueAt: '2026-12-01', allowLateSubmissions: true });
+    await expect(academicApi.teacherActivities('unknown', 7)).rejects.toThrow();
+    await expect(academicApi.teacherActivities('tasks', 0)).rejects.toThrow();
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+  });
 });

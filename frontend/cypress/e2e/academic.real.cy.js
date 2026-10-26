@@ -53,4 +53,60 @@ describeReal('Fase 2B.4 — módulo académico real', () => {
       cy.request({ method: 'POST', url: `${api}/api/admin/academic/groups/${groupId}/enrollments`, headers: headers(adminB), body: { studentId: student.profiles.ESTUDIANTE }, failOnStatusCode: false }).its('status').should('eq', 403);
     });
   });
+  it('gestiona actividades propias y consulta entregas en el espacio conjunto sin cambiar JWT', () => {
+    const suffix = Date.now(); const materialTitle = `Material conjunto ${suffix}`; const taskTitle = `Tarea conjunta ${suffix}`;
+    let teacherSession; let adminSession; let group; let taskId; let enrolled; let learner;
+    realLogin('tutor1.demo15@example.invalid', undefined, 'DOCENTE').then(session => {
+      teacherSession = session;
+      expect(session.roles).to.include.members(['DOCENTE', 'TUTOR']);
+      return cy.request({ url: `${api}/api/teacher/courses`, headers: headers(session) });
+    }).then(({ body }) => {
+      expect(body.content).not.to.be.empty; group = body.content[0];
+      visitAs('/teacher', teacherSession);
+      cy.contains('h1', 'Resumen de docencia y tutorías').should('be.visible');
+      cy.get('aside').contains('a', 'Preguntas pendientes').should('be.visible');
+      cy.get('aside').contains('a', 'Mis materias y actividades').click();
+      cy.contains('h2', group.course_name).closest('.tl-card').contains('button', 'Ver actividades').click();
+      cy.contains('button', 'Clases y materiales').click(); cy.contains('button', 'Crear clase o material').click();
+      cy.get('#activity-title').type(materialTitle); cy.get('#activity-text').type('Material sintético de integración.'); cy.contains('button', 'Guardar actividad').click();
+      cy.contains('h3', materialTitle).should('be.visible');
+      return cy.request({ url: `${api}/api/teacher/contents?groupId=${group.id}&q=${encodeURIComponent(materialTitle)}`, headers: headers(teacherSession) });
+    }).then(({ body }) => {
+      expect(body.content[0].can_manage).to.equal(true);
+      cy.contains('h3', materialTitle).closest('.tl-card').find('button[aria-label="Editar actividad"]').click();
+      cy.get('#activity-title').clear().type(`${materialTitle} editado`); cy.contains('button', 'Guardar actividad').click();
+      cy.contains('h3', `${materialTitle} editado`).should('be.visible');
+      cy.contains('h3', `${materialTitle} editado`).closest('.tl-card').find('button[aria-label="Eliminar actividad"]').click(); cy.contains('button', 'Confirmar eliminación').click();
+      cy.contains('h3', `${materialTitle} editado`).should('not.exist');
+      return cy.request({ url: `${api}/api/teacher/contents?groupId=${group.id}&q=${encodeURIComponent(materialTitle)}`, headers: headers(teacherSession) });
+    }).then(({ body }) => {
+      expect(body.totalElements).to.equal(0);
+      cy.contains('button', /^Tareas$/).click(); cy.contains('button', 'Crear tarea').click();
+      cy.get('#activity-title').type(taskTitle); cy.get('#activity-text').type('Resolver la actividad sintética.');
+      cy.get('#activity-due').type('2027-12-01T12:00'); cy.contains('label', 'Publicada para estudiantes').find('input').check(); cy.contains('button', 'Guardar actividad').click();
+      cy.contains('h3', taskTitle).should('be.visible');
+      return cy.request({ url: `${api}/api/teacher/tasks?groupId=${group.id}&q=${encodeURIComponent(taskTitle)}`, headers: headers(teacherSession) });
+    }).then(({ body }) => { taskId = body.content[0].id;
+      return cy.request({ url: `${api}/api/teacher/groups/${group.id}/students?size=100`, headers: headers(teacherSession) });
+    }).then(({ body }) => { enrolled = body.content; return realLogin('admin1.demo15@example.invalid', teacherSession.institutionId, 'ADMIN');
+    }).then(session => { adminSession = session; return cy.request({ url: `${api}/api/admin/institution/users?role=ESTUDIANTE&status=ACTIVE&membershipStatus=ACTIVE&size=100`, headers: headers(adminSession) });
+    }).then(({ body }) => {
+      learner = body.items.find(item => enrolled.some(row => row.student_id === item.profiles?.ESTUDIANTE)); expect(learner, 'estudiante inscrito vigente').to.exist;
+      return realLogin(learner.email, teacherSession.institutionId, 'ESTUDIANTE');
+    }).then(session => cy.request({ method: 'PUT', url: `${api}/api/student/tasks/${taskId}/submission`, headers: headers(session), body: { body: 'Entrega real sintética de integración', finalSubmission: true } }))
+      .then(() => {
+        visitAs('/teacher/courses', teacherSession); cy.contains('h2', group.course_name).closest('.tl-card').contains('button', 'Ver actividades').click();
+        cy.get('#teacher-activity-search').type(taskTitle); cy.contains('h3', taskTitle).closest('.tl-card').contains('button', 'Ver entregas').click();
+        cy.get('#submission-search').type(learner.name); cy.contains('td', learner.name).should('be.visible'); cy.contains('span', 'A tiempo').should('be.visible');
+        cy.contains('summary', 'Ver entrega').click(); cy.contains('Entrega real sintética de integración').should('be.visible');
+        return cy.request({ method: 'DELETE', url: `${api}/api/teacher/tasks/${taskId}`, headers: headers(teacherSession), failOnStatusCode: false });
+      }).then(({ status }) => {
+        expect(status).to.equal(409);
+        return cy.request({ url: `${api}/api/teacher/tasks/${taskId}/students?status=ON_TIME`, headers: headers(teacherSession) });
+      }).then(({ body }) => {
+        expect(body.content.some(row => row.student_id === learner.profiles.ESTUDIANTE && row.body === 'Entrega real sintética de integración')).to.equal(true);
+        cy.window().then(win => { const session = JSON.parse(win.localStorage.getItem('auth')); expect(session.roles).to.include.members(['DOCENTE', 'TUTOR']); expect(session.institutionId).to.equal(teacherSession.institutionId); });
+      });
+  });
+
 });

@@ -10,7 +10,7 @@ import { Alert, EmptyState, ErrorState, LoadingState } from "../../components/ui
 import Badge from "../../components/ui/Badge";
 import Table from "../../components/ui/Table";
 
-export default function TutorDashboard() {
+export default function TutorDashboard({ embedded = false }) {
   const [summary, setSummary] = useState(null);
   const [recentQuestions, setRecentQuestions] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function TutorDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dashboard del Tutor" description="Resumen de tus preguntas asignadas y actividad reciente." />
+      {embedded ? <h2 className="text-xl font-semibold">Tutorías académicas</h2> : <PageHeader title="Dashboard del Tutor" description="Resumen de tus preguntas asignadas y actividad reciente." />}
 
       {/* MENSAJE DE ERROR */}
       {error && <Alert tone="error">{error}</Alert>}
@@ -97,13 +97,13 @@ export default function TutorDashboard() {
         <div className="flex flex-wrap gap-3">
           <Link
             to="/tutor/pending"
-            className="px-4 py-2 rounded-full bg-uvGreen text-white text-sm font-medium shadow hover:bg-green-600 transition"
+            className="tl-button-positive"
           >
             Ver preguntas pendientes
           </Link>
           <Link
             to="/tutor/history"
-            className="px-4 py-2 rounded-full border border-uvBlue text-uvBlue text-sm font-medium hover:bg-uvBlue hover:text-white transition"
+            className="tl-button-secondary"
           >
             Ver historial de respuestas
           </Link>
@@ -135,7 +135,7 @@ export default function TutorDashboard() {
 function SummaryCard({ label, value, accent }) {
   return (
     <div
-      className={`rounded-2xl border bg-white shadow-sm flex flex-col justify-between px-4 py-4 ${accent}`}
+      className={`tl-card flex flex-col justify-between ${accent}`}
     >
       <p className="text-xs font-semibold tracking-wide text-slate-600 uppercase">
         {label}
@@ -232,3 +232,5 @@ function renderRecentQuestions({ loading, recentQuestions, error, retry }) {
     </Table>
   );
 }
+
+TutorDashboard.propTypes = { embedded: PropTypes.bool };

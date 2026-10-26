@@ -22,6 +22,8 @@
   --tl-success-surface: #DCFCE7;
   --tl-info-surface: #EFF6FF;
   --tl-focus: #18529D;
+  --tl-button-radius: 8px;
+  --tl-button-target: 44px;
   font-family: "Segoe UI", "Aptos", sans-serif;
   /* Escala global de texto y medidas rem; respeta la preferencia del navegador. */
   font-size: 112.5%;
@@ -62,13 +64,15 @@ select {
 
 /* Phase 2B.1: scoped accessible controls, preserving existing page styles. */
 @layer components {
-  .tl-button-primary, .tl-button-secondary, .tl-button-positive, .tl-button-danger, .tl-button-ghost { @apply inline-flex min-h-[44px] items-center justify-center rounded-lg px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; }
+  .tl-button-primary, .tl-button-secondary, .tl-button-positive, .tl-button-danger, .tl-button-danger-subtle, .tl-button-ghost { @apply inline-flex min-h-[44px] items-center justify-center px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60; border-radius: var(--tl-button-radius); }
   .tl-button-primary { background: var(--tl-action-primary); color: #fff; }
   .tl-button-primary:hover { background: var(--tl-action-primary-hover); }
   .tl-button-secondary { @apply border bg-white text-slate-800 hover:bg-slate-100; border-color: var(--tl-control-border); }
   .tl-button-positive { background: var(--tl-action-positive); color: #fff; }
   .tl-button-positive:hover { filter: brightness(.9); }
   .tl-button-danger { @apply bg-red-700 text-white hover:bg-red-800; }
+  .tl-button-danger-subtle { border: 1px solid var(--tl-danger); background: var(--tl-surface); color: var(--tl-danger); }
+  .tl-button-danger-subtle:hover { background: var(--tl-danger-surface); }
   .tl-button-ghost { @apply text-slate-800 hover:bg-slate-100; }
   .tl-input { @apply min-h-[44px] w-full rounded-lg border bg-white px-3 py-2 text-slate-900; border-color: var(--tl-control-border); }
   .tl-error { @apply rounded-lg border p-3; border-color: var(--tl-danger); background: var(--tl-danger-surface); color: var(--tl-danger); }
@@ -102,11 +106,14 @@ select {
 /* Shared reading rhythm across academic, institutional and legacy tables. */
 :where([data-workspace-shell]:not(.tl-admin), .tl-dialog:not(.tl-dialog-admin)) table :is(th,td) { padding: 1rem 1.125rem !important; line-height: 1.6; vertical-align: middle; }
 table th { white-space: nowrap; }
+.tl-dialog-backdrop { grid-template-columns: minmax(0, 1fr); }
+.tl-dialog { min-width: 0; }
 .tl-dialog-wide { max-width: min(96vw, 90rem); }
 .tl-modal-list { max-height: 45dvh; overflow: auto; overscroll-behavior: contain; }
 @media (max-width: 639px) { :where([data-workspace-shell]:not(.tl-admin), .tl-dialog:not(.tl-dialog-admin)) table :is(th,td) { padding: .875rem !important; } }
 
-/* Administrative presentation: scoped to the shell and its portal surfaces. */
+/* Shared workspace presentation, originally administrative: shell and portal surfaces.
+   These classes are visual only and never confer administrative permissions. */
 .tl-admin {
   --tl-admin-sidebar: #f1f4f9;
   --tl-admin-background: #f7f9fc;
@@ -234,3 +241,28 @@ table th { white-space: nowrap; }
 .tl-admin .tl-table-region td:last-child:has(button),
 .tl-admin .tl-table-region th:last-child:has(.sr-only) { position: sticky; right: 0; border-left: 1px solid var(--tl-admin-border); }
 .tl-admin .tl-table-region td:last-child:has(button) { background: var(--tl-surface); }
+
+/* One geometry for buttons in every workspace, auth page and portal, including legacy controls.
+   The selector supersedes local rounded-full utilities without !important. */
+:root button[class], :root button:not([class]), :root a:is(.tl-button-primary,.tl-button-secondary,.tl-button-positive,.tl-button-danger,.tl-button-ghost) {
+  border-radius: var(--tl-button-radius);
+  min-height: var(--tl-button-target);
+  font-weight: 600;
+}
+:root button:focus-visible { outline: 3px solid var(--tl-focus); outline-offset: 3px; }
+:root button:disabled { cursor: not-allowed; }
+:root :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea) {
+  border-radius: var(--tl-button-radius);
+}
+:root button:is(.tl-button-icon-only,.tl-icon-button) {
+  position: relative;
+  width: var(--tl-button-target); min-width: var(--tl-button-target); height: var(--tl-button-target);
+  padding: 0; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+}
+.tl-action-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.tl-action-tooltip {
+  position: fixed; z-index: 300; max-width: min(320px, calc(100vw - 24px));
+  padding: 8px 12px; border-radius: var(--tl-button-radius); background: #17243b;
+  color: #fff; font-size: .75rem; line-height: 1.5; font-weight: 600;
+  box-shadow: 0 3px 12px rgb(15 23 42 / .2); overflow-wrap: anywhere;
+}

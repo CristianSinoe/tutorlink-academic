@@ -5,6 +5,7 @@ import ExcelImportHelp from "../../components/admin/ExcelImportHelp";
 import Pagination from "../../components/academic/Pagination";
 import Dialog from "../../components/ui/Dialog";
 import ExportActions from "../../components/admin/ExportActions";
+import IconButton from "../../components/ui/IconButton";
 
 const ASSIGNMENT_EXPORT_COLUMNS = [
   { label: "Código tutor", value: (row) => row.tutorCode },
@@ -762,19 +763,14 @@ export default function AssignmentsPage() {
                         {s.studentEmail}
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <button
-                          type="button"
+                        <IconButton
+                          icon="trash"
+                          label="Quitar asignación"
+                          description={`${s.studentName} (${s.matricula}). Se conserva su cuenta.`}
+                          variant="dangerSubtle"
                           disabled={removing}
                           onClick={() => setRemoveTarget(s)}
-                          className="
-                            inline-flex items-center px-3 py-1.5 
-                            border border-red-300 text-red-600 
-                            rounded-full text-xs hover:bg-red-50 
-                            transition disabled:opacity-60
-                          "
-                        >
-                          Quitar
-                        </button>
+                        />
                       </td>
                     </tr>
                   ))}

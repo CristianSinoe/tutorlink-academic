@@ -17,6 +17,8 @@ it.each(['ADMIN', 'DOCENTE', 'TUTOR', 'ESTUDIANTE', 'SUPER_ADMIN', 'PLATFORM_SUP
   mount(role);
   const sidebar = screen.getByRole('complementary', { name: 'Menú lateral' });
   const header = screen.getByRole('banner');
+  expect(document.querySelector('[data-workspace-shell]')).toHaveClass('tl-admin-shell');
+  expect(within(sidebar).getByRole('link', { name: 'Inicio' })).toHaveClass('tl-admin-nav-link');
   expect(within(sidebar).getByText('Persona')).toBeInTheDocument();
   expect(within(sidebar).getByText(role === 'PLATFORM_SUPER_ADMIN' ? 'Ámbito global de plataforma' : 'Escuela A')).toBeInTheDocument();
   expect(within(sidebar).getByText(/un-correo/)).toHaveClass('truncate');
@@ -33,7 +35,8 @@ it('Mi perfil contiene instituciones y roles y conserva cancelación del cambio'
   await user.selectOptions(screen.getByLabelText('Institución'), '2');
   await user.click(screen.getByRole('button', { name: 'Cancelar' }));
   expect(value.switchInstitution).not.toHaveBeenCalled();
-  expect(screen.getByLabelText('Espacio de trabajo')).toHaveValue('DOCENTE');
+  expect(screen.queryByLabelText('Espacio de trabajo')).not.toBeInTheDocument();
+  expect(screen.getByText(/Docencia y tutorías están disponibles juntas/)).toBeInTheDocument();
 });
 it('menú móvil atrapa foco, Escape cierra y restaura foco al disparador', async () => {
   mount(); const user = userEvent.setup(); const trigger = screen.getByRole('button', { name: 'Abrir menú' });

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import Dialog from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 
 const guides = {
   estudiantes: {
@@ -40,15 +41,11 @@ export default function ExcelImportHelp({ section }) {
 
   return (
     <>
-      <button
-        type="button"
-        aria-label={`Ayuda de ${section}`}
-        title={`Ayuda de ${section}`}
+      <IconButton
+        icon="help"
+        label={`Ayuda de ${section}`}
         onClick={() => setOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-uvBlue text-uvBlue font-bold text-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-uvBlue"
-      >
-        ?
-      </button>
+      />
       {open && (
         <Dialog title={`Ayuda de ${section}`} closeLabel="Cerrar ayuda" onClose={() => setOpen(false)} initialFocusSelector="button[aria-label='Cerrar ayuda']">
             <p className="mb-4">{guide.create}</p>

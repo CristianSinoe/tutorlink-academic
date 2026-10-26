@@ -1,3 +1,4 @@
+import IconButton from '../../components/ui/IconButton';
 import Pagination from "../../components/academic/Pagination";
 // src/pages/student/StudentQuestions.jsx
 import { useEffect, useMemo, useState } from "react";
@@ -239,13 +240,8 @@ export default function StudentQuestions() {
                 </td>
 
                 <td className="p-2.5">
-                  <button
-                    onClick={() => openDetail(q.id)}
-                    data-cy="student-question-detail"
-                    className="px-3 py-1 border border-slate-300 rounded-full text-xs text-slate-700 hover:bg-slate-100 transition"
-                  >
-                    Ver detalle
-                  </button>
+                  <IconButton icon="eye" label="Ver detalle" description={q.title}
+                    onClick={() => openDetail(q.id)} data-cy="student-question-detail" />
                 </td>
               </tr>
             ))}

@@ -13,7 +13,17 @@ describe('Rediseño administrativo: evidencia visual', () => {
     it(`captura listados y tareas administrativas a ${width}px`, () => {
       const phase = Cypress.env('DESIGN_CAPTURE') || 'after';
       cy.viewport(width, 768);
-      const capture = name => cy.screenshot(`${phase}-${width}-${name}`, { capture: 'viewport' });
+      const capture = name => {
+        cy.document().then(doc => {
+          const dialog = doc.querySelector('[role=dialog]');
+          if (dialog) {
+            const bounds = dialog.getBoundingClientRect();
+            expect(bounds.left, 'modal dentro del borde izquierdo').to.be.at.least(0);
+            expect(bounds.right, 'modal dentro del borde derecho').to.be.at.most(width);
+          }
+        });
+        cy.screenshot(`${phase}-${width}-${name}`, { capture: 'viewport' });
+      };
       cy.visitAsRole('/admin/users', 'admin'); cy.contains('td', 'tutor.e2e@example.test').should('be.visible'); capture('usuarios');
       cy.contains('button', 'Ver detalle').first().click(); cy.get('[role=dialog]').should('contain', 'Cuenta global'); capture('perfil');
       cy.visitAsRole('/admin/assignments', 'admin'); cy.contains('button', 'Ver asignaciones').first().click(); cy.get('[role=dialog]').should('be.visible'); capture('asignaciones');

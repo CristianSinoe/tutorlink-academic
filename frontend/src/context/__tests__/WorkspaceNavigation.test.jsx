@@ -31,18 +31,23 @@ it('cambiar escuela con otros roles nunca deja que la guardia del espacio anteri
   await waitFor(() => expect(screen.getByTestId('route')).toHaveTextContent('/student'));
   expect(screen.queryByText('Acceso no disponible')).not.toBeInTheDocument();
 });
-it('alternar espacios no permite que una guardia anterior restaure el rol que se acaba de abandonar', async () => {
+it('navega entre docencia y tutorías sin selector, JWT nuevo ni cambio del rol seleccionado', async () => {
   mount(); const user = userEvent.setup(); await screen.findByText(/Estás en tu espacio docente/);
+  const before = JSON.parse(localStorage.getItem('auth'));
+  await user.click(screen.getByRole('link', { name: 'Preguntas pendientes' }));
+  await waitFor(() => expect(screen.getByTestId('route')).toHaveTextContent('/tutor/pending'));
+  expect(screen.getByTestId('sidebar-session')).toHaveTextContent('Docencia y tutorías');
+  expect(screen.getByRole('link', { name: 'Mis materias y actividades' })).toBeInTheDocument();
+  const after = JSON.parse(localStorage.getItem('auth'));
+  expect(after.token).toBe(before.token);
+  expect(after.selectedRole).toBe('DOCENTE');
+  expect(after.roles).toEqual(['DOCENTE', 'TUTOR']);
   await user.click(screen.getByRole('link', { name: 'Mi perfil', exact: true }));
-  await user.selectOptions(screen.getByLabelText('Espacio de trabajo'), 'TUTOR'); await user.click(screen.getByRole('button', { name: 'Continuar' }));
-  await screen.findByText('Dashboard del Tutor');
-  expect(screen.getByTestId('sidebar-session')).toHaveTextContent('TUTOR académico');
-  expect(screen.getByTestId('route')).toHaveTextContent('/tutor');
-  expect(JSON.parse(localStorage.getItem('auth')).selectedRole).toBe('TUTOR');
+  expect(screen.queryByLabelText('Espacio de trabajo')).not.toBeInTheDocument();
 });
 it('las rutas desconocidas dentro de un espacio autorizado también muestran recuperación 404', async () => {
   mount(); await screen.findByText(/Estás en tu espacio docente/);
   await userEvent.click(screen.getByText('Ruta desconocida'));
   expect(await screen.findByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute('href', '/tutor');
+  expect(screen.getByRole('link', { name: 'Volver al inicio' })).toHaveAttribute('href', '/teacher');
 });

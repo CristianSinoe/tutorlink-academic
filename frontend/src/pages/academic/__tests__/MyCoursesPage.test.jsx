@@ -15,5 +15,6 @@ describe('MyCoursesPage', () => {
   });
   it('distinguishes an empty enrollment from a loading error', async () => {
     apiClient.get.mockResolvedValue({ data: { content: [], page: 0, size: 10, totalElements: 0, totalPages: 0 } }); renderWithProviders(<MyCoursesPage role="ESTUDIANTE" />); expect(await screen.findByText(/no tienes materias activas/i)).toBeInTheDocument(); expect(apiClient.get).toHaveBeenCalledWith('/api/student/courses', expect.any(Object));
+    expect(screen.queryByRole('button', { name: 'Ver actividades' })).not.toBeInTheDocument();
   });
 });

@@ -34,7 +34,12 @@ describe('Interacción accesible del panel administrativo', () => {
   it('confirma el retiro de tutoría dentro del diálogo antes de enviar DELETE', () => {
     cy.intercept('DELETE', '/api/admin/users/tutor-students/*', { statusCode: 204 }).as('remove');
     cy.visitAsRole('/admin/assignments', 'admin'); cy.contains('button', 'Ver asignaciones').first().click();
-    cy.contains('[role=dialog] button', 'Quitar').first().click(); cy.get('@remove.all').should('have.length', 0);
+    cy.get('[role=dialog] button[aria-label="Quitar asignación"]').first().as('removeButton');
+    cy.get('@removeButton').should('have.css', 'border-radius', '8px').and('have.css', 'width', '44px');
+    cy.get('@removeButton').find('svg').should('have.attr', 'aria-hidden', 'true');
+    cy.get('@removeButton').focus(); cy.get('[role=tooltip]').should('be.visible').and('contain', 'Quitar asignación');
+    cy.get('@removeButton').type('{esc}'); cy.get('[role=tooltip]').should('not.exist'); cy.get('[role=dialog]').should('be.visible');
+    cy.get('@removeButton').click(); cy.get('@remove.all').should('have.length', 0);
     cy.contains('[role=dialog] button', 'Confirmar retiro').click(); cy.wait('@remove');
     cy.get('[role=dialog]').should('not.exist'); cy.contains('Asignación eliminada correctamente.').should('be.visible');
   });
