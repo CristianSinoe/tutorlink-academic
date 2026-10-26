@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@Profile("demo | demo-snapshot")
+@Profile("demo | demo-snapshot | local")
 @RequiredArgsConstructor
 public class DemoDataSeeder {
     private final EntityManager em;

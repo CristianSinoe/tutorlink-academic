@@ -65,6 +65,8 @@ export APP_OTP_RESEND_COOLDOWN_SECONDS=60
 
 Consulta [`.env.example`](./.env.example) para una referencia segura del perfil local y demo.
 
+Para pruebas locales persistentes con PostgreSQL y Gmail SMTP usa `backend/.env.local.example` y `docker-compose.local.yml`. Ese perfil es independiente de `prod`/Aiven/Resend; consulta [la guía de SMTP local](../docs/deployment/LOCAL_SMTP_GMAIL.md).
+
 `FRONTEND_BASE_URL` se usa para links generados por el backend. Si vas a acceder desde otros dispositivos de la LAN, ajustalo manualmente a `http://IP_DE_LA_MAQUINA:5173`.
 
 ## Perfil demo temporal

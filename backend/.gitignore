@@ -26,6 +26,7 @@ nbactions.xml
 .env.*
 !.env.example
 !.env.e2e.example
+!.env.local.example
 .env.demo
 
 # Otros binarios

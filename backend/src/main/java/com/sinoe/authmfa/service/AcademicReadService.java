@@ -94,9 +94,30 @@ public class AcademicReadService {
         if(groupId!=null){where+=" and g.id=?";args.add(groupId);}
         if(teacher){where+=" and (r.published=true or author.user_id=?)";args.add(a.user().getId());}else where+=" and r.published=true";
         where=search(where,args,q,"r.title","g.name");
-        var result=page("r.*",where,args,page,size,"r.id");
-        for(var row:result.getContent()) attachmentAccess.authorizeResourceMetadata(auth,AttachmentAuthorizationService.ResourceType.valueOf(type),((Number)row.get("id")).longValue(),
+        var result=page(teacher ? "r.*,author.user_id activity_author_user_id" : "r.*",where,args,page,size,"r.id");
+        for(var row:result.getContent()) {
+            attachmentAccess.authorizeResourceMetadata(auth,AttachmentAuthorizationService.ResourceType.valueOf(type),((Number)row.get("id")).longValue(),
                 teacher ? AttachmentAuthorizationService.ActingRole.DOCENTE : AttachmentAuthorizationService.ActingRole.ESTUDIANTE);
+            if(teacher) row.put("can_manage",((Number)row.remove("activity_author_user_id")).longValue()==a.user().getId());
+        }
+        return result;
+    }
+    public PagedResponse<Map<String,Object>> taskStudents(Authentication auth,long task,String status,String q,int page,int size) {
+        var a=context(auth,"DOCENTE");
+        attachmentAccess.authorizeResourceMetadata(auth,AttachmentAuthorizationService.ResourceType.TASK,task,AttachmentAuthorizationService.ActingRole.DOCENTE);
+        if(!Set.of("ALL","PENDING","ON_TIME","LATE").contains(status)) throw new IllegalArgumentException("Estado de entrega inválido");
+        String where=" from tl_tasks t join tl_course_groups g on g.id=t.group_id "
+                +"join tl_course_enrollments e on e.group_id=g.id and e.status='ACTIVE' "
+                +"join tl_students s on s.id=e.student_id and s.institution_id=g.institution_id "
+                +"join tl_users u on u.id=s.user_id and u.status='ACTIVE' "
+                +"left join tl_task_submissions sub on sub.task_id=t.id and sub.student_id=s.id and sub.status in ('ON_TIME','LATE') "
+                +"where t.id=? and g.institution_id=? and exists(select 1 from tl_institution_memberships m where m.user_id=u.id and m.institution_id=g.institution_id and m.role='ESTUDIANTE' and m.status='ACTIVE')";
+        List<Object> args=new ArrayList<>(List.of(task,a.institutionId()));
+        if(!status.equals("ALL")){where+=" and coalesce(sub.status,'PENDING')=?";args.add(status);}
+        where=personSearch(where,args,q,"s.matricula");
+        var result=page("s.id student_id,s.matricula,u.name,u.last_name_paterno,u.last_name_materno,sub.id submission_id,coalesce(sub.status,'PENDING') status,sub.body,sub.submitted_at",where,args,page,size,"s.id");
+        for(var row:result.getContent()) if(row.get("submission_id")!=null)
+            attachmentAccess.authorizeResourceMetadata(auth,AttachmentAuthorizationService.ResourceType.SUBMISSION,((Number)row.get("submission_id")).longValue(),AttachmentAuthorizationService.ActingRole.DOCENTE);
         return result;
     }
     public PagedResponse<Map<String,Object>> questions(Authentication auth,boolean teacher,Long groupId,String state,String q,int page,int size) {

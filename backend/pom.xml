@@ -15,6 +15,7 @@
     <jjwt.version>0.11.5</jjwt.version>
     <lombok.version>1.18.34</lombok.version>
     <testcontainers.version>1.20.4</testcontainers.version>
+    <resend.version>4.11.0</resend.version>
     <jacoco.version>0.8.12</jacoco.version>
     <docker.api.version>1.40</docker.api.version>
     <tutorlink.build.directory>${project.basedir}/target</tutorlink.build.directory>
@@ -149,7 +150,7 @@
     <dependency>
       <groupId>com.resend</groupId>
       <artifactId>resend-java</artifactId>
-      <version>4.11.0</version>      <!-- o la última que marque la doc de Resend -->
+      <version>${resend.version}</version>
     </dependency>
   </dependencies>
 

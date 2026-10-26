@@ -1,0 +1,45 @@
+# Render backend: secrets are injected at runtime, never into the image.
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=verify-full&sslrootcert=${DB_SSL_ROOT_CERT:/etc/secrets/aiven-ca.pem}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: 1
+      connection-timeout: 10000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    baseline-on-migrate: false
+logging:
+  file:
+    name: ""
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+server:
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+resend:
+  api-key: ${RESEND_API_KEY}
+  from-email: ${RESEND_FROM_EMAIL:TutorLink <noreply@tutorlink.lat>}
+tutorlink:
+  frontend-base-url: ${FRONTEND_BASE_URL}
+  security:
+    cors:
+      allowed-origin-patterns: ${TUTORLINK_CORS_ALLOWED_ORIGIN_PATTERNS}
+  mail:
+    provider: resend
+    from: ${resend.from-email}

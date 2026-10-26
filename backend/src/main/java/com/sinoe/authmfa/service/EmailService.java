@@ -244,10 +244,10 @@ public class EmailService {
             helper.setText(htmlContent, true); // true = HTML
 
             mailSender.send(message);
-            log.info("Correo enviado a {}", toEmail);
+            log.info("Solicitud de correo aceptada por el transporte configurado");
         } catch (MessagingException | MailException e) {
-            log.error("Error enviando correo a {} con remitente {}: {}", toEmail, fromEmail, e.getMessage(), e);
-            throw new EmailDeliveryException("No se pudo enviar el correo", e);
+            log.error("No se pudo solicitar el envío del correo");
+            throw new EmailDeliveryException("No se pudo enviar el correo", null);
         }
     }
 

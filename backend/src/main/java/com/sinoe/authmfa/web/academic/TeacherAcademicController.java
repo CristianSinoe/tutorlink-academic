@@ -13,10 +13,16 @@ import java.util.*;
 @RestController @RequestMapping("/api/teacher") @RequiredArgsConstructor
 public class TeacherAcademicController {
     private final AcademicService academic;
+    private final com.sinoe.authmfa.service.TeacherActivityService activities;
     private final com.sinoe.authmfa.service.AcademicReadService read;
     @GetMapping("/courses") public Object courses(Authentication a,@RequestParam(required=false) String q,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) { return read.groups(a,true,q,page,size); }
-    @PostMapping("/contents") public ResponseEntity<Map<String,Long>> content(Authentication a,@Valid @RequestBody ContentRequest r) { return ResponseEntity.status(201).body(Map.of("id",academic.content(context(a),user(a),r.groupId(),r.title(),r.body(),r.published()))); }
-    @PostMapping("/tasks") public ResponseEntity<Map<String,Long>> task(Authentication a,@Valid @RequestBody TaskRequest r) { return ResponseEntity.status(201).body(Map.of("id",academic.task(context(a),user(a),r.groupId(),r.title(),r.instructions(),r.dueAt(),r.published(),r.allowLateSubmissions()))); }
+    @PostMapping("/contents") public ResponseEntity<Map<String,Long>> content(Authentication a,@Valid @RequestBody ContentRequest r) { return ResponseEntity.status(201).body(Map.of("id",activities.createContent(a,r))); }
+    @PostMapping("/tasks") public ResponseEntity<Map<String,Long>> task(Authentication a,@Valid @RequestBody TaskRequest r) { return ResponseEntity.status(201).body(Map.of("id",activities.createTask(a,r))); }
+    @PutMapping("/contents/{id}") public ResponseEntity<Void> updateContent(Authentication a,@PathVariable long id,@Valid @RequestBody ContentUpdate r) { activities.updateContent(a,id,r);return ResponseEntity.noContent().build(); }
+    @PutMapping("/tasks/{id}") public ResponseEntity<Void> updateTask(Authentication a,@PathVariable long id,@Valid @RequestBody TaskUpdate r) { activities.updateTask(a,id,r);return ResponseEntity.noContent().build(); }
+    @DeleteMapping("/contents/{id}") public ResponseEntity<Void> deleteContent(Authentication a,@PathVariable long id) { activities.delete(a,false,id);return ResponseEntity.noContent().build(); }
+    @DeleteMapping("/tasks/{id}") public ResponseEntity<Void> deleteTask(Authentication a,@PathVariable long id) { activities.delete(a,true,id);return ResponseEntity.noContent().build(); }
+    @GetMapping("/tasks/{id}/students") public Object taskStudents(Authentication a,@PathVariable long id,@RequestParam(defaultValue="ALL") String status,@RequestParam(required=false) String q,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) { return read.taskStudents(a,id,status,q,page,size); }
     @PostMapping("/sessions") public ResponseEntity<Map<String,Long>> session(Authentication a,@Valid @RequestBody SessionRequest r){return ResponseEntity.status(201).body(Map.of("id",academic.session(context(a),user(a),r.groupId(),r.startsAt(),r.endsAt(),r.topic())));}
     @PutMapping("/sessions/{id}/attendance") public ResponseEntity<Void> attendance(Authentication a,@PathVariable long id,@Valid @RequestBody AttendanceRequest r){academic.attendance(context(a),user(a),id,r.studentId(),r.status());return ResponseEntity.noContent().build();}
     @PostMapping("/questions/{id}/messages") public ResponseEntity<Void> reply(Authentication a,@PathVariable long id,@Valid @RequestBody CourseQuestionMessageRequest r){academic.replyQuestion(context(a),user(a),id,r.body(),r.primaryAnswer(),r.close());return ResponseEntity.noContent().build();}

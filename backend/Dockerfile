@@ -2,26 +2,26 @@
 FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
-# Copiamos sólo pom primero para cache de dependencias
+# No private Maven settings or credentials enter the build context.
 COPY pom.xml .
-RUN mvn -q -e -DskipTests dependency:go-offline
 
 # Ahora el resto del código
 COPY src ./src
 
 # Empaquetamos
-RUN mvn -q -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -DskipTests package
 
 # ---------- Runtime stage ----------
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # Seguridad: usuario no-root
-RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
+RUN addgroup -S spring && adduser -S spring -G spring \
+    && mkdir -p /app/logs && chown spring:spring /app /app/logs
 
 # Copiamos el JAR del stage anterior
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build --chown=spring:spring /app/target/*.jar app.jar
+USER spring:spring
 
 # Ajustes JVM razonables para contenedor
 ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"

@@ -22,8 +22,10 @@ public final class AcademicDtos {
                                  String lastNamePaterno, String lastNameMaterno,
                                  String career, String plan, Integer semester,
                                  String status, Instant enrolledAt, Instant withdrawnAt) { }
-    public record ContentRequest(@NotNull Long groupId, @NotBlank String title, String body, boolean published) { }
-    public record TaskRequest(@NotNull Long groupId, @NotBlank String title, String instructions, @NotNull OffsetDateTime dueAt, boolean published, boolean allowLateSubmissions) { }
+    public record ContentRequest(@NotNull @Positive Long groupId, @NotBlank @Size(max=200) String title, @Size(max=20000) String body, boolean published) { }
+    public record TaskRequest(@NotNull @Positive Long groupId, @NotBlank @Size(max=200) String title, @Size(max=20000) String instructions, @NotNull OffsetDateTime dueAt, boolean published, boolean allowLateSubmissions) { }
+    public record ContentUpdate(@NotBlank @Size(max=200) String title, @Size(max=20000) String body, @NotNull Boolean published) { }
+    public record TaskUpdate(@NotBlank @Size(max=200) String title, @Size(max=20000) String instructions, @NotNull OffsetDateTime dueAt, @NotNull Boolean published, @NotNull Boolean allowLateSubmissions) { }
     public record SubmissionRequest(String body, boolean finalSubmission) { }
     public record SessionRequest(@NotNull Long groupId, @NotNull OffsetDateTime startsAt, @NotNull OffsetDateTime endsAt, String topic) { }
     public record AttendanceRequest(@NotNull Long studentId, @NotBlank String status) { }

@@ -70,7 +70,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<AuthDtos.ApiMessage> generic(Exception ex) {
-        log.error("Unhandled exception", ex);
-        return ResponseEntity.status(500).body(new AuthDtos.ApiMessage("Error interno: " + ex.getMessage()));
+        log.error("Unhandled exception type: {}", ex.getClass().getSimpleName());
+        return ResponseEntity.status(500).body(new AuthDtos.ApiMessage("Error interno"));
     }
 }

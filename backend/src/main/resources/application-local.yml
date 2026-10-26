@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+# local usa el JavaMailSender automático de Spring Boot. No se declara
+# tutorlink.mail.provider=resend en este perfil.
+tutorlink:
+  demo:
+    tutors: ${DEMO_TUTORS:20}
+    students: ${DEMO_STUDENTS:300}
+    password: ${DEMO_PASSWORD:TutorLinkDemo2026!}
+
+logging:
+  level:
+    com.sinoe.authmfa: ${LOG_LEVEL:INFO}
