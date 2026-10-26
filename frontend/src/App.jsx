@@ -1,3 +1,4 @@
+import AcademicDashboard from './pages/academic/AcademicDashboard';
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
@@ -23,13 +24,12 @@ import StudentDashboard from "./pages/student/StudentDashboard.jsx";
 import StudentInfoPage from "./pages/student/StudentInfoPage.jsx";
 import StudentNewQuestion from "./pages/student/StudentNewQuestion.jsx";
 import StudentQuestions from "./pages/student/StudentQuestions.jsx";
-import TutorDashboard from "./pages/tutor/TutorDashboard.jsx";
 import TutorHistoryPage from "./pages/tutor/TutorHistoryPage.jsx";
 import TutorPendingPage from "./pages/tutor/TutorPendingPage.jsx";
 import TutorProfilePage from "./pages/tutor/TutorProfilePage.jsx";
 
 import { useAuth } from "./context/useAuth";
-import { sessionHome, updateSession } from "./context/sessionStore";
+import { updateSession } from "./context/sessionStore";
 import ContextLayout from "./layout/ContextLayout";
 import ContextProfilePage from "./pages/context/ContextProfilePage";
 import ContextPage from "./pages/context/ContextPage";
@@ -42,6 +42,7 @@ import PeriodsPage from "./pages/admin/PeriodsPage";
 import CoursesPage from "./pages/admin/CoursesPage";
 import GroupsPage from "./pages/admin/GroupsPage";
 import MyCoursesPage from "./pages/academic/MyCoursesPage";
+import LandingPage from "./pages/LandingPage.jsx";
 
 function App() {
   const { auth } = useAuth();
@@ -59,6 +60,8 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/otp" element={<OtpPage />} />
+      <Route path="/:institutionCode/login" element={<LoginPage />} />
+      <Route path="/:institutionCode/otp" element={<OtpPage />} />
       <Route path="/first-login" element={<FirstLoginPage />} />
       <Route path="/accept-institution-invitation" element={<InvitationAcceptPage />} />
       <Route path="/context" element={<ProtectedRoute><ContextLayout /></ProtectedRoute>}>
@@ -67,7 +70,7 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route path="/teacher" element={<RoleRoute role="DOCENTE"><ContextLayout /></RoleRoute>}>
-        <Route index element={<ContextPage />} />
+        <Route index element={<AcademicDashboard />} />
         <Route path="courses" element={<MyCoursesPage role="DOCENTE" />} />
         <Route path="profile" element={<ContextProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
@@ -126,14 +129,14 @@ function App() {
           </TutorRoute>
         }
       >
-        <Route index element={<TutorDashboard />} />
+        <Route index element={<AcademicDashboard tutorOnly />} />
         <Route path="pending" element={<TutorPendingPage />} />
         <Route path="history" element={<TutorHistoryPage />} />
         <Route path="profile" element={<TutorProfilePage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
-      <Route path="/" element={<Navigate to={auth.token ? sessionHome(auth) : "/login"} replace />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </>

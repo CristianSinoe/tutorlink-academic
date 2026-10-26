@@ -1,13 +1,15 @@
+import { getRecaptchaSiteKey } from '../config/runtimeConfig';
 // src/pages/LoginPage.jsx
 import { useState, useEffect, useRef } from "react";
 import apiClient from "../api/axiosClient";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
 import Logo from "../components/Logo";
 import { authorizedNext, sessionHome, validateSession, validateOptions } from "../context/sessionStore";
 import { useAuth } from "../context/useAuth.js";
+import { getPublicInstitution, normalizeInstitutionCode } from "../api/institutionApi";
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim() || "";
+const RECAPTCHA_SITE_KEY = getRecaptchaSiteKey();
 
 function renderRecaptchaStatus({ isRecaptchaConfigured, onChange }) {
   if (isRecaptchaConfigured) {
@@ -34,6 +36,9 @@ export default function LoginPage() {
   const lifecycle = useRef({ mounted: true, request: 0 });
   const [searchParams] = useSearchParams();
   const { auth, login } = useAuth();
+  const { institutionCode: routeInstitutionCode } = useParams();
+  const institutionRoute = typeof routeInstitutionCode === 'string';
+  const institutionCode = normalizeInstitutionCode(routeInstitutionCode);
   const isRecaptchaConfigured = Boolean(RECAPTCHA_SITE_KEY);
   const nextPath = searchParams.get("next");
   const platformAccess = searchParams.get("access") === "platform";
@@ -53,6 +58,26 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [institution, setInstitution] = useState(null);
+  const [institutionLoading, setInstitutionLoading] = useState(institutionRoute);
+  const [institutionError, setInstitutionError] = useState(null);
+
+  useEffect(() => {
+    if (!routeInstitutionCode) {
+      setInstitution(null);
+      setInstitutionLoading(false);
+      setInstitutionError(null);
+      return undefined;
+    }
+    let active = true;
+    setInstitutionLoading(true);
+    setInstitutionError(null);
+    getPublicInstitution(routeInstitutionCode)
+      .then(value => { if (active) setInstitution(value); })
+      .catch(error => { if (active) setInstitutionError(error.message || 'No se pudo cargar la institución.'); })
+      .finally(() => { if (active) setInstitutionLoading(false); });
+    return () => { active = false; };
+  }, [routeInstitutionCode]);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -70,6 +95,11 @@ export default function LoginPage() {
     e.preventDefault();
     const request = ++lifecycle.current.request;
     setError(null);
+
+    if (institutionRoute && (institutionLoading || institutionError || !institution)) {
+      setError(institutionError || "Estamos confirmando la institución del enlace. Intenta de nuevo en unos segundos.");
+      return;
+    }
 
     if (!isRecaptchaConfigured) {
       setError(
@@ -91,13 +121,14 @@ export default function LoginPage() {
       const { data } = await apiClient.post("/api/auth/login", {
         ...form,
         recaptchaToken,
+        ...(institutionCode ? { institutionCode } : {}),
       });
 
       if (!lifecycle.current.mounted || request !== lifecycle.current.request) return;
 
       // 1️⃣ EL BACKEND PIDE OTP
       if (data.requiresOtp) {
-        navigate("/otp", {
+        navigate(institutionCode ? `/${encodeURIComponent(institutionCode)}/otp` : "/otp", {
           state: {
             otpToken: data.otpToken,
             email: form.email,
@@ -106,6 +137,8 @@ export default function LoginPage() {
             nextPath,
             institutions: validateOptions(data.institutions || []),
             platformAccess,
+            institutionCode,
+            institutionName: institution?.name || '',
           },
         });
         return;
@@ -186,7 +219,7 @@ export default function LoginPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-semibold text-uvBlue text-center mb-1">
-              Inicia sesión en TutorLink
+              {institution ? `Acceso a ${institution.name}` : 'Inicia sesión en TutorLink'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 text-center mb-5">
               Usa el correo principal de tu cuenta y contraseña para acceder a la
@@ -195,6 +228,9 @@ export default function LoginPage() {
 
             {auth.notice && <p role="status" className="mb-4 text-sm">{auth.notice}</p>}
             {platformAccess && <p role="status" className="mb-4 text-sm text-slate-700">Acceso al ámbito global para SUPER_ADMIN. El servidor verificará tus permisos.</p>}
+            {institutionLoading && <p role="status" className="mb-4 text-sm text-slate-600">Confirmando la institución del enlace…</p>}
+            {institutionError && <p role="alert" className="mb-4 text-sm text-red-700">{institutionError}</p>}
+            {institution && <p role="status" className="mb-4 text-sm text-slate-700">Tu acceso se verificará para esta institución. El servidor determinará los roles autorizados.</p>}
             <Link className="mb-4 block text-uvBlue underline" to={platformAccess ? "/login" : "/login?access=platform"}>{platformAccess ? "Acceso institucional" : "Acceso de plataforma"}</Link>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}

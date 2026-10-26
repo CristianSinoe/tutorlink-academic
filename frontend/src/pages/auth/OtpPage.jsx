@@ -1,10 +1,11 @@
 // src/pages/auth/OtpPage.jsx
 import { useEffect, useState, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import apiClient from "../../api/axiosClient";
 import { useAuth } from "../../context/useAuth.js";
 import Logo from "../../components/Logo";
 import { authorizedNext, sessionHome, validateSession, validateOptions } from "../../context/sessionStore";
+import { normalizeInstitutionCode } from "../../api/institutionApi";
 
 const DEFAULT_RESEND_COOLDOWN_SECONDS = 30;
 
@@ -18,6 +19,8 @@ export default function OtpPage() {
   const navigate = useNavigate();
   const lifecycle = useRef({ mounted: true, request: 0 });
   const location = useLocation();
+  const { institutionCode: routeInstitutionCode } = useParams();
+  const institutionCode = normalizeInstitutionCode(routeInstitutionCode || location.state?.institutionCode);
   const requestScope = location.key;
   useEffect(() => {
     const state = lifecycle.current;
@@ -44,14 +47,15 @@ export default function OtpPage() {
   const [currentOtpToken, setCurrentOtpToken] = useState(state?.otpToken ?? "");
   const [secondsLeft, setSecondsLeft] = useState(initialCooldownSeconds);
   const email = state?.email ?? "";
+  const institutionName = state?.institutionName ?? "";
   const nextPath = state?.nextPath ?? "";
 
   // 🔒 Protección: si no hay otpToken, mandar al login
   useEffect(() => {
     if (!hasOtpState) {
-      navigate("/login", { replace: true });
+      navigate(institutionCode ? `/${encodeURIComponent(institutionCode)}/login` : "/login", { replace: true });
     }
-  }, [hasOtpState, navigate]);
+  }, [hasOtpState, navigate, institutionCode]);
 
   useEffect(() => {
     setCurrentOtpToken(state?.otpToken ?? "");
@@ -107,6 +111,7 @@ export default function OtpPage() {
       const { data } = await apiClient.post("/api/auth/login/verify-otp", {
         otpToken: currentOtpToken,
         code,
+        ...(institutionCode ? { institutionCode } : {}),
         ...(!platformAccess && institutionId ? { institutionId: Number(institutionId) } : {}),
       });
 
@@ -134,7 +139,7 @@ export default function OtpPage() {
 
   const handleBackToLogin = () => {
     lifecycle.current.request++;
-    navigate("/login");
+    navigate(institutionCode ? `/${encodeURIComponent(institutionCode)}/login` : "/login");
   };
 
   const handleResendCode = async () => {
@@ -250,6 +255,12 @@ export default function OtpPage() {
               </p>
             )}
 
+            {institutionName && (
+              <p role="status" className="text-sm text-slate-700 mb-4">
+                Institución de acceso: <strong>{institutionName}</strong>
+              </p>
+            )}
+
 
             {error && (
               <div role="alert" id="otp-error" className="mb-4 text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-center">
@@ -259,6 +270,7 @@ export default function OtpPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
               {platformAccess ? <p role="status" className="text-sm">Acceso global de plataforma; no seleccionarás una escuela en este paso.</p>
+                : institutionCode ? <p role="status" className="text-sm">Institución de acceso: <strong>{institutionName || institutionCode}</strong>. Este enlace ya define el contexto de acceso.</p>
                 : institutions?.length > 0 ? <div><label htmlFor="otp-institution" className="block text-sm font-semibold">Institución de acceso</label>
                   <select id="otp-institution" className="tl-input" value={institutionId} disabled={submitting || resending} onChange={e => setInstitutionId(e.target.value)} aria-describedby="otp-context-help">
                     <option value="" disabled>Selecciona una institución</option>{institutions.map(o => <option key={o.institutionId} value={o.institutionId}>{o.name}</option>)}
