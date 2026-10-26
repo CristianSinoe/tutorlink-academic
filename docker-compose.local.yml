@@ -1,0 +1,53 @@
+name: tutorlink-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tutorlink_local
+      POSTGRES_USER: tutorlink_local
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Carga backend/.env.local antes de ejecutar Compose}
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - tutorlink_local_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutorlink_local -d tutorlink_local"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env.local
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: tutorlink_local
+      DB_USER: tutorlink_local
+      DB_PASSWORD: ${DB_PASSWORD:?Carga backend/.env.local antes de ejecutar Compose}
+      DB_SSL_MODE: disable
+      PORT: 8080
+    ports:
+      - "127.0.0.1:8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+      VITE_RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY:?Carga backend/.env.local antes de ejecutar Compose}
+    ports:
+      - "127.0.0.1:5173:5173"
+
+volumes:
+  tutorlink_local_postgres:
